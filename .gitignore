@@ -12,6 +12,12 @@ __pycache__/
 .venv/
 env/
 venv/
+backend/venv/
+
+# Database & Cache
+*.db
+*.sqlite3
+.pytest_cache/
 
 # Build artifacts
 dist/
