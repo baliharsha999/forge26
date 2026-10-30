@@ -1,14 +1,19 @@
 from fastapi import APIRouter, HTTPException, Query
 from typing import List, Optional
+from datetime import datetime
 from app.models.schemas import (
     GrievanceAnalysisRequest, GrievanceAnalysisResult,
     GrievanceSubmissionRequest, GrievanceSubmissionResult,
     FactCheckRequest, FactCheckResult,
-    GovernmentScheme
+    NormalizedScheme,
+    EscalationRequest, EscalationResponse,
+    EligibilityCheckRequest, EligibilityCheckResult
 )
 from app.services.gemini_service import analyze_civic_grievance
-from app.services.live_data_service import search_schemes, verify_claim_against_fact_checks, reverse_geocode_osm
-from app.agent.browser_agent import execute_browser_grievance_filing
+from app.services.escalation_service import generate_statutory_escalation
+from app.services.live_data_service import reverse_geocode_osm
+from app.agent.browser_agent import execute_deterministic_playwright_filing
+from app.providers.factory import get_scheme_provider
 from app.db.database import get_grievance_by_tracking_id, list_all_grievances
 
 router = APIRouter(prefix="/api/v1")
@@ -16,74 +21,152 @@ router = APIRouter(prefix="/api/v1")
 @router.post("/grievance/analyze", response_model=GrievanceAnalysisResult)
 async def api_analyze_grievance(req: GrievanceAnalysisRequest):
     """
-    Multimodal AI Endpoint: Analyzes speech transcripts or text in any regional language,
-    detects urgency, extracts landmarks, and prepares formal statutory petition.
+    Multimodal Intake Endpoint:
+    Processes speech transcripts/text, checks for PII/Aadhaar leaks,
+    computes urgency scores and confidence, and identifies missing fields.
     """
     try:
-        result = await analyze_civic_grievance(
+        return await analyze_civic_grievance(
             raw_input=req.raw_input,
             language=req.language or "en",
             image_base64=req.image_base64,
             location=req.location
         )
-        return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
 
 @router.post("/grievance/submit", response_model=GrievanceSubmissionResult)
 async def api_submit_grievance(req: GrievanceSubmissionRequest):
     """
-    Autonomous Agent Endpoint: Dispatches browser agent to navigate public grievance
-    portal, auto-fill verified data, capture live telemetry, and return official registration ID.
+    Deterministic Filing Endpoint:
+    Dispatches the Playwright script to populate known selectors on the mock portal.
+    Requires explicit citizen confirmation (req.user_confirmed).
     """
+    if not req.user_confirmed:
+        raise HTTPException(
+            status_code=400,
+            detail="Safety Rule Violation: Grievance cannot be filed without explicit citizen confirmation."
+        )
+
+    # Duplicate check: check if an identical complaint was filed in the last 10 minutes
+    recent_complaints = list_all_grievances(limit=10)
+    for c in recent_complaints:
+        if (c["category"] == req.category and 
+            c["location"].lower() == req.location.lower() and
+            c["citizen_name"].lower() == req.citizen.name.lower()):
+            raise HTTPException(
+                status_code=409,
+                detail=f"Duplicate Complaint Detected: An identical grievance was already registered under Tracking ID #{c['tracking_id']}."
+            )
+
     try:
-        submission = await execute_browser_grievance_filing(req)
-        return submission
+        return await execute_deterministic_playwright_filing(req)
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Submission error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Filing error: {str(e)}")
 
 @router.get("/grievance/list")
 async def api_list_grievances(limit: int = 50):
-    """
-    Live Database Query: Retrieves all grievances currently logged in the civic system.
-    """
+    """Retrieves all active grievances from the SQLite database."""
     return list_all_grievances(limit=limit)
 
 @router.get("/grievance/track/{tracking_id}")
 async def api_track_grievance(tracking_id: str):
-    """
-    Real-time Tracking: Returns SLA status, assigned ward officer, and telemetry timeline.
-    """
+    """Returns tracking status, days elapsed, and assigned officer details."""
     record = get_grievance_by_tracking_id(tracking_id)
     if not record:
-        raise HTTPException(status_code=404, detail=f"Tracking ID {tracking_id} not found")
+        raise HTTPException(status_code=404, detail=f"Tracking ID #{tracking_id} not found")
     return record
+
+@router.post("/escalate", response_model=EscalationResponse)
+async def api_escalate_complaint(req: EscalationRequest):
+    """
+    Escalation Studio:
+    Generates structured Reminder letters, First Appeals (RPSA), or RTI applications
+    for overdue grievances. Never sent automatically.
+    """
+    record = get_grievance_by_tracking_id(req.tracking_id)
+    if not record:
+        raise HTTPException(status_code=404, detail=f"Tracking ID #{req.tracking_id} not found")
+
+    return generate_statutory_escalation(
+        complaint=record,
+        escalation_type=req.escalation_type,
+        days_elapsed=req.days_elapsed
+    )
 
 @router.post("/fact-check", response_model=FactCheckResult)
 async def api_fact_check_claim(req: FactCheckRequest):
     """
-    Misinformation Shield: Cross-references viral claims against PIB and official gazettes.
+    3-Outcome Claim Verifier:
+    Evaluates viral messages against verified scheme records.
+    Outputs: 'matches', 'contradicts', or 'unverified' with exact source text.
     """
-    try:
-        return verify_claim_against_fact_checks(req.claim)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Fact-checking error: {str(e)}")
+    provider = get_scheme_provider()
+    result = await provider.verify_claim(req.claim)
+    return FactCheckResult(
+        claim=req.claim,
+        outcome=result["outcome"],
+        verdict=result["verdict"],
+        truth_score=result["truth_score"],
+        summary=result["summary"],
+        exact_source_text=result["exact_source_text"],
+        official_source_url=result["official_source_url"],
+        last_verified_date=result["last_verified_date"],
+        action_advice_for_citizens=result["action_advice"],
+        matched_scheme_id=result.get("matched_scheme_id")
+    )
 
-@router.get("/schemes", response_model=List[GovernmentScheme])
+@router.get("/schemes", response_model=List[NormalizedScheme])
 async def api_get_schemes(
     category: str = Query("all", description="farmer, student, women, healthcare, senior, msme"),
     state: str = Query("All-India", description="State filter"),
     query: str = Query("", description="Keyword search")
 ):
     """
-    Verified Scheme Navigator: Returns active Central and State schemes.
+    Normalized Scheme Provider:
+    Returns government schemes via API Setu or hand-verified local store.
     """
-    data = search_schemes(query=query, category=category, state=state)
-    return [GovernmentScheme(**s) for s in data]
+    provider = get_scheme_provider()
+    return await provider.get_schemes(category=category, state=state, query=query)
+
+@router.post("/schemes/eligibility", response_model=EligibilityCheckResult)
+async def api_check_eligibility(req: EligibilityCheckRequest):
+    """
+    Non-definitive Eligibility Helper:
+    Evaluates citizen profile against criteria and provides guidance.
+    """
+    provider = get_scheme_provider()
+    all_schemes = await provider.get_schemes()
+    
+    likely_matches = []
+    for s in all_schemes:
+        match_reasons = []
+        # Check occupation
+        if req.occupation and req.occupation.lower() in s.category.lower():
+            match_reasons.append(f"Matches category '{s.category}'")
+        if req.landholder and s.category == "farmer":
+            match_reasons.append("Eligible as landholder farmer")
+        if req.gender == "female" and s.category == "women":
+            match_reasons.append("Eligible under women empowerment initiative")
+        if req.age and req.age >= 60 and s.category == "senior":
+            match_reasons.append(f"Senior citizen criteria satisfied (Age {req.age})")
+
+        if match_reasons:
+            likely_matches.append({
+                "scheme_id": s.id,
+                "scheme_name": s.name,
+                "official_url": s.official_url,
+                "reasons": match_reasons,
+                "status": "Likely Eligible",
+                "next_step": f"Confirm exact documentation at {s.official_url}"
+            })
+
+    return EligibilityCheckResult(
+        likely_eligible_schemes=likely_matches[:5],
+        disclaimer="Non-definitive evaluation based on citizen-provided details. Always verify at official portal."
+    )
 
 @router.get("/geocode/reverse")
 async def api_reverse_geocode(lat: float, lon: float):
-    """
-    Live OpenStreetMap Geocoding: Converts GPS coordinates to district and municipal zone.
-    """
+    """Live OpenStreetMap reverse geocoding."""
     return await reverse_geocode_osm(lat, lon)
