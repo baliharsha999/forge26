@@ -286,6 +286,19 @@ class MockPortalAdapter extends BasePortalAdapter {
 
     return { success: false, error: 'Element not found for key: ' + key };
   }
+
+  /**
+   * Fills multiple fields sequentially and reports progress.
+   */
+  async fillFields(fieldsMap) {
+    for (const [key, val] of Object.entries(fieldsMap)) {
+      if (val !== undefined && val !== null && val !== '') {
+        await this.fillSingleField(key, val);
+        await new Promise(r => setTimeout(r, 120));
+      }
+    }
+    return { success: true };
+  }
 }
 
 window.MockPortalAdapter = MockPortalAdapter;

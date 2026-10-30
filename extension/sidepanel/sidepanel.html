@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JanSetu Lite - Civic Pulse Side Panel</title>
+  <title>JanSetu Lite - Civic Copilot</title>
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
@@ -14,277 +14,338 @@
       <div class="logo">🏛️</div>
       <div>
         <h1>JanSetu Lite</h1>
-        <div class="subtitle">AI Civic Copilot & Redressal Agent</div>
+        <div class="subtitle">Conversational Civic Copilot</div>
       </div>
     </div>
     
-    <!-- Language Selector -->
-    <div class="lang-selector">
-      <button class="lang-btn active" data-lang="en">EN</button>
-      <button class="lang-btn" data-lang="hi">HI</button>
-      <button class="lang-btn" data-lang="te">TE</button>
+    <div class="header-controls">
+      <!-- Voice Toggle -->
+      <button id="voice-toggle-btn" class="voice-toggle-btn" title="Toggle audio questions aloud">
+        <span id="voice-icon">🔊</span>
+        <span id="voice-status">Voice ON</span>
+      </button>
+
+      <!-- Language Selector -->
+      <div class="lang-selector">
+        <button class="lang-btn active" data-lang="en">EN</button>
+        <button class="lang-btn" data-lang="hi">HI</button>
+        <button class="lang-btn" data-lang="te">TE</button>
+      </div>
     </div>
   </header>
 
   <!-- Navigation Tabs -->
   <nav class="nav-tabs">
-    <button class="tab-btn active" data-target="tab-complaint">1. Complaint</button>
-    <button class="tab-btn" data-target="tab-schemes">2. Schemes</button>
+    <button class="tab-btn active" data-target="tab-complaint">1. File Grievance</button>
+    <button class="tab-btn" data-target="tab-schemes">2. Scheme Checker</button>
     <button class="tab-btn" data-target="tab-escalate">3. Escalations</button>
   </nav>
 
-  <!-- TAB 1: COMPLAINT INTAKE & FILLING -->
+  <!-- TAB 1: COMPLAINT INTAKE WIZARD -->
   <section id="tab-complaint" class="tab-content active">
     
     <!-- Privacy Advisory -->
     <div id="privacy-banner" class="alert-banner warning hidden">
-      <span>⚠️ Aadhaar detected and masked. We never store government identity numbers.</span>
+      <span>⚠️ Aadhaar detected and masked. Government rules forbid storing national IDs on portal forms.</span>
     </div>
 
     <!-- Active Tab Support Status -->
-    <div id="tab-status-banner" class="alert-banner info">
-      <span id="tab-status-text">Checking active tab portal compatibility...</span>
+    <div id="tab-status-banner" class="alert-banner live">
+      <span id="tab-status-text">Connected to: Mock Municipal Corporation Portal</span>
+      <span style="font-size: 10px; font-weight: 800; background: #dcfce7; padding: 2px 6px; border-radius: 4px;">LIVE CO-PILOT</span>
     </div>
 
-    <!-- Active Tab Form Inspector -->
-    <div id="inspector-card" class="inspection-card hidden">
-      <div class="inspection-header">
-        <div>
-          <span class="inspection-title">🔍 Portal Form Inspector</span>
-          <div id="inspector-status-text" class="inspection-sub">Scanning active portal...</div>
+    <!-- Step Progress Tracker -->
+    <div class="wizard-progress">
+      <div class="progress-header">
+        <span id="progress-step-label" class="step-label">Step 1: The Problem</span>
+        <span id="progress-step-count" class="step-count">1 of 5</span>
+      </div>
+      <div class="progress-track">
+        <div id="progress-bar" class="progress-bar" style="width: 20%;"></div>
+      </div>
+    </div>
+
+    <!-- Live Audio Speaking Indicator -->
+    <div id="speaking-indicator" class="voice-speaking-indicator hidden">
+      <div class="voice-wave">
+        <span></span><span></span><span></span>
+      </div>
+      <span id="speaking-text">JanSetu is asking aloud...</span>
+    </div>
+
+    <!-- STEP 1: The Problem -->
+    <div id="wizard-step-1" class="step-card active">
+      <div class="question-box">
+        <div class="question-icon">📢</div>
+        <h2 id="q1-title" class="step-title">What problem are you facing?</h2>
+        <p id="q1-sub" class="step-subtitle">Tell me what happened in simple everyday words or tap the mic to speak.</p>
+      </div>
+
+      <div class="input-wrapper">
+        <textarea id="input-problem" class="big-textarea" rows="3" placeholder="Speak or type: 'my house wall is broken due to muncipal water leakage'"></textarea>
+        <div class="mic-control-bar">
+          <button id="mic-btn-step1" class="mic-toggle-btn" title="Click to speak">
+            <span>🎙️</span>
+            <span class="mic-label">Tap to Speak</span>
+          </button>
         </div>
-        <button id="reinspect-btn" class="mini-btn" title="Re-scan active page fields">Scan Page</button>
-      </div>
-      <div id="inspection-fields-pillbox" class="pillbox-container"></div>
-    </div>
-
-    <!-- Intake Area -->
-    <div class="card">
-      <label class="label">Describe Your Civic Issue:</label>
-      <div class="textarea-wrapper">
-        <textarea id="raw-input" rows="3" placeholder="Speak or type: 'my house wall is broken due to muncipal water leakage...'"></textarea>
-        <button id="mic-btn" class="icon-btn" title="Click to speak">🎤</button>
       </div>
 
-      <!-- Quick Test Chips -->
+      <!-- Quick Samples -->
       <div class="chips-container">
-        <span class="chips-label">Quick samples:</span>
-        <button class="chip" data-text="my house wall is broken due to muncipal cos water leakage">🚰 Broken Wall Leak</button>
-        <button class="chip" data-text="Dangerous large crater pothole near Pillar 42 Kukatpally, two wheelers skidding">🚧 Road Pothole</button>
-        <button class="chip" data-text="High voltage transformer sparking near junction, fire hazard">⚡ Transformer</button>
+        <button class="chip" data-text="my house wall is broken due to muncipal cos water leakage">🚰 Wall Broken / Water Leak</button>
+        <button class="chip" data-text="Deep crater pothole near Main Road junction, two-wheelers skidding">🚧 Dangerous Road Pothole</button>
+        <button class="chip" data-text="High voltage transformer sparking near residential houses">⚡ Transformer Sparking Hazard</button>
       </div>
 
-      <!-- Photo Attachment -->
-      <div class="photo-upload-container">
-        <label class="label">Attach Photo Proof (Optional):</label>
-        <input type="file" id="photo-input" accept="image/*">
-        <div id="photo-preview" class="photo-preview hidden">
-          <img id="photo-img" src="" alt="Proof Preview">
-          <button id="remove-photo" class="text-btn">Remove</button>
-        </div>
-      </div>
-
-      <button id="analyze-btn" class="primary-btn">
-        <span class="btn-text">Synthesize Complaint</span>
-        <span class="spinner hidden"></span>
-      </button>
-    </div>
-
-    <!-- Confirmation & Step-by-Step Portal Intake Card -->
-    <div id="confirmation-card" class="card hidden">
-      <div class="card-header">
-        <span class="tag" id="conf-urgency">HIGH URGENCY</span>
-        <h3 id="conf-category">Civic Grievance</h3>
-      </div>
-
-      <!-- AI Follow-up Prompt / Missing Fields Warning -->
-      <div id="followup-box" class="followup-box hidden">
-        <span class="followup-icon">🤖</span>
-        <div>
-          <strong style="display: block; margin-bottom: 2px;">Details Needed for Portal:</strong>
-          <span id="followup-text">Please provide your name, phone number, and location so the municipal team can dispatch.</span>
-        </div>
-      </div>
-
-      <!-- Field 1: Citizen Name -->
-      <div class="form-group">
-        <div class="field-row-header">
-          <label class="label">1. Citizen Full Name *</label>
-          <span id="badge-name" class="field-status-tag required">Required</span>
-        </div>
-        <div class="field-input-group">
-          <input type="text" id="citizen-name" class="input" placeholder="Enter your full legal name">
-          <button class="btn-single-fill" data-key="citizen_name" data-label="Citizen Name">Fill ➔</button>
-        </div>
-      </div>
-
-      <!-- Field 2: Citizen Phone -->
-      <div class="form-group">
-        <div class="field-row-header">
-          <label class="label">2. Contact Mobile Number *</label>
-          <span id="badge-phone" class="field-status-tag required">Required</span>
-        </div>
-        <div class="field-input-group">
-          <input type="tel" id="citizen-phone" class="input" placeholder="10-digit mobile number for SMS tracking">
-          <button class="btn-single-fill" data-key="citizen_phone" data-label="Contact Phone">Fill ➔</button>
-        </div>
-      </div>
-
-      <!-- Field 3: Target Department -->
-      <div class="form-group">
-        <div class="field-row-header">
-          <label class="label">3. Responsible Department *</label>
-          <span class="field-status-tag ai">AI Identified</span>
-        </div>
-        <div class="field-input-group">
-          <input type="text" id="edit-department" class="input">
-          <button class="btn-single-fill" data-key="department" data-label="Department">Fill ➔</button>
-        </div>
-      </div>
-
-      <!-- Field 4: Category -->
-      <div class="form-group">
-        <div class="field-row-header">
-          <label class="label">4. Issue Category *</label>
-          <span class="field-status-tag ai">AI Classified</span>
-        </div>
-        <div class="field-input-group">
-          <input type="text" id="edit-category" class="input">
-          <button class="btn-single-fill" data-key="category" data-label="Category">Fill ➔</button>
-        </div>
-      </div>
-
-      <!-- Field 5: Urgency Level -->
-      <div class="form-group">
-        <div class="field-row-header">
-          <label class="label">5. Urgency Level *</label>
-          <span class="field-status-tag ai">AI Assessed</span>
-        </div>
-        <div class="field-input-group">
-          <select id="edit-urgency" class="input">
-            <option value="HIGH">HIGH (Immediate Safety Risk)</option>
-            <option value="MEDIUM">MEDIUM (Standard Maintenance)</option>
-            <option value="LOW">LOW (General Inquiry)</option>
-          </select>
-          <button class="btn-single-fill" data-key="urgency_level" data-label="Urgency">Fill ➔</button>
-        </div>
-      </div>
-
-      <!-- Field 6: Incident Location -->
-      <div class="form-group">
-        <div class="field-row-header">
-          <label class="label">6. Exact Location / Ward / Landmark *</label>
-          <span id="badge-loc" class="field-status-tag required">Required</span>
-        </div>
-        <div class="field-input-group">
-          <input type="text" id="edit-location" class="input" placeholder="House No, Street, Ward, Colony, Landmark">
-          <button id="detect-gps-btn" class="btn-gps" title="Detect GPS Location via OpenStreetMap">📍 GPS</button>
-          <button class="btn-single-fill" data-key="location" data-label="Location">Fill ➔</button>
-        </div>
-      </div>
-
-      <!-- Field 7: Formal Description -->
-      <div class="form-group">
-        <div class="field-row-header">
-          <label class="label">7. Formal Petition Description *</label>
-          <span class="field-status-tag ai">AI Drafted</span>
-        </div>
-        <div class="field-input-group">
-          <textarea id="edit-description" rows="3" class="input" placeholder="Detailed grievance text..."></textarea>
-          <button class="btn-single-fill" data-key="description" data-label="Petition Text">Fill ➔</button>
-        </div>
-      </div>
-
-      <!-- Field 8: Photo Evidence -->
-      <div class="form-group">
-        <div class="field-row-header">
-          <label class="label">8. Photo Proof</label>
-          <span class="field-status-tag">Optional</span>
-        </div>
-        <div class="field-input-group">
-          <div style="font-size: 11px; color: #64748b; padding: 6px 0; flex: 1;" id="photo-status-text">
-            No photo attached yet
-          </div>
-          <button class="btn-single-fill" data-key="photo" data-label="Photo Proof">Attach ➔</button>
-        </div>
-      </div>
-
-      <div class="action-box">
-        <p class="notice">🔒 <strong>Citizen Safety Guarantee:</strong> JanSetu fills form fields for you to review. We never click 'Submit' automatically on official portals.</p>
-        <button id="fill-portal-btn" class="action-btn">
-          <span>🤖 Auto-Fill All Remaining Fields in Portal</span>
+      <div class="wizard-nav">
+        <button id="btn-next-step1" class="btn-next">
+          <span class="btn-text">Analyze & Continue ➔</span>
           <span class="spinner hidden"></span>
         </button>
       </div>
     </div>
 
-    <!-- Guided Handoff Screen (Fallback when layout changes or site unsupported) -->
-    <div id="handoff-card" class="card warning hidden">
-      <h3>📋 Guided Manual Handoff</h3>
-      <p class="subtitle">The active website layout is not auto-fillable. Use these one-click copy buttons:</p>
-      
-      <div class="handoff-field">
-        <span>Department: <strong id="hf-dept"></strong></span>
-        <button class="copy-btn" data-target="hf-dept">Copy</button>
+    <!-- STEP 2: The Location -->
+    <div id="wizard-step-2" class="step-card">
+      <div class="question-box">
+        <div class="question-icon">📍</div>
+        <h2 id="q2-title" class="step-title">Where did this happen?</h2>
+        <p id="q2-sub" class="step-subtitle">Tell me the street name, colony, or tap the button to use GPS.</p>
       </div>
-      <div class="handoff-field">
-        <span>Location: <strong id="hf-loc"></strong></span>
-        <button class="copy-btn" data-target="hf-loc">Copy</button>
+
+      <div class="assist-row">
+        <button id="btn-gps-detect" class="gps-prominent-btn">
+          <span>📍</span>
+          <span id="gps-btn-text">Auto-Detect My Current GPS Location</span>
+        </button>
       </div>
-      <div class="handoff-field">
-        <span>Petition Text:</span>
-        <button class="copy-btn" data-target="hf-desc">Copy</button>
+
+      <div class="input-wrapper">
+        <input type="text" id="input-location" class="big-input" placeholder="e.g. Door 14, Ward 7, Near Water Tank, Kukatpally">
+        <div class="mic-control-bar">
+          <button id="mic-btn-step2" class="mic-toggle-btn">
+            <span>🎙️</span>
+            <span class="mic-label">Speak Location</span>
+          </button>
+        </div>
       </div>
-      <p id="hf-desc" class="handoff-text"></p>
+
+      <div class="wizard-nav">
+        <button id="btn-back-step2" class="btn-back">⬅ Back</button>
+        <button id="btn-next-step2" class="btn-next">
+          <span>Save & Continue ➔</span>
+        </button>
+      </div>
     </div>
 
-    <!-- Official Receipt -->
-    <div id="receipt-card" class="card success hidden">
-      <div class="receipt-header">✅ Grievance Confirmed!</div>
-      <p class="receipt-id" id="receipt-tracking-id">CP-2026-00000</p>
-      <p class="subtitle">Tracking reference captured from portal. Saved to public transparency ledger.</p>
+    <!-- STEP 3: Citizen Full Name -->
+    <div id="wizard-step-3" class="step-card">
+      <div class="question-box">
+        <div class="question-icon">👤</div>
+        <h2 id="q3-title" class="step-title">What is your full name?</h2>
+        <p id="q3-sub" class="step-subtitle">The municipal department requires your legal name for the grievance file.</p>
+      </div>
+
+      <!-- Quick profile chip if saved -->
+      <div id="saved-name-container" class="assist-row hidden">
+        <button id="btn-use-saved-name" class="profile-chip-btn">
+          <span>👤</span>
+          <span id="saved-name-text">Use: Ramesh Kumar</span>
+        </button>
+      </div>
+
+      <div class="input-wrapper">
+        <input type="text" id="input-name" class="big-input" placeholder="e.g. Rajesh Sharma">
+        <div class="mic-control-bar">
+          <button id="mic-btn-step3" class="mic-toggle-btn">
+            <span>🎙️</span>
+            <span class="mic-label">Speak Your Name</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="wizard-nav">
+        <button id="btn-back-step3" class="btn-back">⬅ Back</button>
+        <button id="btn-next-step3" class="btn-next">
+          <span>Save & Continue ➔</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 4: Citizen Phone Number -->
+    <div id="wizard-step-4" class="step-card">
+      <div class="question-box">
+        <div class="question-icon">📞</div>
+        <h2 id="q4-title" class="step-title">What is your mobile number?</h2>
+        <p id="q4-sub" class="step-subtitle">You will receive official SMS tracking updates and inspection alerts on this 10-digit number.</p>
+      </div>
+
+      <!-- Quick profile chip if saved -->
+      <div id="saved-phone-container" class="assist-row hidden">
+        <button id="btn-use-saved-phone" class="profile-chip-btn">
+          <span>📞</span>
+          <span id="saved-phone-text">Use: 9876543210</span>
+        </button>
+      </div>
+
+      <div class="input-wrapper">
+        <input type="tel" id="input-phone" class="big-input" maxlength="10" placeholder="10-digit mobile number (e.g. 9876543210)">
+        <div class="mic-control-bar">
+          <button id="mic-btn-step4" class="mic-toggle-btn">
+            <span>🎙️</span>
+            <span class="mic-label">Speak Number</span>
+          </button>
+        </div>
+      </div>
+
+      <div class="wizard-nav">
+        <button id="btn-back-step4" class="btn-back">⬅ Back</button>
+        <button id="btn-next-step4" class="btn-next">
+          <span>Save & Continue ➔</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 5: Photo Evidence -->
+    <div id="wizard-step-5" class="step-card">
+      <div class="question-box">
+        <div class="question-icon">📷</div>
+        <h2 id="q5-title" class="step-title">Do you have a photo of the damage?</h2>
+        <p id="q5-sub" class="step-subtitle">Photographic proof helps ward officers inspect and approve repairs faster. You can also skip this.</p>
+      </div>
+
+      <div class="input-wrapper">
+        <input type="file" id="input-photo" accept="image/*" class="big-input" style="padding: 6px;">
+        <div id="photo-preview-box" class="assist-row hidden" style="margin-top: 8px;">
+          <img id="photo-preview-img" src="" alt="Proof Preview" style="max-height: 100px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: cover;">
+          <button id="btn-remove-photo" style="border: none; background: #fee2e2; color: #dc2626; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer; align-self: flex-start; margin-top: 4px;">Remove Photo</button>
+        </div>
+      </div>
+
+      <div class="wizard-nav">
+        <button id="btn-back-step5" class="btn-back">⬅ Back</button>
+        <button id="btn-skip-photo" class="btn-skip">Skip Photo</button>
+        <button id="btn-next-step5" class="btn-next">
+          <span>Finish & Review ➔</span>
+        </button>
+      </div>
+    </div>
+
+    <!-- STEP 6: Review & Final Submission Prompt -->
+    <div id="wizard-step-6" class="step-card">
+      <div class="question-box">
+        <div class="question-icon">🎉</div>
+        <h2 class="step-title" style="color: #166534;">Form Filled on Portal!</h2>
+        <p class="step-subtitle">JanSetu has populated every required field directly into the municipal portal on your screen.</p>
+      </div>
+
+      <!-- Review Card -->
+      <div class="review-card">
+        <div class="review-item">
+          <span class="review-key">🏢 Department</span>
+          <span id="rev-dept" class="review-val">Water Supply Board</span>
+        </div>
+        <div class="review-item">
+          <span class="review-key">🏷️ Category</span>
+          <span id="rev-cat" class="review-val">Water Pipeline Leak</span>
+        </div>
+        <div class="review-item">
+          <span class="review-key">⚡ Urgency</span>
+          <span id="rev-urgency" class="review-val" style="color: #b91c1c;">HIGH (Safety Risk)</span>
+        </div>
+        <div class="review-item">
+          <span class="review-key">📍 Location</span>
+          <span id="rev-loc" class="review-val">Ward 7</span>
+        </div>
+        <div class="review-item">
+          <span class="review-key">👤 Citizen</span>
+          <span id="rev-name" class="review-val">Ramesh</span>
+        </div>
+        <div class="review-item">
+          <span class="review-key">📞 Mobile</span>
+          <span id="rev-phone" class="review-val">9876543210</span>
+        </div>
+      </div>
+
+      <!-- Prominent Callout pointing to portal page -->
+      <div class="pulse-target-prompt">
+        <span class="pulse-icon">👉</span>
+        <div class="pulse-title">LOOK AT THE PORTAL ON YOUR SCREEN</div>
+        <p class="pulse-text">All form fields have been filled in for you. Click the blue <strong>"Submit Grievance"</strong> button on the webpage to finish!</p>
+      </div>
+
+      <div class="wizard-nav">
+        <button id="btn-restart-wizard" class="btn-back" style="flex: 1;">🔄 File Another Grievance</button>
+      </div>
+    </div>
+
+    <!-- Official Receipt (Shown when tracking ID detected) -->
+    <div id="receipt-card" class="step-card" style="border-color: #86efac; background: #f0fdf4;">
+      <div class="receipt-header">✅ Grievance Officially Dispatched!</div>
+      <p id="receipt-tracking-id" class="receipt-id">CP-2026-00000</p>
+      <p class="subtitle" style="margin-bottom: 10px;">Tracking reference detected live from portal receipt. Grievance entered into public municipal ledger.</p>
+      <button id="btn-view-escalations" class="btn-next success" style="width: 100%;">
+        <span>Check Statutory Escalation Deadlines ➔</span>
+      </button>
     </div>
 
   </section>
 
   <!-- TAB 2: SCHEME CLAIM CHECKER -->
   <section id="tab-schemes" class="tab-content">
-    <div class="card">
-      <label class="label">Check Viral Government Scheme Forward:</label>
-      <textarea id="claim-input" rows="2" placeholder="Paste claim: 'PM-KISAN gives farmers Rs 6,000 per year...'"></textarea>
-      <button id="check-claim-btn" class="primary-btn mt-2">Verify Against Official Schemes</button>
+    <div class="step-card active">
+      <div class="question-box">
+        <div class="question-icon">📜</div>
+        <h2 class="step-title">Government Scheme Fact-Checker</h2>
+        <p class="step-subtitle">Paste any viral forward or claim to verify it against official gazette rules and API Setu records.</p>
+      </div>
+
+      <textarea id="claim-input" class="big-textarea" rows="2" placeholder="Paste claim: 'PM-KISAN gives farmers Rs 6,000 per year...'"></textarea>
+      <button id="check-claim-btn" class="btn-next mt-2" style="width: 100%; margin-top: 8px;">Verify Against Official Schemes</button>
       
-      <div id="claim-result" class="result-box hidden">
-        <div class="result-verdict" id="claim-verdict">MATCHES OFFICIAL SOURCE</div>
-        <p id="claim-summary" class="result-summary"></p>
-        <div class="quote-box">
-          <small>Exact Quoted Source Text:</small>
-          <blockquote id="claim-quote"></blockquote>
+      <div id="claim-result" class="review-card hidden" style="margin-top: 12px;">
+        <div class="step-title" id="claim-verdict" style="font-size: 13px; color: #166534;">MATCHES OFFICIAL SOURCE</div>
+        <p id="claim-summary" class="step-subtitle" style="margin-top: 4px;"></p>
+        <div style="background: #ffffff; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; margin: 8px 0;">
+          <small style="color: #64748b; font-weight: 700;">Exact Quoted Statutory Text:</small>
+          <blockquote id="claim-quote" style="font-size: 11px; color: #334155; margin-top: 4px; font-style: italic;"></blockquote>
         </div>
-        <a id="claim-link" href="#" target="_blank" class="link">View Official Scheme on myScheme ➔</a>
+        <a id="claim-link" href="#" target="_blank" style="color: #2563eb; font-weight: 700; font-size: 11px; text-decoration: none;">View Official Scheme on myScheme ➔</a>
       </div>
     </div>
   </section>
 
   <!-- TAB 3: ESCALATIONS -->
   <section id="tab-escalate" class="tab-content">
-    <div class="card">
-      <label class="label">Enter Grievance Reference ID:</label>
-      <input type="text" id="esc-tracking-id" class="input" value="CP-2026-98124">
-      
-      <label class="label mt-2">Choose Statutory Escalation Type:</label>
-      <div class="radio-group">
-        <label><input type="radio" name="esc-type" value="reminder" checked> Urgent Reminder</label>
-        <label><input type="radio" name="esc-type" value="appeal"> 1st Appeal (RPSA)</label>
-        <label><input type="radio" name="esc-type" value="rti"> Section 6(1) RTI</label>
+    <div class="step-card active">
+      <div class="question-box">
+        <div class="question-icon">⚖️</div>
+        <h2 class="step-title">Statutory Escalation Studio</h2>
+        <p class="step-subtitle">Generate legally binding Reminder letters, Right to Public Services Appeals, or RTI Applications for overdue complaints.</p>
       </div>
 
-      <button id="generate-esc-btn" class="primary-btn mt-3">Generate Statutory Draft</button>
+      <div class="input-wrapper">
+        <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Grievance Reference Number:</label>
+        <input type="text" id="esc-tracking-id" class="big-input" value="CP-2026-98124">
+      </div>
+      
+      <div class="input-wrapper">
+        <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Select Statutory Escalation Type:</label>
+        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; margin-top: 4px;">
+          <label style="display: flex; align-items: center; gap: 6px;"><input type="radio" name="esc-type" value="reminder" checked> Urgent Notice & Reminder (Day 7+)</label>
+          <label style="display: flex; align-items: center; gap: 6px;"><input type="radio" name="esc-type" value="appeal"> 1st Appeal under Right to Public Services Act (Day 15+)</label>
+          <label style="display: flex; align-items: center; gap: 6px;"><input type="radio" name="esc-type" value="rti"> Section 6(1) RTI Application (Day 30+)</label>
+        </div>
+      </div>
 
-      <div id="esc-result-container" class="mt-3 hidden">
-        <h4 id="esc-subject" class="font-bold text-xs mb-1"></h4>
-        <textarea id="esc-body" rows="8" class="input font-mono text-[11px]"></textarea>
-        <button id="copy-esc-btn" class="secondary-btn mt-2">Copy Escalation to Clipboard</button>
+      <button id="generate-esc-btn" class="btn-next" style="width: 100%; margin-top: 8px;">Generate Statutory Draft</button>
+
+      <div id="esc-result-container" class="review-card hidden" style="margin-top: 12px;">
+        <h4 id="esc-subject" style="font-weight: 800; font-size: 12px; color: #0f172a; margin-bottom: 6px;"></h4>
+        <textarea id="esc-body" rows="8" class="big-textarea" style="font-family: monospace; font-size: 11px;"></textarea>
+        <button id="copy-esc-btn" class="btn-back" style="width: 100%; margin-top: 6px; font-weight: 800; color: #2563eb;">📋 Copy Escalation to Clipboard</button>
       </div>
     </div>
   </section>

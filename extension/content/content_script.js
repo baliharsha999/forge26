@@ -101,6 +101,23 @@
       return true;
     }
 
+    if (message.action === "FILL_FIELDS") {
+      const adapter = window.getPortalAdapter();
+      if (!adapter || typeof adapter.fillFields !== "function") {
+        sendResponse({ success: false, error: "Adapter does not support fillFields" });
+        return true;
+      }
+      showBanner("JanSetu Copilot is filling fields on page...");
+      adapter.fillFields(message.fields).then(res => {
+        showBanner("Updated portal fields!", true);
+        sendResponse(res);
+      }).catch(err => {
+        showBanner("Error filling fields: " + err.message, true);
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
     if (message.action === "FILL_PORTAL_FORM") {
       const adapter = window.getPortalAdapter();
       if (!adapter) {

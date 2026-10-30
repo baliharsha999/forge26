@@ -118,4 +118,25 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+
+  // 7. Forward batch field fill request to active tab
+  if (message.action === "TRIGGER_FILL_FIELDS") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) {
+        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
+        return;
+      }
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "FILL_FIELDS",
+        fields: message.fields
+      }, (res) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ success: false, error: "CONTENT_SCRIPT_NOT_READY" });
+        } else {
+          sendResponse(res);
+        }
+      });
+    });
+    return true;
+  }
 });
