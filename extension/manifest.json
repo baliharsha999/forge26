@@ -16,7 +16,10 @@
   "host_permissions": [
     "http://localhost:8000/*",
     "http://127.0.0.1:8000/*",
-    "https://pgportal.gov.in/*"
+    "https://*.gov.in/*",
+    "http://*.gov.in/*",
+    "https://*.nic.in/*",
+    "http://*.nic.in/*"
   ],
   "background": {
     "service_worker": "background/service_worker.js"
@@ -30,14 +33,18 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost:8000/portal*",
-        "http://127.0.0.1:8000/portal*",
-        "https://pgportal.gov.in/*"
+        "http://localhost:8000/*",
+        "http://127.0.0.1:8000/*",
+        "https://*.gov.in/*",
+        "http://*.gov.in/*",
+        "https://*.nic.in/*",
+        "http://*.nic.in/*"
       ],
       "js": [
         "content/adapters/base_adapter.js",
         "content/adapters/mock_portal_adapter.js",
         "content/adapters/cpgrams_adapter.js",
+        "content/adapters/generic_portal_adapter.js",
         "content/adapters/index.js",
         "content/content_script.js"
       ],
