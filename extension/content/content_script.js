@@ -35,7 +35,80 @@
     }
   }
 
-  // Observe DOM for newly rendered tracking ID (e.g. after citizen submits)
+  function findTargetElement(target) {
+    target = (target || "").toUpperCase();
+    const allLinks = Array.from(document.querySelectorAll("a, button, input[type='submit'], input[type='button']"));
+
+    if (target === "SIGN_IN" || target === "LOGIN") {
+      return allLinks.find(el => {
+        const txt = (el.innerText || el.value || "").toLowerCase();
+        const href = (el.getAttribute("href") || "").toLowerCase();
+        return (txt.includes("sign in") || txt.includes("signin") || txt.includes("login") || href.includes("signin") || href.includes("login")) && !txt.includes("officer");
+      });
+    }
+
+    if (target === "REGISTER" || target === "SIGN_UP") {
+      return allLinks.find(el => {
+        const txt = (el.innerText || el.value || "").toLowerCase();
+        const href = (el.getAttribute("href") || "").toLowerCase();
+        return txt.includes("register") || txt.includes("sign up") || txt.includes("signup") || href.includes("registration");
+      });
+    }
+
+    if (target === "LODGE" || target === "GRIEVANCE") {
+      return allLinks.find(el => {
+        const txt = (el.innerText || el.value || "").toLowerCase();
+        const href = (el.getAttribute("href") || "").toLowerCase();
+        return txt.includes("lodge") || txt.includes("grievance") || href.includes("lodge");
+      });
+    }
+
+    return document.querySelector(target);
+  }
+
+  function highlightPageElement(target) {
+    const el = findTargetElement(target);
+    if (!el) return false;
+
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+
+    const oldBadge = document.getElementById("nagarik-spotlight-badge");
+    if (oldBadge) oldBadge.remove();
+
+    const originalOutline = el.style.outline;
+    const originalShadow = el.style.boxShadow;
+
+    el.style.outline = "4px solid #F06A25";
+    el.style.boxShadow = "0 0 30px #F06A25, 0 0 10px rgba(240, 106, 37, 0.8)";
+
+    const badge = document.createElement("div");
+    badge.id = "nagarik-spotlight-badge";
+    badge.innerHTML = `<span>👉 Nagarik AI: Click Here to Sign In</span>`;
+    badge.style.position = "absolute";
+    badge.style.background = "#F06A25";
+    badge.style.color = "#0B0C1E";
+    badge.style.padding = "6px 14px";
+    badge.style.borderRadius = "20px";
+    badge.style.fontWeight = "800";
+    badge.style.fontSize = "13px";
+    badge.style.zIndex = "999999999";
+    badge.style.boxShadow = "0 6px 20px rgba(0,0,0,0.5)";
+    document.body.appendChild(badge);
+
+    const rect = el.getBoundingClientRect();
+    badge.style.top = (window.scrollY + rect.top - 36) + "px";
+    badge.style.left = (window.scrollX + rect.left) + "px";
+
+    setTimeout(() => {
+      el.style.outline = originalOutline;
+      el.style.boxShadow = originalShadow;
+      if (badge) badge.remove();
+    }, 12000);
+
+    return true;
+  }
+
+    // Observe DOM for newly rendered tracking ID (e.g. after citizen submits)
   const observer = new MutationObserver(() => {
     const adapter = window.getPortalAdapter();
     if (adapter) {
@@ -54,6 +127,23 @@
 
   // Listen for extension messages
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+    if (message.action === "HIGHLIGHT_PAGE_ELEMENT") {
+      const ok = highlightPageElement(message.target || "SIGN_IN");
+      sendResponse({ success: ok });
+      return true;
+    }
+
+    if (message.action === "CLICK_PAGE_ELEMENT") {
+      const el = findTargetElement(message.target || "SIGN_IN");
+      if (el) {
+        el.click();
+        sendResponse({ success: true });
+      } else {
+        sendResponse({ success: false, error: "Element not found" });
+      }
+      return true;
+    }
+
     if (message.action === "CHECK_PAGE_SUPPORT") {
       const adapter = window.getPortalAdapter();
       sendResponse({

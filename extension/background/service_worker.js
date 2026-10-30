@@ -31,6 +31,35 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 // Message Router
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
+  // 0. Forward highlight/click requests to active tab's content script
+  if (message.action === "TRIGGER_HIGHLIGHT_ELEMENT") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) {
+        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
+        return;
+      }
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "HIGHLIGHT_PAGE_ELEMENT",
+        target: message.target || "SIGN_IN"
+      }, (res) => sendResponse(res || { success: true }));
+    });
+    return true;
+  }
+
+  if (message.action === "TRIGGER_CLICK_ELEMENT") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) {
+        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
+        return;
+      }
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "CLICK_PAGE_ELEMENT",
+        target: message.target || "SIGN_IN"
+      }, (res) => sendResponse(res || { success: true }));
+    });
+    return true;
+  }
+
   // 1. Relay detected tracking ID to side panel
   if (message.action === "TRACKING_ID_DETECTED") {
     chrome.runtime.sendMessage({

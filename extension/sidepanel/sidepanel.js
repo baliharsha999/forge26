@@ -323,10 +323,15 @@ document.addEventListener("DOMContentLoaded", () => {
   setupSpeechRecognition(micBtnStep3, inputName);
   setupSpeechRecognition(micBtnStep4, inputPhone, true);
 
+  // Saved citizen profile in memory
+  let savedCitizenName = "";
+  let savedCitizenPhone = "";
+
   // Restore saved profile from chrome.storage
   if (chrome.storage && chrome.storage.local) {
     chrome.storage.local.get(["saved_citizen_name", "saved_citizen_phone"], (res) => {
       if (res.saved_citizen_name) {
+        savedCitizenName = res.saved_citizen_name;
         savedNameText.innerText = `Use: "${res.saved_citizen_name}"`;
         savedNameContainer.classList.remove("hidden");
         btnUseSavedName.onclick = () => {
@@ -334,6 +339,7 @@ document.addEventListener("DOMContentLoaded", () => {
         };
       }
       if (res.saved_citizen_phone) {
+        savedCitizenPhone = res.saved_citizen_phone;
         savedPhoneText.innerText = `Use: "${res.saved_citizen_phone}"`;
         savedPhoneContainer.classList.remove("hidden");
         btnUseSavedPhone.onclick = () => {
@@ -601,6 +607,59 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (res && res.success && res.data) {
         const d = res.data;
+
+        // -------------------------------------------------------------
+        // 1. INTENT: PORTAL GUIDANCE (e.g. "help me sign in", "where is login")
+        // -------------------------------------------------------------
+        if (d.intent === "PORTAL_GUIDANCE") {
+          analyzingStage.classList.add("hidden");
+          step1.classList.add("active");
+
+          const guidanceCard = document.getElementById("guidance-card");
+          const guidanceTitle = document.getElementById("guidance-title");
+          const guidanceMessage = document.getElementById("guidance-message");
+          const btnGuidanceHighlight = document.getElementById("btn-guidance-highlight");
+          const btnGuidanceClick = document.getElementById("btn-guidance-click");
+
+          if (guidanceCard && guidanceTitle && guidanceMessage) {
+            guidanceTitle.innerText = d.guidance_title || "Portal Guidance";
+            guidanceMessage.innerText = d.guidance_message || "Here is what to do on this page...";
+            guidanceCard.classList.remove("hidden");
+
+            if (btnGuidanceHighlight) {
+              btnGuidanceHighlight.onclick = () => {
+                chrome.runtime.sendMessage({
+                  action: "TRIGGER_HIGHLIGHT_ELEMENT",
+                  target: d.action_type === "HIGHLIGHT_REGISTER" ? "REGISTER" : "SIGN_IN"
+                });
+                speak("Highlighting on your webpage now.");
+              };
+            }
+
+            if (btnGuidanceClick) {
+              btnGuidanceClick.onclick = () => {
+                chrome.runtime.sendMessage({
+                  action: "TRIGGER_CLICK_ELEMENT",
+                  target: d.action_type === "HIGHLIGHT_REGISTER" ? "REGISTER" : "SIGN_IN"
+                });
+                speak("Opening sign-in for you.");
+              };
+            }
+          }
+
+          // Automatically trigger highlight on the page
+          chrome.runtime.sendMessage({
+            action: "TRIGGER_HIGHLIGHT_ELEMENT",
+            target: d.action_type === "HIGHLIGHT_REGISTER" ? "REGISTER" : "SIGN_IN"
+          });
+
+          speak(d.guidance_message || "Please check the highlighted button on your screen to sign in.");
+          return; // STOP! Never ask location/phone when user asked for guidance!
+        }
+
+        // -------------------------------------------------------------
+        // 2. INTENT: GRIEVANCE REPORTING
+        // -------------------------------------------------------------
         complaintData.department = d.department;
         complaintData.category = d.category;
         complaintData.urgency_level = d.urgency_level;
@@ -612,35 +671,45 @@ document.addEventListener("DOMContentLoaded", () => {
         }
 
         if (d.location_text && !d.location_text.toLowerCase().includes("pending")) {
-          inputLocation.value = d.location_text;
+          complaintData.location = d.location_text;
+          if (inputLocation) inputLocation.value = d.location_text;
         }
 
-        // Live progressive auto-fill onto the open portal tab if form is open
+        // Check if citizen profile is saved
+        if (savedCitizenName) complaintData.citizen_name = savedCitizenName;
+        if (savedCitizenPhone) complaintData.citizen_phone = savedCitizenPhone;
+
+        // ADAPTIVE PATHWAY: Does the active page have a form right now?
         if (activePageHasForm) {
+          // PATH A: FULL AUTOMATE (Form is active on screen)
           chrome.runtime.sendMessage({
             action: "TRIGGER_FILL_FIELDS",
-            fields: {
-              department: d.department,
-              category: d.category,
-              urgency_level: d.urgency_level,
-              description: d.description
-            }
+            fields: complaintData
           });
-          reasoningTicker.innerHTML = `<span style="color: #34d399;">Injected ${d.department} into portal</span>`;
+
+          mandalaSpinner.classList.add("complete");
+          analyzingTitle.innerText = "⚡ Form Auto-Filled!";
+          speak(`Classified under ${d.department}. I have automatically populated the active form on your screen.`);
+
+          setTimeout(() => {
+            finalizeToStep6();
+          }, 1200);
         } else {
-          reasoningTicker.innerHTML = `<span style="color: var(--orange-hover);">Classified: ${d.department} • Saved in Memory</span>`;
+          // PATH B: GUIDED HANDOFF (Landing or Sign-In page, e.g. CPGRAMS Home)
+          mandalaSpinner.classList.add("complete");
+          analyzingTitle.innerText = "📋 Petition Saved in Memory!";
+          speak(`Grievance drafted under ${d.department}! Please sign in on CPGRAMS as highlighted on your screen. As soon as you log in, I will auto-fill your petition.`);
+
+          // Automatically highlight the Sign In button on CPGRAMS
+          chrome.runtime.sendMessage({
+            action: "TRIGGER_HIGHLIGHT_ELEMENT",
+            target: "SIGN_IN"
+          });
+
+          setTimeout(() => {
+            finalizeToStep6();
+          }, 1200);
         }
-
-        // Beautiful animation completion state
-        mandalaSpinner.classList.add("complete");
-        analyzingTitle.innerText = "✅ Analysis Complete!";
-
-        speak(DIALOGS[currentLang].q1_confirm(d.department));
-
-        // Advance to Step 2
-        setTimeout(() => {
-          showStep(2);
-        }, 1400);
       } else {
         analyzingStage.classList.add("hidden");
         step1.classList.add("active");

@@ -96,16 +96,33 @@ async def analyze_civic_grievance(
     input_lower = sanitized_input.lower()
     
     prompt = f"""
-    Analyze the following citizen complaint for public grievance registration:
-    Input: "{sanitized_input}"
+    You are Nagarik AI, an intelligent, empathetic digital governance copilot for citizens across India.
+    Active Portal Context: "{portal_context or 'Public Grievance Portal'}"
+    Citizen Input: "{sanitized_input}"
     Language: "{language}"
     Reported Location: "{location or ''}"
-    Active Portal Context: "{portal_context or 'Public Grievance Portal'}"
 
-    Determine the correct responsible department/ministry (e.g. Ministry of Railways, Department of Financial Services (Banking/Pension), Ministry of Road Transport, Municipal Water Board, Solid Waste Management, Civil Supplies/PDS, etc.).
-    
+    CRITICAL INTENT EVALUATION:
+    First, determine the citizen's INTENT:
+    1. "PORTAL_GUIDANCE": Citizen is asking for help navigating the website, signing in, logging in, registering, how to use the portal, where to click, or login questions.
+       Examples: "help me sign in for this page", "how do I login", "where do I sign in", "help me register", "how does this work".
+       - In "guidance_title", provide a clear short title (e.g. "How to Sign In to CPGRAMS").
+       - In "guidance_message", provide clear, human, step-by-step instructions on what to do on this specific portal.
+       - Set "action_type": "HIGHLIGHT_SIGNIN" or "HIGHLIGHT_REGISTER".
+       - Set "action_label": "✨ Highlight 'Sign In' on Webpage".
+
+    2. "GRIEVANCE": Citizen is reporting an actual problem or complaint (e.g. railway ticket refund delay, bank pension stopped, dangerous road potholes, broken water pipe, transformer sparking, etc.).
+       - Extract category, responsible ministry/department, urgency_level, urgency_score, location_text, formal description, and applicable_act_or_regulation.
+
+    3. "GENERAL_QUESTION": Citizen is asking an informational civic question or scheme inquiry.
+
     Return ONLY valid JSON matching this schema:
     {{
+      "intent": "PORTAL_GUIDANCE" | "GRIEVANCE" | "GENERAL_QUESTION",
+      "guidance_title": string or null,
+      "guidance_message": string or null,
+      "action_type": "HIGHLIGHT_SIGNIN" | "CLICK_SIGNIN" | "HIGHLIGHT_REGISTER" | null,
+      "action_label": string or null,
       "category": string,
       "department": string,
       "urgency_level": "HIGH" | "MEDIUM" | "LOW",
@@ -140,6 +157,11 @@ async def analyze_civic_grievance(
             loc = "Location pending citizen confirmation"
 
         return GrievanceAnalysisResult(
+            intent=parsed.get("intent", "GRIEVANCE"),
+            guidance_title=parsed.get("guidance_title"),
+            guidance_message=parsed.get("guidance_message"),
+            action_type=parsed.get("action_type"),
+            action_label=parsed.get("action_label"),
             category=parsed.get("category", "Public Redressal Inquiry"),
             department=parsed.get("department", "Concerned Public Authority"),
             urgency_level=urgency,
@@ -156,6 +178,45 @@ async def analyze_civic_grievance(
             follow_up_prompt=parsed.get("follow_up_prompt"),
             actionable_remedy=parsed.get("actionable_remedy", "Official verification and redressal by designated officer"),
             applicable_act_or_regulation=parsed.get("applicable_act_or_regulation", "Public Grievance Redressal Rules"),
+            privacy_warning=privacy_warning
+        )
+
+    # 3. Check for Guidance & Sign-in Assistance in Local Fallback
+    if any(k in input_lower for k in ["sign in", "signin", "log in", "login", "password", "otp"]):
+        return GrievanceAnalysisResult(
+            intent="PORTAL_GUIDANCE",
+            guidance_title="How to Sign In to this Portal",
+            guidance_message="To sign in: Look at the top-right corner of the page and click the yellow 'Sign In' button (or tap the button below to highlight it). Enter your registered Mobile Number / Email and Password. Once signed in, I will guide your grievance filing!",
+            action_type="HIGHLIGHT_SIGNIN",
+            action_label="✨ Highlight 'Sign In' on Webpage",
+            category="Portal Access & Sign-In Guidance",
+            department="CPGRAMS Citizen Authentication",
+            urgency_level="MEDIUM",
+            urgency_score=5,
+            location_text="",
+            description="Citizen requested assistance signing in to the portal.",
+            language=language,
+            actionable_remedy="Guide citizen to official Sign-In dialog and verify credentials",
+            applicable_act_or_regulation="CPGRAMS User Manual & Citizen Charter",
+            privacy_warning=privacy_warning
+        )
+
+    if any(k in input_lower for k in ["register", "signup", "sign up", "create account", "new user"]):
+        return GrievanceAnalysisResult(
+            intent="PORTAL_GUIDANCE",
+            guidance_title="How to Register for a New Account",
+            guidance_message="To register: Click the 'Click here to Sign Up' link on the login page. Enter your Name, Mobile Number, and Address to create your official citizen login account.",
+            action_type="HIGHLIGHT_REGISTER",
+            action_label="✨ Highlight 'Register' Link",
+            category="Citizen Registration Guidance",
+            department="CPGRAMS Citizen Onboarding",
+            urgency_level="MEDIUM",
+            urgency_score=5,
+            location_text="",
+            description="Citizen requested registration guidance.",
+            language=language,
+            actionable_remedy="Guide citizen to citizen registration form",
+            applicable_act_or_regulation="CPGRAMS User Manual",
             privacy_warning=privacy_warning
         )
 

@@ -22,6 +22,11 @@ class ConfidenceScore(BaseModel):
     location: float = Field(0.88, ge=0.0, le=1.0)
 
 class GrievanceAnalysisResult(BaseModel):
+    intent: Optional[str] = "GRIEVANCE"
+    guidance_title: Optional[str] = None
+    guidance_message: Optional[str] = None
+    action_type: Optional[str] = None
+    action_label: Optional[str] = None
     category: str
     department: str
     urgency_level: Literal["LOW", "MEDIUM", "HIGH"]

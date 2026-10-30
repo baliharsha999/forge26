@@ -1079,3 +1079,40 @@ header, div, main, footer {
 @keyframes spin {
   to { transform: rotate(360deg); }
 }
+
+/* ============================================================ */
+/* ADAPTIVE PORTAL GUIDANCE CARD                                */
+/* ============================================================ */
+.guidance-card {
+  background: rgba(240, 106, 37, 0.12);
+  border: 1px solid var(--border-orange);
+  border-radius: 14px;
+  padding: 14px 16px;
+  margin-top: 12px;
+  margin-bottom: 14px;
+  backdrop-filter: blur(20px);
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.15);
+  animation: slideDown 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.guidance-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+.guidance-icon {
+  font-size: 20px;
+}
+.guidance-heading {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--orange-hover);
+  margin: 0;
+  letter-spacing: -0.2px;
+}
+.guidance-body {
+  font-size: 12px;
+  line-height: 1.6;
+  color: var(--text-slate);
+  margin: 0 0 10px 0;
+}

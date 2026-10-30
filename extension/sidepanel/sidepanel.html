@@ -110,6 +110,23 @@
       </div>
     </div>
 
+    <!-- Dynamic Adaptive Portal Guidance Card -->
+    <div id="guidance-card" class="guidance-card hidden">
+      <div class="guidance-header">
+        <span class="guidance-icon">💡</span>
+        <h3 id="guidance-title" class="guidance-heading">Portal Guidance</h3>
+      </div>
+      <p id="guidance-message" class="guidance-body"></p>
+      <div class="guidance-btn-group" style="display: flex; gap: 8px; margin-top: 10px;">
+        <button id="btn-guidance-highlight" class="btn-next" style="flex: 1; padding: 10px 12px; font-size: 11px; font-weight: 800;">
+          <span>✨ Highlight on Webpage</span>
+        </button>
+        <button id="btn-guidance-click" class="btn-back" style="flex: 1; padding: 10px 12px; font-size: 11px; font-weight: 800; color: var(--orange-hover); border-color: var(--border-orange);">
+          <span>👉 Click for Me</span>
+        </button>
+      </div>
+    </div>
+
     <!-- Dynamic Quick Samples (Tailored to active website) -->
     <div id="chips-container" class="chips-container">
       <!-- Dynamically populated by AI based on whether browsing CPGRAMS or Municipal portal -->
