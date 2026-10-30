@@ -11,6 +11,9 @@ Welcome to our project repository for the **NxtWave Buildathon 2026**! 🚀
 
 ## 👥 Team
 - **Maintainer**: [@cyugandharreddy08](https://github.com/cyugandharreddy08)
+- **Contributors**:
+  - [@baliharsha999](https://github.com/baliharsha999)
+  - [@Raghavendra-Kasireddy](https://github.com/Raghavendra-Kasireddy)
 
 ---
 *Built with ❤️ for the NxtWave Buildathon.*
