@@ -57,17 +57,18 @@ PORTAL_HTML = """
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">Citizen Name *</label>
-            <input type="text" id="citizen-name" name="citizen_name" required value="Ananya Rao" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="citizen-name" name="citizen_name" required placeholder="Enter full name" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">Contact Mobile Number *</label>
-            <input type="tel" id="citizen-phone" name="citizen_phone" required value="9876543210" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="tel" id="citizen-phone" name="citizen_phone" required placeholder="10-digit mobile number" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
           </div>
         </div>
 
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Responsible Municipal Department *</label>
           <select id="department-select" name="department" required class="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white outline-none focus:ring-2 focus:ring-blue-600">
+            <option value="" disabled selected>-- Select Responsible Department --</option>
             <option value="Municipal Corporation & Public Works">Municipal Corporation & Public Works</option>
             <option value="Water Supply & Sewerage Board">Water Supply & Sewerage Board</option>
             <option value="State Electricity Distribution Company (DISCOM)">State Electricity Distribution Company (DISCOM)</option>
@@ -79,11 +80,12 @@ PORTAL_HTML = """
         <div class="grid grid-cols-2 gap-4">
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">Issue Category *</label>
-            <input type="text" id="category-select" name="category" required value="Damaged Road & Dangerous Pothole" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
+            <input type="text" id="category-select" name="category" required placeholder="e.g. Water Pipeline Leakage" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
           </div>
           <div>
             <label class="block text-xs font-semibold text-slate-700 mb-1">Urgency Level *</label>
             <select id="urgency-select" name="urgency_level" required class="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white outline-none focus:ring-2 focus:ring-blue-600">
+              <option value="" disabled selected>-- Select Urgency --</option>
               <option value="HIGH">HIGH (Immediate Safety Risk)</option>
               <option value="MEDIUM">MEDIUM (Standard Maintenance)</option>
               <option value="LOW">LOW (General Inquiry)</option>
@@ -93,12 +95,12 @@ PORTAL_HTML = """
 
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Exact Location / Ward / Landmark *</label>
-          <input type="text" id="location-input" name="location" required value="Metro Pillar 42, Kukatpally, Hyderabad" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
+          <input type="text" id="location-input" name="location" required placeholder="House No., Street, Colony, Ward, Landmark" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
         </div>
 
         <div>
           <label class="block text-xs font-semibold text-slate-700 mb-1">Detailed Description of Problem *</label>
-          <textarea id="description-textarea" name="description" rows="3" required class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">Deep crater pothole obstructing traffic and causing two-wheeler accidents.</textarea>
+          <textarea id="description-textarea" name="description" rows="3" required placeholder="Describe the civic grievance and damage in detail..." class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600"></textarea>
         </div>
 
         <div>

@@ -77,4 +77,45 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     });
     return true;
   }
+
+  // 5. Forward inspection request to active tab
+  if (message.action === "TRIGGER_INSPECT_PAGE") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) {
+        sendResponse({ supported: false, error: "NO_ACTIVE_TAB" });
+        return;
+      }
+      chrome.tabs.sendMessage(tabs[0].id, { action: "INSPECT_PAGE_FORM" }, (res) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ supported: false, error: "CONTENT_SCRIPT_NOT_READY" });
+        } else {
+          sendResponse(res);
+        }
+      });
+    });
+    return true;
+  }
+
+  // 6. Forward single field fill request to active tab
+  if (message.action === "TRIGGER_SINGLE_FIELD_FILL") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) {
+        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
+        return;
+      }
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "FILL_SINGLE_FIELD",
+        key: message.key,
+        value: message.value,
+        label: message.label
+      }, (res) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ success: false, error: "CONTENT_SCRIPT_NOT_READY" });
+        } else {
+          sendResponse(res);
+        }
+      });
+    });
+    return true;
+  }
 });

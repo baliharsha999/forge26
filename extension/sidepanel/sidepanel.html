@@ -2,8 +2,8 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>JanSetu Lite Side Panel</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JanSetu Lite - Civic Pulse Side Panel</title>
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
@@ -14,9 +14,10 @@
       <div class="logo">🏛️</div>
       <div>
         <h1>JanSetu Lite</h1>
-        <p class="subtitle">Civic Complaint & Governance Copilot</p>
+        <div class="subtitle">AI Civic Copilot & Redressal Agent</div>
       </div>
     </div>
+    
     <!-- Language Selector -->
     <div class="lang-selector">
       <button class="lang-btn active" data-lang="en">EN</button>
@@ -45,19 +46,31 @@
       <span id="tab-status-text">Checking active tab portal compatibility...</span>
     </div>
 
+    <!-- Active Tab Form Inspector -->
+    <div id="inspector-card" class="inspection-card hidden">
+      <div class="inspection-header">
+        <div>
+          <span class="inspection-title">🔍 Portal Form Inspector</span>
+          <div id="inspector-status-text" class="inspection-sub">Scanning active portal...</div>
+        </div>
+        <button id="reinspect-btn" class="mini-btn" title="Re-scan active page fields">Scan Page</button>
+      </div>
+      <div id="inspection-fields-pillbox" class="pillbox-container"></div>
+    </div>
+
     <!-- Intake Area -->
     <div class="card">
       <label class="label">Describe Your Civic Issue:</label>
       <div class="textarea-wrapper">
-        <textarea id="raw-input" rows="3" placeholder="Speak or type: 'Dangerous pothole on main road near metro pillar 42...'"></textarea>
+        <textarea id="raw-input" rows="3" placeholder="Speak or type: 'my house wall is broken due to muncipal water leakage...'"></textarea>
         <button id="mic-btn" class="icon-btn" title="Click to speak">🎤</button>
       </div>
 
       <!-- Quick Test Chips -->
       <div class="chips-container">
         <span class="chips-label">Quick samples:</span>
+        <button class="chip" data-text="my house wall is broken due to muncipal cos water leakage">🚰 Broken Wall Leak</button>
         <button class="chip" data-text="Dangerous large crater pothole near Pillar 42 Kukatpally, two wheelers skidding">🚧 Road Pothole</button>
-        <button class="chip" data-text="Contaminated drinking water with brown sewage smell in Bhavanipuram Ward 12">🚰 Water Leak</button>
         <button class="chip" data-text="High voltage transformer sparking near junction, fire hazard">⚡ Transformer</button>
       </div>
 
@@ -77,37 +90,129 @@
       </button>
     </div>
 
-    <!-- Confirmation & Form Auto-Fill Card -->
+    <!-- Confirmation & Step-by-Step Portal Intake Card -->
     <div id="confirmation-card" class="card hidden">
       <div class="card-header">
         <span class="tag" id="conf-urgency">HIGH URGENCY</span>
-        <h3 id="conf-category">Damaged Roadway & Pothole</h3>
+        <h3 id="conf-category">Civic Grievance</h3>
       </div>
 
-      <div class="form-group">
-        <label class="label">Target Department:</label>
-        <input type="text" id="edit-department" class="input">
+      <!-- AI Follow-up Prompt / Missing Fields Warning -->
+      <div id="followup-box" class="followup-box hidden">
+        <span class="followup-icon">🤖</span>
+        <div>
+          <strong style="display: block; margin-bottom: 2px;">Details Needed for Portal:</strong>
+          <span id="followup-text">Please provide your name, phone number, and location so the municipal team can dispatch.</span>
+        </div>
       </div>
 
+      <!-- Field 1: Citizen Name -->
       <div class="form-group">
-        <label class="label">Incident Location:</label>
-        <input type="text" id="edit-location" class="input">
+        <div class="field-row-header">
+          <label class="label">1. Citizen Full Name *</label>
+          <span id="badge-name" class="field-status-tag required">Required</span>
+        </div>
+        <div class="field-input-group">
+          <input type="text" id="citizen-name" class="input" placeholder="Enter your full legal name">
+          <button class="btn-single-fill" data-key="citizen_name" data-label="Citizen Name">Fill ➔</button>
+        </div>
       </div>
 
+      <!-- Field 2: Citizen Phone -->
       <div class="form-group">
-        <label class="label">Formal Petition Wording:</label>
-        <textarea id="edit-description" rows="3" class="input"></textarea>
+        <div class="field-row-header">
+          <label class="label">2. Contact Mobile Number *</label>
+          <span id="badge-phone" class="field-status-tag required">Required</span>
+        </div>
+        <div class="field-input-group">
+          <input type="tel" id="citizen-phone" class="input" placeholder="10-digit mobile number for SMS tracking">
+          <button class="btn-single-fill" data-key="citizen_phone" data-label="Contact Phone">Fill ➔</button>
+        </div>
       </div>
 
+      <!-- Field 3: Target Department -->
       <div class="form-group">
-        <label class="label">Citizen Name (Optional):</label>
-        <input type="text" id="citizen-name" class="input" value="Ananya Rao">
+        <div class="field-row-header">
+          <label class="label">3. Responsible Department *</label>
+          <span class="field-status-tag ai">AI Identified</span>
+        </div>
+        <div class="field-input-group">
+          <input type="text" id="edit-department" class="input">
+          <button class="btn-single-fill" data-key="department" data-label="Department">Fill ➔</button>
+        </div>
+      </div>
+
+      <!-- Field 4: Category -->
+      <div class="form-group">
+        <div class="field-row-header">
+          <label class="label">4. Issue Category *</label>
+          <span class="field-status-tag ai">AI Classified</span>
+        </div>
+        <div class="field-input-group">
+          <input type="text" id="edit-category" class="input">
+          <button class="btn-single-fill" data-key="category" data-label="Category">Fill ➔</button>
+        </div>
+      </div>
+
+      <!-- Field 5: Urgency Level -->
+      <div class="form-group">
+        <div class="field-row-header">
+          <label class="label">5. Urgency Level *</label>
+          <span class="field-status-tag ai">AI Assessed</span>
+        </div>
+        <div class="field-input-group">
+          <select id="edit-urgency" class="input">
+            <option value="HIGH">HIGH (Immediate Safety Risk)</option>
+            <option value="MEDIUM">MEDIUM (Standard Maintenance)</option>
+            <option value="LOW">LOW (General Inquiry)</option>
+          </select>
+          <button class="btn-single-fill" data-key="urgency_level" data-label="Urgency">Fill ➔</button>
+        </div>
+      </div>
+
+      <!-- Field 6: Incident Location -->
+      <div class="form-group">
+        <div class="field-row-header">
+          <label class="label">6. Exact Location / Ward / Landmark *</label>
+          <span id="badge-loc" class="field-status-tag required">Required</span>
+        </div>
+        <div class="field-input-group">
+          <input type="text" id="edit-location" class="input" placeholder="House No, Street, Ward, Colony, Landmark">
+          <button id="detect-gps-btn" class="btn-gps" title="Detect GPS Location via OpenStreetMap">📍 GPS</button>
+          <button class="btn-single-fill" data-key="location" data-label="Location">Fill ➔</button>
+        </div>
+      </div>
+
+      <!-- Field 7: Formal Description -->
+      <div class="form-group">
+        <div class="field-row-header">
+          <label class="label">7. Formal Petition Description *</label>
+          <span class="field-status-tag ai">AI Drafted</span>
+        </div>
+        <div class="field-input-group">
+          <textarea id="edit-description" rows="3" class="input" placeholder="Detailed grievance text..."></textarea>
+          <button class="btn-single-fill" data-key="description" data-label="Petition Text">Fill ➔</button>
+        </div>
+      </div>
+
+      <!-- Field 8: Photo Evidence -->
+      <div class="form-group">
+        <div class="field-row-header">
+          <label class="label">8. Photo Proof</label>
+          <span class="field-status-tag">Optional</span>
+        </div>
+        <div class="field-input-group">
+          <div style="font-size: 11px; color: #64748b; padding: 6px 0; flex: 1;" id="photo-status-text">
+            No photo attached yet
+          </div>
+          <button class="btn-single-fill" data-key="photo" data-label="Photo Proof">Attach ➔</button>
+        </div>
       </div>
 
       <div class="action-box">
-        <p class="notice">🔒 <strong>Safety Rule:</strong> Click below to let JanSetu fill the active portal tab. You review and click Submit.</p>
+        <p class="notice">🔒 <strong>Citizen Safety Guarantee:</strong> JanSetu fills form fields for you to review. We never click 'Submit' automatically on official portals.</p>
         <button id="fill-portal-btn" class="action-btn">
-          <span>🤖 Auto-Fill Form in Active Tab</span>
+          <span>🤖 Auto-Fill All Remaining Fields in Portal</span>
           <span class="spinner hidden"></span>
         </button>
       </div>

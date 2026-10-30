@@ -10,7 +10,7 @@ gemini_client = None
 if settings.GEMINI_API_KEY and settings.GEMINI_API_KEY != "your_gemini_api_key_here":
     try:
         from google import genai
-        gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY)
+        gemini_client = genai.Client(api_key=settings.GEMINI_API_KEY, http_options={"timeout": 12000})
     except Exception as e:
         print(f"Gemini Client Init Notice: {e}")
 
@@ -32,6 +32,7 @@ async def analyze_civic_grievance(
     # 2. Try Gemini GenAI if available
     if gemini_client:
         try:
+            import asyncio
             prompt = f"""
             You are JanSetu AI, an expert digital governance assistant.
             Analyze the following citizen complaint:
@@ -48,18 +49,20 @@ async def analyze_civic_grievance(
               "location_text": string,
               "description": string,
               "language": "{language}",
-              "missing_fields": list of missing attributes (e.g. "location", "contact"),
+              "missing_fields": list of missing attributes (e.g. "location", "contact_number", "citizen_name"),
               "confidence": {{ "category": float, "department": float, "location": float }},
               "follow_up_prompt": string or null,
               "actionable_remedy": string,
               "applicable_act_or_regulation": string
             }}
             """
-            response = gemini_client.models.generate_content(
-                model="gemini-3.8-flash",
-                contents=prompt,
-                config={"response_mime_type": "application/json"}
-            )
+            def _call_gemini_api():
+                return gemini_client.models.generate_content(
+                    model="gemini-3.8-flash",
+                    contents=prompt,
+                    config={"response_mime_type": "application/json"}
+                )
+            response = await asyncio.wait_for(asyncio.to_thread(_call_gemini_api), timeout=18.0)
             data = json.loads(response.text)
             data["privacy_warning"] = privacy_warning
             return GrievanceAnalysisResult(**data)
@@ -77,7 +80,16 @@ async def analyze_civic_grievance(
     conf_dept = 0.88
     conf_loc = 0.85
 
-    if any(k in input_lower for k in ["road", "pothole", "crater", "gaddha", "sadak", "traffic", "dhamar", "guntalu"]):
+    if any(k in input_lower for k in ["wall", "house", "building", "property", "roof"]) and any(k in input_lower for k in ["water", "leak", "pipe", "pipeline"]):
+        dept = "Water Supply & Sewerage Board"
+        category = "Water Pipeline Leakage & Structural Property Damage"
+        urgency_level = "HIGH"
+        urgency_score = 9
+        act = "State Municipal Corporation Act (Public Infrastructure Maintenance & Safety Standards)"
+        remedy = "Emergency water pipeline isolation, leak repair, and structural safety assessment"
+        conf_cat = 0.98
+        conf_dept = 0.96
+    elif any(k in input_lower for k in ["road", "pothole", "crater", "gaddha", "sadak", "traffic", "dhamar", "guntalu"]):
         dept = "Municipal Corporation & Public Works"
         category = "Damaged Roadway & Dangerous Potholes"
         urgency_level = "HIGH"

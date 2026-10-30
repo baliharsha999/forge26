@@ -61,6 +61,46 @@
       return true;
     }
 
+    if (message.action === "INSPECT_PAGE_FORM") {
+      const adapter = window.getPortalAdapter();
+      if (!adapter || typeof adapter.inspect !== "function") {
+        sendResponse({
+          supported: !!adapter,
+          portalName: adapter ? adapter.name : null,
+          fields: [],
+          totalRequired: 0,
+          filledRequired: 0
+        });
+        return true;
+      }
+      adapter.inspect().then(inspection => {
+        sendResponse({
+          supported: true,
+          ...inspection
+        });
+      }).catch(err => {
+        sendResponse({ supported: true, error: err.message, fields: [] });
+      });
+      return true;
+    }
+
+    if (message.action === "FILL_SINGLE_FIELD") {
+      const adapter = window.getPortalAdapter();
+      if (!adapter || typeof adapter.fillSingleField !== "function") {
+        sendResponse({ success: false, error: "Adapter does not support single field fill" });
+        return true;
+      }
+      showBanner("Filling " + (message.label || message.key) + "...");
+      adapter.fillSingleField(message.key, message.value).then(res => {
+        showBanner("Populated " + (message.label || message.key), true);
+        sendResponse(res);
+      }).catch(err => {
+        showBanner("Error filling field: " + err.message, true);
+        sendResponse({ success: false, error: err.message });
+      });
+      return true;
+    }
+
     if (message.action === "FILL_PORTAL_FORM") {
       const adapter = window.getPortalAdapter();
       if (!adapter) {
