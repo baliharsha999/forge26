@@ -125,6 +125,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const tabStatusText = document.getElementById("tab-status-text");
   const tabStatusBadge = document.getElementById("tab-status-badge");
   const q1Sub = document.getElementById("q1-sub");
+  const q2Sub = document.getElementById("q2-sub");
 
   // DOM Elements - Steps
   const step1 = document.getElementById("wizard-step-1");
@@ -437,6 +438,7 @@ document.addEventListener("DOMContentLoaded", () => {
       tabStatusBadge.innerText = "STUDYING";
       tabStatusBadge.style.background = "var(--orange-primary)";
       tabStatusBadge.style.color = "var(--text-on-orange)";
+      tabStatusBadge.style.borderColor = "var(--border-orange)";
     }
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
@@ -449,24 +451,36 @@ document.addEventListener("DOMContentLoaded", () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          url: targetUrl,
-          title: targetTitle
+          url: targetUrl || "",
+          title: targetTitle || ""
         })
       })
       .then(r => r.json())
       .then(study => {
-        if (study) {
+        if (study && study.portal_name) {
           activePortalName = study.portal_name;
           activePageHasForm = !!study.has_form;
 
-          if (tabStatusText) {
-            tabStatusText.innerHTML = `🏛️ <strong>${study.portal_name}</strong>`;
-          }
-          if (tabStatusBadge) {
-            tabStatusBadge.innerText = study.has_form ? "● FORM READY" : "⚠️ SIGN-IN TO LODGE";
-            tabStatusBadge.style.background = study.has_form ? "#059669" : "#d97706";
-            tabStatusBadge.style.color = study.has_form ? "#ffffff" : "#0B0C1E";
-            tabStatusBadge.style.borderColor = study.has_form ? "#047857" : "#b45309";
+          if (study.portal_type === "STANDBY") {
+            if (tabStatusText) {
+              tabStatusText.innerHTML = `🌐 <strong>No Civic Portal Active</strong>`;
+            }
+            if (tabStatusBadge) {
+              tabStatusBadge.innerText = "STANDBY";
+              tabStatusBadge.style.background = "rgba(143, 147, 181, 0.2)";
+              tabStatusBadge.style.color = "var(--text-slate)";
+              tabStatusBadge.style.borderColor = "var(--border-slate)";
+            }
+          } else {
+            if (tabStatusText) {
+              tabStatusText.innerHTML = `🏛️ <strong>${study.portal_name}</strong>`;
+            }
+            if (tabStatusBadge) {
+              tabStatusBadge.innerText = study.has_form ? "● FORM READY" : "⚠️ SIGN-IN TO LODGE";
+              tabStatusBadge.style.background = study.has_form ? "#059669" : "#d97706";
+              tabStatusBadge.style.color = study.has_form ? "#ffffff" : "#0B0C1E";
+              tabStatusBadge.style.borderColor = study.has_form ? "#047857" : "#b45309";
+            }
           }
 
           if (inputProblem && study.placeholder_text) {
@@ -489,10 +503,21 @@ document.addEventListener("DOMContentLoaded", () => {
               const chipBtn = document.createElement("button");
               chipBtn.className = "chip";
               chipBtn.innerText = chip.label;
-              chipBtn.dataset.text = chip.text;
+              chipBtn.setAttribute("data-text", chip.text);
+
               chipBtn.addEventListener("click", () => {
-                inputProblem.value = chip.text;
-                inputProblem.focus();
+                if (chip.text && chip.text.startsWith("OPEN_PORTAL:")) {
+                  const portalUrl = chip.text.replace("OPEN_PORTAL:", "");
+                  if (activeTab && activeTab.id) {
+                    chrome.tabs.update(activeTab.id, { url: portalUrl });
+                  } else {
+                    window.open(portalUrl, "_blank");
+                  }
+                  speak("Opening portal. Once the page loads, I will automatically inspect it and guide your grievance lodging.");
+                } else {
+                  inputProblem.value = chip.text;
+                  inputProblem.focus();
+                }
               });
               chipsContainer.appendChild(chipBtn);
             });
@@ -500,6 +525,11 @@ document.addEventListener("DOMContentLoaded", () => {
 
           // Announce welcome aloud
           setTimeout(() => speak(study.welcome_greeting), 350);
+        } else {
+          // Safe fallback
+          activePortalName = "Public Service Portal";
+          if (tabStatusText) tabStatusText.innerHTML = `🏛️ <strong>Public Service Portal</strong>`;
+          if (tabStatusBadge) tabStatusBadge.innerText = "STANDBY";
         }
       })
       .catch(err => {
@@ -512,6 +542,9 @@ document.addEventListener("DOMContentLoaded", () => {
             if (tabStatusText) tabStatusText.innerHTML = `🏛️ <strong>${activePortalName}</strong>`;
             if (tabStatusBadge) tabStatusBadge.innerText = res.hasForm ? "● READY" : "STANDBY";
             setTimeout(() => speak(DIALOGS[currentLang].q1), 400);
+          } else {
+            if (tabStatusText) tabStatusText.innerHTML = `🌐 <strong>No Civic Portal Active</strong>`;
+            if (tabStatusBadge) tabStatusBadge.innerText = "STANDBY";
           }
         });
       });

@@ -299,6 +299,37 @@ def study_website_page(url: str, title: str = "", headings: Any = "", page_text:
     title_lower = (title or "").lower()
     text_lower = (page_text or "").lower() + " " + headings_str.lower()
 
+    # 0. Check if citizen is on a blank, search, or non-civic page (New Tab, Google, etc.)
+    is_non_civic = (
+        not url_lower or
+        url_lower.startswith("chrome://") or
+        url_lower.startswith("chrome-extension://") or
+        url_lower.startswith("edge://") or
+        url_lower.startswith("about:") or
+        "google.com" in url_lower or
+        "youtube.com" in url_lower or
+        ":5173" in url_lower or
+        title_lower in ["new tab", "google", "chrome"]
+    )
+    if is_non_civic:
+        return {
+            "portal_name": "No Civic Portal Active",
+            "authority_name": "Standby Mode",
+            "portal_type": "STANDBY",
+            "welcome_greeting": "Namaste! Nagarik AI is in Standby mode. Please open CPGRAMS or your local municipal portal in your browser, or click a button below to launch one immediately.",
+            "placeholder_text": "Open pgportal.gov.in or click a portal chip below to launch...",
+            "chips": [
+                {"label": "🏛️ Launch CPGRAMS (pgportal.gov.in)", "text": "OPEN_PORTAL:https://pgportal.gov.in"},
+                {"label": "🏢 Launch Municipal Demo Portal", "text": "OPEN_PORTAL:http://localhost:8000/portal"},
+                {"label": "🚆 Central Railway & IRCTC Grievance", "text": "OPEN_PORTAL:https://pgportal.gov.in"},
+                {"label": "🏦 Bank Pension / Central Issue", "text": "OPEN_PORTAL:https://pgportal.gov.in"}
+            ],
+            "location_question": "Where is this related to? Tell me your city, station, or tap GPS.",
+            "authority_label": "Concerned Authority",
+            "has_form": False,
+            "is_landing_page": True
+        }
+
     if "pgportal.gov.in" in url_lower or "cpgrams" in title_lower or "administrative reforms" in title_lower:
         is_landing = (
             url_lower.rstrip("/").endswith("pgportal.gov.in") or 
