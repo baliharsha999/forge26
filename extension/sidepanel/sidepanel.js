@@ -120,6 +120,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const analyzingTitle = document.getElementById("analyzing-title");
   const reasoningTicker = document.getElementById("reasoning-ticker");
 
+  // DOM Elements - Tab Connection & Status
+  const tabStatusBanner = document.getElementById("tab-status-banner");
+  const tabStatusText = document.getElementById("tab-status-text");
+  const tabStatusBadge = document.getElementById("tab-status-badge");
+  const q1Sub = document.getElementById("q1-sub");
+
   // DOM Elements - Steps
   const step1 = document.getElementById("wizard-step-1");
   const step2 = document.getElementById("wizard-step-2");
@@ -409,8 +415,63 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   }
 
-  // Welcome speech on initial load
-  setTimeout(() => speak(DIALOGS[currentLang].q1), 600);
+  // ----------------------------------------------------------------
+  // Autonomous Zero-Touch Portal Inspection & Studying
+  // ----------------------------------------------------------------
+  let activePortalName = "Civic Portal";
+
+  function autoStudyPortal() {
+    if (tabStatusText) tabStatusText.innerText = "🔍 Nagarik AI is studying active page DOM...";
+    if (tabStatusBadge) {
+      tabStatusBadge.innerText = "STUDYING";
+      tabStatusBadge.style.background = "var(--orange-primary)";
+      tabStatusBadge.style.color = "var(--text-on-orange)";
+    }
+
+    chrome.runtime.sendMessage({ action: "TRIGGER_INSPECT_PAGE" }, (res) => {
+      if (res && res.supported) {
+        activePortalName = res.portalName || "Public Service Portal";
+        const fieldsCount = (res.fields && res.fields.length) ? res.fields.length : (res.totalRequired || 6);
+
+        if (tabStatusText) {
+          tabStatusText.innerHTML = `🏛️ <strong>${activePortalName}</strong> <span style="color: var(--muted-on-slate); font-size: 10px;">(${fieldsCount} fields mapped)</span>`;
+        }
+        if (tabStatusBadge) {
+          tabStatusBadge.innerText = "● READY";
+          tabStatusBadge.style.background = "#059669";
+          tabStatusBadge.style.color = "#ffffff";
+          tabStatusBadge.style.borderColor = "#047857";
+        }
+
+        if (q1Sub) {
+          q1Sub.innerText = `Studied ${activePortalName}. Tell me what happened in simple everyday words or tap the mic.`;
+        }
+
+        // Welcome greeting with studied portal name
+        const welcomeMsg = currentLang === "hi" 
+          ? `नमस्ते! मैं नागरिक एआई हूँ। मैंने इस पोर्टल का अध्ययन कर लिया है: ${activePortalName}। आपकी क्या समस्या है?`
+          : (currentLang === "te" 
+              ? `నమస్కారం! నేను నాగరిక్ AI. నేను ఈ పోర్టల్‌ని పరిశీలించాను: ${activePortalName}. మీకు ఎలాంటి సమస్య ఎదురవుతోంది?`
+              : `Namaste! I am Nagarik AI. I have studied this portal: ${activePortalName}. Let's fill your complaint. What problem are you facing?`);
+        
+        setTimeout(() => speak(welcomeMsg), 400);
+      } else {
+        if (tabStatusText) {
+          tabStatusText.innerText = "🌐 Open CPGRAMS (pgportal.gov.in) or Municipal Portal";
+        }
+        if (tabStatusBadge) {
+          tabStatusBadge.innerText = "STANDBY";
+          tabStatusBadge.style.background = "var(--slate-hover)";
+          tabStatusBadge.style.color = "var(--text-on-slate)";
+          tabStatusBadge.style.borderColor = "var(--glass-border-subtle)";
+        }
+        setTimeout(() => speak(DIALOGS[currentLang].q1), 400);
+      }
+    });
+  }
+
+  // Trigger autonomous zero-touch inspection on load
+  autoStudyPortal();
 
   // ----------------------------------------------------------------
   // STEP 1 -> ANIMATED REASONING -> STEP 2
@@ -617,9 +678,12 @@ document.addEventListener("DOMContentLoaded", () => {
   if (btnNewAfterReceipt) btnNewAfterReceipt.addEventListener("click", restartWizard);
 
   // ----------------------------------------------------------------
-  // Official Receipt Detection from Portal DOM
+  // Real-Time Tab Changes & Official Receipt Detection
   // ----------------------------------------------------------------
   chrome.runtime.onMessage.addListener((message) => {
+    if (message.action === "ACTIVE_TAB_CHANGED") {
+      autoStudyPortal();
+    }
     if (message.action === "UPDATE_TRACKING_RECEIPT") {
       receiptTrackingId.innerText = message.trackingId;
       step6.classList.remove("active");

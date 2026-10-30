@@ -14,11 +14,11 @@
     activeBanner.innerHTML = `
       <div class="${isDone ? '' : 'jansetu-spinner'}"></div>
       <div>
-        <div style="font-weight: 800; color: #ea580c; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+        <div style="font-weight: 800; color: #F06A25; font-size: 13px; display: flex; align-items: center; gap: 6px;">
           <span>Nagarik AI</span>
-          <span style="font-size: 9px; color: #94a3b8; font-weight: normal; text-transform: uppercase; letter-spacing: 0.5px;">Auto-Filling Portal</span>
+          <span style="font-size: 9px; color: #8F93B5; font-weight: normal; text-transform: uppercase; letter-spacing: 0.5px;">Auto-Filling Portal</span>
         </div>
-        <div style="color: #cbd5e1; font-size: 11px;">${text}</div>
+        <div style="color: #E8E9F2; font-size: 11px;">${text}</div>
       </div>
     `;
 

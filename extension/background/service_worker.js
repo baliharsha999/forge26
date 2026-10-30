@@ -1,12 +1,33 @@
 /**
- * JanSetu Lite - Background Service Worker (Manifest V3)
- * Acts as message router between Side Panel, Content Scripts, and Backend.
+ * Nagarik AI - Background Service Worker (Manifest V3)
+ * "Empowering Every Citizen"
+ * Acts as message router and active tab observer between Side Panel, Content Scripts, and Backend.
  */
 
 // Open side panel on extension action click
 chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error("Side panel config error:", error));
+
+// Tab change & URL change listeners for Zero-Touch Auto-Inspection
+chrome.tabs.onActivated.addListener((activeInfo) => {
+  chrome.runtime.sendMessage({
+    action: "ACTIVE_TAB_CHANGED",
+    tabId: activeInfo.tabId
+  }).catch(() => {
+    // Side panel might not be open, silent catch
+  });
+});
+
+chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
+  if (changeInfo.status === "complete") {
+    chrome.runtime.sendMessage({
+      action: "ACTIVE_TAB_CHANGED",
+      tabId: tabId,
+      url: tab.url
+    }).catch(() => {});
+  }
+});
 
 // Message Router
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
@@ -15,9 +36,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     chrome.runtime.sendMessage({
       action: "UPDATE_TRACKING_RECEIPT",
       trackingId: message.trackingId
-    }).catch(() => {
-      // Sidepanel might be closed, perfectly normal
-    });
+    }).catch(() => {});
     return false;
   }
 
@@ -87,7 +106,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       }
       chrome.tabs.sendMessage(tabs[0].id, { action: "INSPECT_PAGE_FORM" }, (res) => {
         if (chrome.runtime.lastError) {
-          sendResponse({ supported: false, error: "CONTENT_SCRIPT_NOT_READY" });
+          sendResponse({ supported: false, error: "CONTENT_SCRIPT_NOT_READY", url: tabs[0].url });
         } else {
           sendResponse(res);
         }
