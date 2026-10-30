@@ -215,10 +215,12 @@ ADMIN_HTML = """
 """
 
 @portal_router.get("", response_class=HTMLResponse)
+@portal_router.get("/", response_class=HTMLResponse)
 async def get_mock_portal():
     return HTMLResponse(content=PORTAL_HTML)
 
 @portal_router.get("/admin", response_class=HTMLResponse)
+@portal_router.get("/admin/", response_class=HTMLResponse)
 async def get_portal_admin():
     return HTMLResponse(content=ADMIN_HTML)
 
