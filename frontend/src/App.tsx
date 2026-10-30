@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import axios from 'axios';
 import { 
   ShieldCheck, Search, Mic, MicOff, RefreshCw, ExternalLink, 
-  Sparkles, Bot, User, Landmark, FileCheck, ShieldAlert, Activity,
+  Sparkles, Bot, User, FileCheck, ShieldAlert, Activity,
   AlertCircle, Copy, Download, X, Check, FastForward, Info
 } from 'lucide-react';
 
@@ -135,7 +135,7 @@ export default function App() {
   const handleSubmitGrievance = async () => {
     if (!analysisResult) return;
     setSubmitting(true);
-    setTelemetryLogs(["[JanSetu Lite] Initializing Deterministic Playwright Agent..."]);
+    setTelemetryLogs(["[Nagarik AI] Initializing Deterministic Playwright Agent..."]);
 
     try {
       const payload = {
@@ -187,7 +187,6 @@ export default function App() {
     const newDays = (simulatedDays[trackingId] || 0) + 15;
     setSimulatedDays(prev => ({ ...prev, [trackingId]: newDays }));
     
-    // Update status in backend mock portal operator database
     try {
       await axios.post('http://localhost:8000/portal/admin/toggle-status', {
         tracking_id: trackingId,
@@ -237,45 +236,67 @@ export default function App() {
   };
 
   return (
-    <div className="min-h-screen bg-slate-50 text-slate-800">
+    <div className="min-h-screen text-[#E8E9F2] relative overflow-hidden">
       
-      {/* Top Civic Header */}
-      <header className="bg-slate-900 text-white border-b border-slate-800 shadow-md">
-        <div className="max-w-7xl mx-auto px-4 py-3 flex flex-wrap items-center justify-between gap-4">
-          <div className="flex items-center space-x-3">
-            <div className="bg-gradient-to-tr from-amber-500 to-orange-600 p-2.5 rounded-xl shadow-lg">
-              <Landmark className="w-6 h-6 text-white" />
+      {/* Floating Ambient Glowing Orbs for VisionOS Glass Refraction */}
+      <div className="web-ambient-container" aria-hidden="true">
+        <div className="ambient-orb-web orb-saffron-web"></div>
+        <div className="ambient-orb-web orb-indigo-web"></div>
+        <div className="ambient-orb-web orb-cyan-web"></div>
+      </div>
+
+      {/* Top Civic Navigation & Brand Header */}
+      <header className="sticky top-0 z-40 bg-[rgba(11,14,27,0.8)] backdrop-blur-[28px] border-b border-[rgba(255,255,255,0.08)] shadow-[0_12px_36px_rgba(0,0,0,0.6)]">
+        <div className="max-w-7xl mx-auto px-4 py-3.5 flex flex-wrap items-center justify-between gap-4">
+          
+          {/* Logo & Identity */}
+          <div className="flex items-center space-x-3.5">
+            <div className="relative group cursor-pointer">
+              <div className="mandala-aura-ring"></div>
+              <img 
+                src="/logo_emblem.png" 
+                alt="Nagarik AI Emblem" 
+                className="w-11 h-11 rounded-full object-cover relative z-10 border-2 border-[#B8643A] shadow-[0_0_20px_rgba(240,106,37,0.45)] transition-transform duration-500 group-hover:rotate-45"
+              />
             </div>
             <div>
               <div className="flex items-center space-x-2">
-                <h1 className="font-bold text-xl tracking-tight text-white">JanSetu Lite</h1>
-                <span className="text-xs bg-amber-500/20 text-amber-400 border border-amber-500/30 font-semibold px-2 py-0.5 rounded-full">
+                <h1 className="font-black text-xl tracking-tight text-[#E8E9F2] flex items-center gap-1.5">
+                  <span>Nagarik</span>
+                  <span className="text-xs bg-gradient-to-r from-[#F06A25] to-[#D95315] text-[#0B0C1E] border border-[#B8643A] font-black px-2 py-0.5 rounded-md shadow-[0_2px_8px_rgba(240,106,37,0.4)]">
+                    AI
+                  </span>
+                </h1>
+                <span className="text-[10px] bg-[rgba(240,106,37,0.15)] text-[#E58C5C] border border-[rgba(240,106,37,0.35)] font-bold px-2 py-0.5 rounded-full">
                   BUILDATHON 2026
                 </span>
               </div>
-              <p className="text-xs text-slate-400">Multimodal Civic Complaint Agent & Scheme Navigator</p>
+              <p className="text-xs text-[#8F93B5] font-medium tracking-wide">
+                Empowering Every Citizen • Multimodal Civic Copilot & Scheme Navigator
+              </p>
             </div>
           </div>
 
+          {/* Quick External Actions */}
           <div className="flex items-center space-x-3">
             <a
               href="http://localhost:8000/portal"
               target="_blank"
               rel="noreferrer"
-              className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-blue-500/10 text-blue-400 border border-blue-500/30 hover:bg-blue-500/20 transition"
+              className="inline-flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold bg-[rgba(31,37,63,0.6)] text-[#E8E9F2] border border-[rgba(255,255,255,0.15)] hover:bg-[#2F3558] transition-all hover:scale-[1.02] shadow-[0_4px_14px_rgba(0,0,0,0.3)]"
             >
               <span>🏛️ Mock Municipal Portal</span>
-              <ExternalLink className="w-3 h-3" />
+              <ExternalLink className="w-3.5 h-3.5 text-[#E58C5C]" />
             </a>
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-400 border border-emerald-500/20">
-              <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+            <span className="inline-flex items-center gap-2 px-3 py-1.5 rounded-xl text-xs font-semibold bg-[rgba(12,38,30,0.7)] text-[#34d399] border border-[rgba(52,211,153,0.3)] shadow-[0_4px_14px_rgba(5,150,105,0.2)]">
+              <span className="w-2 h-2 rounded-full bg-[#34d399] animate-pulse"></span>
               API Setu + Hand-Verified Store
             </span>
           </div>
         </div>
 
-        {/* Navigation Tabs */}
-        <div className="max-w-7xl mx-auto px-4 flex space-x-1 border-t border-slate-800/80">
+        {/* VisionOS Frosted Navigation Tabs */}
+        <div className="max-w-7xl mx-auto px-4 flex space-x-1.5 border-t border-[rgba(255,255,255,0.06)] overflow-x-auto">
           {[
             { id: 'grievance', label: '1. Citizen Intake & Confirm', icon: Bot },
             { id: 'schemes', label: '2. Schemes (API Setu / Verified)', icon: FileCheck },
@@ -288,14 +309,17 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id as any)}
-                className={`flex items-center space-x-2 py-3 px-4 text-sm font-medium border-b-2 transition-all ${
+                className={`flex items-center space-x-2 py-3 px-4 text-xs font-bold transition-all relative border-b-2 whitespace-nowrap ${
                   active 
-                    ? 'border-amber-500 text-amber-400 bg-slate-800/50' 
-                    : 'border-transparent text-slate-400 hover:text-slate-200 hover:bg-slate-800/30'
+                    ? 'border-[#F06A25] text-[#E8E9F2] bg-[rgba(240,106,37,0.12)]' 
+                    : 'border-transparent text-[#8F93B5] hover:text-[#E8E9F2] hover:bg-[rgba(31,37,63,0.3)]'
                 }`}
               >
-                <Icon className="w-4 h-4" />
+                <Icon className={`w-4 h-4 ${active ? 'text-[#F06A25]' : 'text-[#8F93B5]'}`} />
                 <span>{tab.label}</span>
+                {active && (
+                  <span className="absolute bottom-0 left-0 right-0 h-[2px] bg-gradient-to-r from-[#F06A25] via-[#E58C5C] to-[#F06A25] shadow-[0_0_12px_#F06A25]"></span>
+                )}
               </button>
             );
           })}
@@ -303,21 +327,25 @@ export default function App() {
       </header>
 
       {/* Main Container */}
-      <main className="max-w-7xl mx-auto px-4 py-8">
+      <main className="max-w-7xl mx-auto px-4 py-8 relative z-10">
         
-        {/* TAB 1: CITIZEN INTAKE & EXPLICIT CONFIRMATION */}
+        {/* ============================================================ */}
+        {/* TAB 1: CITIZEN INTAKE & EXPLICIT CONFIRMATION                 */}
+        {/* ============================================================ */}
         {activeTab === 'grievance' && (
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-8">
             
-            {/* Left: Input & Speech Recognition */}
+            {/* Left Column: Multimodal Intake */}
             <div className="lg:col-span-6 space-y-6">
-              <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h2 className="text-lg font-bold text-slate-900 flex items-center gap-2">
-                    <Sparkles className="w-5 h-5 text-amber-500" />
+              <div className="glass-panel p-6">
+                
+                {/* Header & Language Selector */}
+                <div className="flex items-center justify-between mb-4 flex-wrap gap-2">
+                  <h2 className="text-base font-black text-[#E8E9F2] flex items-center gap-2">
+                    <Sparkles className="w-5 h-5 text-[#F06A25]" />
                     Multimodal Complaint Intake
                   </h2>
-                  <div className="flex gap-1 bg-slate-100 p-1 rounded-lg text-xs">
+                  <div className="flex gap-1 bg-[rgba(11,14,27,0.8)] p-1 rounded-xl border border-[rgba(255,255,255,0.1)] text-xs">
                     {[
                       { code: 'en', label: 'English' },
                       { code: 'hi', label: 'हिंदी' },
@@ -326,8 +354,10 @@ export default function App() {
                       <button
                         key={l.code}
                         onClick={() => setLanguage(l.code)}
-                        className={`px-2.5 py-1 rounded font-medium transition ${
-                          language === l.code ? 'bg-white shadow text-slate-900' : 'text-slate-600 hover:text-slate-900'
+                        className={`px-3 py-1 rounded-lg font-bold transition-all ${
+                          language === l.code 
+                            ? 'bg-gradient-to-r from-[#F06A25] to-[#D95315] text-[#0B0C1E] shadow-[0_2px_8px_rgba(240,106,37,0.4)]' 
+                            : 'text-[#8F93B5] hover:text-[#E8E9F2]'
                         }`}
                       >
                         {l.label}
@@ -336,14 +366,15 @@ export default function App() {
                   </div>
                 </div>
 
-                {/* Privacy Warning Banner if triggered */}
+                {/* Privacy Warning Banner */}
                 {privacyWarning && (
-                  <div className="mb-4 p-3.5 bg-amber-50 border border-amber-300 rounded-xl text-xs text-amber-900 flex items-start gap-2.5">
-                    <AlertCircle className="w-4 h-4 text-amber-600 shrink-0 mt-0.5" />
+                  <div className="mb-4 p-3.5 bg-[rgba(46,26,12,0.85)] border-t-[1.5px] border-t-[rgba(240,106,37,0.6)] border-x border-b border-[rgba(240,106,37,0.3)] rounded-xl text-xs text-[#ffedd5] flex items-start gap-2.5 shadow-[0_8px_20px_rgba(240,106,37,0.18)]">
+                    <AlertCircle className="w-4 h-4 text-[#F06A25] shrink-0 mt-0.5" />
                     <div>{privacyWarning}</div>
                   </div>
                 )}
 
+                {/* Textarea with Speech Mic */}
                 <div className="relative mb-4">
                   <textarea
                     rows={4}
@@ -356,42 +387,42 @@ export default function App() {
                             ? 'हमारे मोहल्ले में ट्रांसफार्मर में स्पार्क हो रहा है और बिजली बार-बार जा रही है...' 
                             : 'Speak or type your civic issue. Click the mic button to speak in Hindi, Telugu or English...')
                     }
-                    className="w-full p-4 pr-12 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-amber-500 focus:border-transparent outline-none transition"
+                    className="w-full p-4 pr-14 text-sm glass-input leading-relaxed resize-none"
                   />
                   
-                  {/* Voice Input Button */}
+                  {/* Floating Apple-Grade Voice Mic */}
                   <button
                     onClick={toggleSpeechRecognition}
                     title="Speak in your regional language"
-                    className={`absolute bottom-3 right-3 p-2.5 rounded-full shadow transition ${
+                    className={`absolute bottom-3 right-3 p-2.5 rounded-xl transition-all shadow-[0_4px_16px_rgba(0,0,0,0.4)] ${
                       isRecording 
-                        ? 'bg-red-500 text-white animate-pulse' 
-                        : 'bg-slate-100 text-slate-700 hover:bg-amber-100 hover:text-amber-700'
+                        ? 'bg-gradient-to-r from-red-600 to-red-700 text-white animate-pulse border border-red-400' 
+                        : 'bg-[rgba(31,37,63,0.85)] text-[#E8E9F2] hover:bg-[#2F3558] border border-[rgba(255,255,255,0.15)]'
                     }`}
                   >
-                    {isRecording ? <MicOff className="w-4 h-4" /> : <Mic className="w-4 h-4" />}
+                    {isRecording ? <MicOff className="w-4 h-4 text-white" /> : <Mic className="w-4 h-4 text-[#E58C5C]" />}
                   </button>
                 </div>
 
                 {/* Quick Test Incident Chips */}
-                <div className="mb-4">
-                  <span className="text-xs text-slate-500 font-medium block mb-1.5">⚡ Test with sample civic problems:</span>
+                <div className="mb-5">
+                  <span className="text-xs text-[#8F93B5] font-bold block mb-2">⚡ Test with sample civic problems:</span>
                   <div className="flex flex-wrap gap-2 text-xs">
                     <button 
                       onClick={() => setRawInput("Massive dangerous crater pothole near Pillar 42 Kukatpally, waterlogged after rain and two-wheelers slipping")}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-md"
+                      className="btn-slate-action px-3 py-1.5 rounded-lg text-xs"
                     >
                       🚧 Dangerous Roadway Pothole
                     </button>
                     <button 
                       onClick={() => setRawInput("Contaminated drinking water with brown sludge coming through tap in Bhavanipuram Ward 12")}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-md"
+                      className="btn-slate-action px-3 py-1.5 rounded-lg text-xs"
                     >
                       🚰 Water Supply Contamination
                     </button>
                     <button 
                       onClick={() => setRawInput("High voltage transformer sparking continuously near street corner, severe fire risk")}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2.5 py-1 rounded-md"
+                      className="btn-slate-action px-3 py-1.5 rounded-lg text-xs"
                     >
                       ⚡ Transformer Fire Hazard
                     </button>
@@ -399,46 +430,46 @@ export default function App() {
                 </div>
 
                 {/* Citizen Details (Optional) */}
-                <div className="bg-slate-50 p-4 rounded-xl border border-slate-200 mb-5">
-                  <div className="text-xs font-semibold text-slate-700 uppercase tracking-wider mb-2 flex items-center justify-between">
-                    <span className="flex items-center gap-1"><User className="w-3.5 h-3.5" /> Citizen Info (Optional)</span>
-                    <span className="text-[10px] text-slate-400 font-normal">No Aadhaar or ID required</span>
+                <div className="bg-[rgba(14,18,34,0.7)] p-4 rounded-2xl border-t-[1.5px] border-t-[rgba(255,255,255,0.18)] border-x border-b border-[rgba(255,255,255,0.06)] mb-5 shadow-inner">
+                  <div className="text-xs font-bold text-[#E58C5C] uppercase tracking-wider mb-2.5 flex items-center justify-between">
+                    <span className="flex items-center gap-1.5"><User className="w-3.5 h-3.5" /> Citizen Info (Optional)</span>
+                    <span className="text-[10px] text-[#8F93B5] font-medium">No Aadhaar or ID required</span>
                   </div>
                   <div className="grid grid-cols-2 gap-3 text-xs">
                     <div>
-                      <label className="text-slate-500 block mb-1">Name</label>
+                      <label className="text-[#8F93B5] block mb-1 font-semibold">Name</label>
                       <input 
                         type="text" 
                         value={citizenName} 
                         onChange={e => setCitizenName(e.target.value)} 
-                        className="w-full p-2 bg-white rounded border border-slate-300"
+                        className="w-full p-2 glass-input font-medium"
                       />
                     </div>
                     <div>
-                      <label className="text-slate-500 block mb-1">Mobile</label>
+                      <label className="text-[#8F93B5] block mb-1 font-semibold">Mobile</label>
                       <input 
                         type="text" 
                         value={citizenPhone} 
                         onChange={e => setCitizenPhone(e.target.value)} 
-                        className="w-full p-2 bg-white rounded border border-slate-300"
+                        className="w-full p-2 glass-input font-medium"
                       />
                     </div>
                     <div>
-                      <label className="text-slate-500 block mb-1">District</label>
+                      <label className="text-[#8F93B5] block mb-1 font-semibold">District</label>
                       <input 
                         type="text" 
                         value={citizenDistrict} 
                         onChange={e => setCitizenDistrict(e.target.value)} 
-                        className="w-full p-2 bg-white rounded border border-slate-300"
+                        className="w-full p-2 glass-input font-medium"
                       />
                     </div>
                     <div>
-                      <label className="text-slate-500 block mb-1">Locality / Ward</label>
+                      <label className="text-[#8F93B5] block mb-1 font-semibold">Locality / Ward</label>
                       <input 
                         type="text" 
                         value={citizenLocality} 
                         onChange={e => setCitizenLocality(e.target.value)} 
-                        className="w-full p-2 bg-white rounded border border-slate-300"
+                        className="w-full p-2 glass-input font-medium"
                       />
                     </div>
                   </div>
@@ -448,37 +479,41 @@ export default function App() {
                 <button
                   onClick={handleAnalyze}
                   disabled={analyzing || !rawInput.trim()}
-                  className="w-full py-3 bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white font-medium rounded-xl shadow-md flex items-center justify-center gap-2 transition disabled:opacity-50"
+                  className="w-full py-3.5 btn-primary-orange text-sm flex items-center justify-center gap-2 disabled:opacity-50"
                 >
                   {analyzing ? (
                     <>
-                      <RefreshCw className="w-4 h-4 animate-spin" />
-                      Parsing Multimodal JSON...
+                      <RefreshCw className="w-4 h-4 animate-spin text-[#0B0C1E]" />
+                      <span>Parsing Multimodal JSON...</span>
                     </>
                   ) : (
                     <>
-                      <Sparkles className="w-4 h-4" />
-                      Synthesize Structured Complaint
+                      <Sparkles className="w-4 h-4 text-[#0B0C1E]" />
+                      <span>Synthesize Structured Complaint</span>
                     </>
                   )}
                 </button>
               </div>
             </div>
 
-            {/* Right: Confirmation Screen & Playwright Agent */}
+            {/* Right Column: Review, Explicit Confirmation & Playwright Telemetry */}
             <div className="lg:col-span-6 space-y-6">
               {analysisResult ? (
-                <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+                <div className="glass-panel p-6">
                   
                   {/* Step Header */}
-                  <div className="flex items-center justify-between pb-3 border-b border-slate-100 mb-4">
+                  <div className="flex items-center justify-between pb-3.5 border-b border-[rgba(255,255,255,0.08)] mb-4">
                     <div>
-                      <span className="text-xs uppercase font-bold text-amber-600">Review & Confirm Before Filing</span>
-                      <h3 className="font-bold text-slate-900 text-base">{analysisResult.category}</h3>
+                      <span className="text-xs uppercase font-black text-[#F06A25] tracking-wider">
+                        Review & Confirm Before Filing
+                      </span>
+                      <h3 className="font-black text-[#E8E9F2] text-base mt-0.5">{analysisResult.category}</h3>
                     </div>
                     <div className="text-right">
-                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-bold ${
-                        analysisResult.urgency_level === 'HIGH' ? 'bg-red-100 text-red-700' : 'bg-amber-100 text-amber-700'
+                      <span className={`inline-block px-3 py-1 rounded-full text-xs font-black shadow-sm ${
+                        analysisResult.urgency_level === 'HIGH' 
+                          ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                          : 'bg-amber-500/20 text-amber-400 border border-amber-500/30'
                       }`}>
                         Urgency: {analysisResult.urgency_score}/10 ({analysisResult.urgency_level})
                       </span>
@@ -487,73 +522,75 @@ export default function App() {
 
                   {/* Follow-up question if fields missing */}
                   {analysisResult.follow_up_prompt && (
-                    <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-xl text-xs text-blue-900 flex items-start gap-2">
-                      <Info className="w-4 h-4 text-blue-600 shrink-0 mt-0.5" />
+                    <div className="mb-4 p-3.5 bg-[rgba(12,32,60,0.7)] border-t-[1.5px] border-t-[rgba(59,130,246,0.5)] border-x border-b border-[rgba(59,130,246,0.2)] rounded-xl text-xs text-[#bfdbfe] flex items-start gap-2.5">
+                      <Info className="w-4 h-4 text-[#60a5fa] shrink-0 mt-0.5" />
                       <div>
-                        <span className="font-bold block">Follow-up Question:</span>
+                        <span className="font-bold block text-white mb-0.5">Follow-up Question:</span>
                         {analysisResult.follow_up_prompt}
                       </div>
                     </div>
                   )}
 
                   {/* Editable Complaint Form */}
-                  <div className="space-y-3 mb-5 text-sm">
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                      <span className="text-xs font-semibold text-slate-500 block mb-1">Target Department:</span>
+                  <div className="space-y-3.5 mb-5 text-sm">
+                    <div className="bg-[rgba(14,18,34,0.75)] p-3 rounded-xl border border-[rgba(255,255,255,0.08)]">
+                      <span className="text-xs font-bold text-[#8F93B5] block mb-1">Target Department:</span>
                       <input 
                         type="text"
                         value={analysisResult.department}
                         onChange={e => setAnalysisResult({ ...analysisResult, department: e.target.value })}
-                        className="w-full text-xs p-1.5 bg-white rounded border border-slate-300 font-medium"
+                        className="w-full text-xs p-2 glass-input font-medium"
                       />
                     </div>
 
-                    <div className="bg-slate-50 p-3 rounded-lg border border-slate-200">
-                      <span className="text-xs font-semibold text-slate-500 block mb-1">Incident Location:</span>
+                    <div className="bg-[rgba(14,18,34,0.75)] p-3 rounded-xl border border-[rgba(255,255,255,0.08)]">
+                      <span className="text-xs font-bold text-[#8F93B5] block mb-1">Incident Location:</span>
                       <input 
                         type="text"
                         value={analysisResult.location_text}
                         onChange={e => setAnalysisResult({ ...analysisResult, location_text: e.target.value })}
-                        className="w-full text-xs p-1.5 bg-white rounded border border-slate-300 font-medium"
+                        className="w-full text-xs p-2 glass-input font-medium"
                       />
                     </div>
 
-                    <div className="bg-blue-50/70 p-3 rounded-lg border border-blue-200">
-                      <span className="text-xs font-semibold text-blue-900 block mb-1">Formal Petition Wording:</span>
+                    <div className="bg-[rgba(14,24,48,0.75)] p-3.5 rounded-xl border border-[rgba(59,130,246,0.25)]">
+                      <span className="text-xs font-bold text-[#93c5fd] block mb-1">Formal Petition Wording:</span>
                       <textarea
                         rows={3}
                         value={analysisResult.description}
                         onChange={e => setAnalysisResult({ ...analysisResult, description: e.target.value })}
-                        className="w-full text-xs p-2 bg-white rounded border border-blue-300 text-blue-950 font-normal"
+                        className="w-full text-xs p-2.5 glass-input text-[#E8E9F2] leading-relaxed resize-none"
                       />
                     </div>
 
-                    <div className="bg-emerald-50/70 p-3 rounded-lg border border-emerald-200 text-xs text-emerald-900">
-                      <span className="font-semibold block mb-0.5">Statutory Act & Mandatory Remedy:</span>
-                      <div>{analysisResult.applicable_act_or_regulation}</div>
-                      <div className="text-[11px] text-emerald-700 mt-0.5">{analysisResult.actionable_remedy}</div>
+                    <div className="bg-[rgba(12,38,30,0.75)] p-3.5 rounded-xl border border-[rgba(52,211,153,0.3)] text-xs text-[#a7f3d0]">
+                      <span className="font-black text-[#34d399] block mb-1 uppercase tracking-wider">
+                        Statutory Act & Mandatory Remedy:
+                      </span>
+                      <div className="font-semibold text-[#ecfdf5]">{analysisResult.applicable_act_or_regulation}</div>
+                      <div className="text-[11px] text-[#6ee7b7] mt-1">{analysisResult.actionable_remedy}</div>
                     </div>
                   </div>
 
                   {/* Mandatory Explicit Confirmation Button */}
                   {!submissionResult && (
-                    <div className="space-y-2">
-                      <div className="p-2.5 bg-amber-50 rounded-lg text-[11px] text-amber-800 border border-amber-200">
+                    <div className="space-y-3">
+                      <div className="p-3 bg-[rgba(46,26,12,0.85)] rounded-xl text-xs text-[#ffedd5] border border-[rgba(240,106,37,0.4)]">
                         🔒 <strong>Safety Rule:</strong> No complaint is filed without your explicit confirmation. Review the details above and press Confirm to execute the Playwright filing script.
                       </div>
                       <button
                         onClick={handleSubmitGrievance}
                         disabled={submitting}
-                        className="w-full py-3.5 bg-slate-900 hover:bg-slate-800 text-white font-medium rounded-xl shadow-lg flex items-center justify-center gap-2 transition disabled:opacity-50"
+                        className="w-full py-4 btn-primary-orange text-sm flex items-center justify-center gap-2.5 disabled:opacity-50"
                       >
                         {submitting ? (
                           <>
-                            <RefreshCw className="w-4 h-4 animate-spin text-amber-400" />
-                            <span>Playwright script is filling Mock Portal form...</span>
+                            <RefreshCw className="w-4 h-4 animate-spin text-[#0B0C1E]" />
+                            <span>Playwright script is filling Municipal Portal form...</span>
                           </>
                         ) : (
                           <>
-                            <Bot className="w-4 h-4 text-amber-400" />
+                            <Bot className="w-5 h-5 text-[#0B0C1E]" />
                             <span>Confirm & File via Deterministic Playwright Script</span>
                           </>
                         )}
@@ -564,42 +601,47 @@ export default function App() {
                   {/* Receipt & Live Telemetry */}
                   {submissionResult && (
                     <div className="mt-5 space-y-4">
-                      <div className="p-4 bg-emerald-600 text-white rounded-xl shadow-md">
+                      <div className="p-5 bg-gradient-to-br from-[#059669] to-[#047857] text-white rounded-2xl shadow-[0_12px_30px_rgba(5,150,105,0.4)] border-t-[1.5px] border-t-[rgba(255,255,255,0.4)]">
                         <div className="flex items-center justify-between mb-1">
-                          <span className="text-xs font-semibold uppercase opacity-90">Registration Acknowledged</span>
-                          <span className="text-xs bg-white/20 px-2 py-0.5 rounded font-mono font-bold">
+                          <span className="text-xs font-black uppercase tracking-wider opacity-90">Registration Acknowledged</span>
+                          <span className="text-xs bg-white/20 px-2.5 py-0.5 rounded-full font-mono font-bold">
                             SLA: {submissionResult.estimated_sla_days} Days
                           </span>
                         </div>
-                        <div className="text-2xl font-black font-mono tracking-tight">{submissionResult.tracking_id}</div>
-                        <div className="text-xs opacity-90 mt-1">
+                        <div className="text-2xl font-black font-mono tracking-tight my-1">{submissionResult.tracking_id}</div>
+                        <div className="text-xs opacity-90">
                           Officer: {submissionResult.assigned_officer_designation}
                         </div>
-                        <div className="text-[10px] font-mono opacity-75 mt-2 break-all">
+                        <div className="text-[10px] font-mono opacity-80 mt-2 break-all bg-black/20 p-2 rounded-lg">
                           Seal: {submissionResult.verification_hash}
                         </div>
                       </div>
 
-                      <div className="bg-slate-900 p-4 rounded-xl text-xs font-mono text-slate-300 space-y-1.5 max-h-48 overflow-y-auto">
-                        <div className="text-amber-400 font-bold pb-1 border-b border-slate-800 flex items-center gap-2">
-                          <Activity className="w-3.5 h-3.5" />
-                          Deterministic Playwright DOM Telemetry:
+                      <div className="bg-[rgba(11,14,27,0.92)] p-4 rounded-xl text-xs font-mono text-[#E8E9F2] space-y-2 max-h-48 overflow-y-auto border border-[rgba(255,255,255,0.08)] shadow-inner">
+                        <div className="text-[#F06A25] font-black pb-1.5 border-b border-[rgba(255,255,255,0.08)] flex items-center gap-2">
+                          <Activity className="w-4 h-4 text-[#F06A25]" />
+                          <span>Deterministic Playwright DOM Telemetry:</span>
                         </div>
                         {telemetryLogs.map((log, idx) => (
-                          <div key={idx} className="leading-relaxed">{log}</div>
+                          <div key={idx} className="leading-relaxed text-[#8F93B5]">{log}</div>
                         ))}
                       </div>
                     </div>
                   )}
                 </div>
               ) : (
-                <div className="bg-white p-8 rounded-2xl shadow-sm border border-slate-200 text-center flex flex-col items-center justify-center min-h-[350px]">
-                  <div className="bg-amber-50 p-4 rounded-2xl mb-3 text-amber-500">
-                    <Bot className="w-10 h-10" />
+                <div className="glass-panel p-8 text-center flex flex-col items-center justify-center min-h-[380px]">
+                  <div className="relative mb-4">
+                    <div className="mandala-aura-ring"></div>
+                    <img 
+                      src="/logo_emblem.png" 
+                      alt="Nagarik AI Emblem" 
+                      className="w-16 h-16 rounded-full object-cover relative z-10 border-2 border-[#B8643A] shadow-[0_0_24px_rgba(240,106,37,0.5)] animate-pulse"
+                    />
                   </div>
-                  <h3 className="font-bold text-slate-800 text-base mb-1">Awaiting Citizen Speech or Text</h3>
-                  <p className="text-xs text-slate-500 max-w-sm">
-                    Enter your issue on the left. JanSetu Lite will extract the category and location into strict JSON, show you the draft for confirmation, and dispatch via Playwright.
+                  <h3 className="font-black text-[#E8E9F2] text-base mb-1.5">Awaiting Citizen Speech or Text</h3>
+                  <p className="text-xs text-[#8F93B5] max-w-sm leading-relaxed">
+                    Enter your issue on the left. Nagarik AI will extract the department and location into strict JSON, show you the draft for confirmation, and dispatch via Playwright.
                   </p>
                 </div>
               )}
@@ -607,19 +649,23 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 2: SCHEME NAVIGATOR (API SETU / VERIFIED) */}
+        {/* ============================================================ */}
+        {/* TAB 2: SCHEME NAVIGATOR (API SETU / VERIFIED)                */}
+        {/* ============================================================ */}
         {activeTab === 'schemes' && (
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div className="glass-panel p-6">
+              
+              {/* Header & Search */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
-                  <div className="flex items-center gap-2">
-                    <h2 className="text-lg font-bold text-slate-900">Government Schemes Discovery</h2>
-                    <span className="text-[10px] font-bold bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded">
+                  <div className="flex items-center gap-2.5">
+                    <h2 className="text-lg font-black text-[#E8E9F2]">Government Schemes Discovery</h2>
+                    <span className="text-[10px] font-black bg-[rgba(12,38,30,0.8)] text-[#34d399] border border-[rgba(52,211,153,0.35)] px-2.5 py-0.5 rounded-full">
                       Hand-Verified (myscheme.gov.in)
                     </span>
                   </div>
-                  <p className="text-xs text-slate-500">15 curated welfare schemes verified against official guidelines with exact source text</p>
+                  <p className="text-xs text-[#8F93B5] mt-1">15 curated welfare schemes verified against official guidelines with exact source text</p>
                 </div>
 
                 <div className="flex items-center gap-2">
@@ -632,9 +678,9 @@ export default function App() {
                         fetchSchemes(schemeCategory, e.target.value);
                       }}
                       placeholder="Search schemes..."
-                      className="pl-9 pr-4 py-2 text-xs rounded-xl border border-slate-300 w-64 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                      className="pl-9 pr-4 py-2 text-xs glass-input w-64 font-medium"
                     />
-                    <Search className="w-4 h-4 text-slate-400 absolute left-3 top-2.5" />
+                    <Search className="w-4 h-4 text-[#8F93B5] absolute left-3 top-2.5" />
                   </div>
                 </div>
               </div>
@@ -656,10 +702,10 @@ export default function App() {
                       setSchemeCategory(c.id);
                       fetchSchemes(c.id, schemeQuery);
                     }}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition ${
+                    className={`px-3.5 py-2 rounded-xl text-xs font-bold transition-all ${
                       schemeCategory === c.id 
-                        ? 'bg-amber-500 text-white shadow-sm' 
-                        : 'bg-slate-100 text-slate-600 hover:bg-slate-200'
+                        ? 'bg-gradient-to-r from-[#F06A25] to-[#D95315] text-[#0B0C1E] shadow-[0_4px_14px_rgba(240,106,37,0.4)] border border-[#B8643A]' 
+                        : 'btn-slate-action'
                     }`}
                   >
                     {c.label}
@@ -667,32 +713,35 @@ export default function App() {
                 ))}
               </div>
 
-              {/* Schemes Cards */}
+              {/* Schemes Cards Grid */}
               {loadingSchemes ? (
-                <div className="py-12 text-center text-sm text-slate-500">Loading government schemes...</div>
+                <div className="py-16 text-center text-sm text-[#8F93B5] flex items-center justify-center gap-2">
+                  <RefreshCw className="w-5 h-5 animate-spin text-[#F06A25]" />
+                  <span>Loading verified government schemes...</span>
+                </div>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                   {schemes.map(scheme => (
-                    <div key={scheme.id} className="p-5 rounded-xl border border-slate-200 bg-white hover:border-amber-400 transition shadow-sm flex flex-col justify-between">
+                    <div key={scheme.id} className="glass-panel p-5 flex flex-col justify-between">
                       <div>
                         <div className="flex items-start justify-between gap-2 mb-2">
-                          <span className="text-[11px] font-semibold text-slate-400 uppercase tracking-wide">
+                          <span className="text-[11px] font-black text-[#E58C5C] uppercase tracking-wider">
                             {scheme.level.toUpperCase()} SCHEME • {scheme.state}
                           </span>
-                          <span className="text-[10px] bg-slate-100 text-slate-600 px-2 py-0.5 rounded font-mono">
+                          <span className="text-[10px] bg-[rgba(31,37,63,0.7)] text-[#8F93B5] px-2 py-0.5 rounded font-mono border border-[rgba(255,255,255,0.08)]">
                             Verified: {scheme.last_verified_date}
                           </span>
                         </div>
-                        <h4 className="font-bold text-slate-900 text-base mb-2">{scheme.name}</h4>
+                        <h4 className="font-black text-[#E8E9F2] text-base mb-2.5">{scheme.name}</h4>
                         
-                        <div className="bg-emerald-50 border border-emerald-200 p-2.5 rounded-lg mb-3">
-                          <span className="text-[11px] font-bold text-emerald-800 uppercase block">Benefit:</span>
-                          <span className="text-xs text-emerald-950 font-medium">{scheme.benefit}</span>
+                        <div className="bg-[rgba(12,38,30,0.75)] border border-[rgba(52,211,153,0.3)] p-3 rounded-xl mb-3.5">
+                          <span className="text-[10px] font-black text-[#34d399] uppercase tracking-wider block mb-0.5">Benefit:</span>
+                          <span className="text-xs text-[#ecfdf5] font-semibold">{scheme.benefit}</span>
                         </div>
 
-                        <div className="mb-3">
-                          <span className="text-xs font-semibold text-slate-700 block mb-1">Key Eligibility:</span>
-                          <ul className="text-xs text-slate-600 space-y-1 list-disc pl-4">
+                        <div className="mb-3.5">
+                          <span className="text-xs font-bold text-[#8F93B5] block mb-1.5">Key Eligibility:</span>
+                          <ul className="text-xs text-[#E8E9F2] space-y-1.5 list-disc pl-4 leading-relaxed">
                             {scheme.eligibility_criteria.map((c: string, idx: number) => (
                               <li key={idx}>{c}</li>
                             ))}
@@ -700,13 +749,13 @@ export default function App() {
                         </div>
                       </div>
 
-                      <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                        <span className="text-[11px] text-slate-400">Source: myScheme.gov.in</span>
+                      <div className="pt-3.5 border-t border-[rgba(255,255,255,0.08)] flex items-center justify-between">
+                        <span className="text-[11px] text-[#8F93B5]">Source: myScheme.gov.in</span>
                         <a
                           href={scheme.official_url}
                           target="_blank"
                           rel="noreferrer"
-                          className="inline-flex items-center gap-1 text-xs font-semibold text-amber-600 hover:text-amber-700"
+                          className="inline-flex items-center gap-1.5 text-xs font-black text-[#E58C5C] hover:text-[#F06A25] transition-colors"
                         >
                           Official Portal <ExternalLink className="w-3.5 h-3.5" />
                         </a>
@@ -719,17 +768,19 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 3: 3-OUTCOME CLAIM VERIFIER */}
+        {/* ============================================================ */}
+        {/* TAB 3: 3-OUTCOME CLAIM VERIFIER                              */}
+        {/* ============================================================ */}
         {activeTab === 'factcheck' && (
           <div className="max-w-4xl mx-auto space-y-8">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
-              <div className="flex items-center gap-3 mb-4">
-                <div className="p-3 bg-red-50 text-red-600 rounded-xl">
+            <div className="glass-panel p-6">
+              <div className="flex items-center gap-3.5 mb-5">
+                <div className="p-3 bg-[rgba(220,38,38,0.2)] text-red-400 border border-red-500/30 rounded-2xl shadow-[0_4px_16px_rgba(220,38,38,0.3)]">
                   <ShieldAlert className="w-6 h-6" />
                 </div>
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">3-Outcome Scheme Claim Checker</h2>
-                  <p className="text-xs text-slate-500">Strictly evaluates claims as Matches, Contradicts, or Couldn't Verify with quoted source text</p>
+                  <h2 className="text-lg font-black text-[#E8E9F2]">3-Outcome Scheme Claim Checker</h2>
+                  <p className="text-xs text-[#8F93B5] mt-0.5">Strictly evaluates claims as Matches, Contradicts, or Couldn't Verify with quoted source text</p>
                 </div>
               </div>
 
@@ -739,18 +790,18 @@ export default function App() {
                   value={claimText}
                   onChange={e => setClaimText(e.target.value)}
                   placeholder="Paste viral claim, e.g.: 'PM-KISAN gives farmers Rs 6,000 per year in three installments' or 'PM free laptop scheme'..."
-                  className="w-full p-4 text-sm rounded-xl border border-slate-300 focus:ring-2 focus:ring-red-500 focus:border-transparent outline-none"
+                  className="w-full p-4 text-sm glass-input leading-relaxed resize-none"
                 />
 
-                <div className="flex items-center justify-between">
+                <div className="flex flex-wrap items-center justify-between gap-3">
                   <div className="flex flex-wrap gap-2 text-xs">
-                    <span className="text-slate-400 font-medium py-1">Quick check:</span>
+                    <span className="text-[#8F93B5] font-bold py-1">Quick check:</span>
                     <button
                       onClick={() => {
                         setClaimText("PM-KISAN gives farmers Rs 6,000 per year in three installments");
                         handleFactCheck("PM-KISAN gives farmers Rs 6,000 per year in three installments");
                       }}
-                      className="bg-emerald-50 hover:bg-emerald-100 text-emerald-800 px-2 py-1 rounded border border-emerald-200"
+                      className="btn-slate-action px-2.5 py-1 rounded-lg text-xs text-[#34d399]"
                     >
                       "PM-KISAN ₹6k" (Matches)
                     </button>
@@ -759,7 +810,7 @@ export default function App() {
                         setClaimText("Central Government giving free laptops to all students");
                         handleFactCheck("Central Government giving free laptops to all students");
                       }}
-                      className="bg-red-50 hover:bg-red-100 text-red-800 px-2 py-1 rounded border border-red-200"
+                      className="btn-slate-action px-2.5 py-1 rounded-lg text-xs text-red-400"
                     >
                       "Free Laptops" (Contradicts)
                     </button>
@@ -768,7 +819,7 @@ export default function App() {
                         setClaimText("Gram panchayat free bicycles for everyone");
                         handleFactCheck("Gram panchayat free bicycles for everyone");
                       }}
-                      className="bg-slate-100 hover:bg-slate-200 text-slate-700 px-2 py-1 rounded"
+                      className="btn-slate-action px-2.5 py-1 rounded-lg text-xs text-[#8F93B5]"
                     >
                       "Free Bicycles" (Unverified)
                     </button>
@@ -777,59 +828,63 @@ export default function App() {
                   <button
                     onClick={() => handleFactCheck()}
                     disabled={checkingFact || !claimText.trim()}
-                    className="px-6 py-2.5 bg-red-600 hover:bg-red-700 text-white font-medium text-sm rounded-xl shadow-md transition disabled:opacity-50 flex items-center gap-2"
+                    className="px-6 py-2.5 btn-primary-orange text-xs flex items-center gap-2 disabled:opacity-50"
                   >
-                    {checkingFact ? <RefreshCw className="w-4 h-4 animate-spin" /> : <Search className="w-4 h-4" />}
-                    Check Against Official Dataset
+                    {checkingFact ? <RefreshCw className="w-4 h-4 animate-spin text-[#0B0C1E]" /> : <Search className="w-4 h-4 text-[#0B0C1E]" />}
+                    <span>Check Against Official Dataset</span>
                   </button>
                 </div>
               </div>
 
               {/* 3-Outcome Result Display */}
               {factResult && (
-                <div className="mt-8 border-t border-slate-200 pt-6">
-                  <div className={`p-5 rounded-2xl border ${
+                <div className="mt-8 border-t border-[rgba(255,255,255,0.08)] pt-6">
+                  <div className={`p-5 rounded-2xl border-t-[1.5px] border-x border-b shadow-xl ${
                     factResult.outcome === 'matches'
-                      ? 'bg-emerald-50/80 border-emerald-300'
-                      : (factResult.outcome === 'contradicts' ? 'bg-red-50/80 border-red-300' : 'bg-slate-50 border-slate-300')
+                      ? 'bg-[rgba(12,38,30,0.85)] border-t-[rgba(52,211,153,0.6)] border-[rgba(52,211,153,0.3)] shadow-[0_12px_30px_rgba(5,150,105,0.25)]'
+                      : (factResult.outcome === 'contradicts' 
+                          ? 'bg-[rgba(48,16,16,0.85)] border-t-[rgba(239,68,68,0.6)] border-[rgba(239,68,68,0.3)] shadow-[0_12px_30px_rgba(220,38,38,0.25)]' 
+                          : 'bg-[rgba(20,24,42,0.85)] border-t-[rgba(255,255,255,0.25)] border-[rgba(255,255,255,0.1)]')
                   }`}>
                     <div className="flex flex-wrap items-center justify-between gap-3 mb-4">
-                      <div className="flex items-center gap-2">
-                        <span className={`px-3 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
+                      <div className="flex items-center gap-2.5">
+                        <span className={`px-3.5 py-1 rounded-full text-xs font-black uppercase tracking-wider ${
                           factResult.outcome === 'matches'
-                            ? 'bg-emerald-600 text-white'
-                            : (factResult.outcome === 'contradicts' ? 'bg-red-600 text-white' : 'bg-slate-600 text-white')
+                            ? 'bg-[#059669] text-white shadow-[0_2px_10px_rgba(5,150,105,0.5)]'
+                            : (factResult.outcome === 'contradicts' 
+                                ? 'bg-[#dc2626] text-white shadow-[0_2px_10px_rgba(220,38,38,0.5)]' 
+                                : 'bg-[#475569] text-white')
                         }`}>
                           {factResult.verdict}
                         </span>
-                        <span className="text-xs text-slate-500 font-mono">
+                        <span className="text-xs text-[#8F93B5] font-mono">
                           Confidence: {factResult.truth_score}%
                         </span>
                       </div>
-                      <span className="text-xs font-mono text-slate-500">
+                      <span className="text-xs font-mono text-[#8F93B5]">
                         Verified Date: {factResult.last_verified_date}
                       </span>
                     </div>
 
-                    <h4 className="font-bold text-slate-900 text-base mb-2">Evaluation Summary:</h4>
-                    <p className="text-sm text-slate-800 mb-4 leading-relaxed">{factResult.summary}</p>
+                    <h4 className="font-black text-[#E8E9F2] text-base mb-2">Evaluation Summary:</h4>
+                    <p className="text-sm text-[#E8E9F2] mb-4 leading-relaxed">{factResult.summary}</p>
 
                     {/* Exact Quoted Source Text */}
-                    <div className="p-4 bg-white rounded-xl border border-slate-200 mb-4">
-                      <span className="text-xs font-bold text-slate-900 block mb-1">Exact Quoted Official Source Text:</span>
-                      <blockquote className="text-xs italic text-slate-700 border-l-4 border-amber-500 pl-3 py-1">
+                    <div className="p-4 bg-[rgba(11,14,27,0.8)] rounded-xl border border-[rgba(255,255,255,0.08)] mb-4">
+                      <span className="text-xs font-black text-[#E58C5C] block mb-1">Exact Quoted Official Source Text:</span>
+                      <blockquote className="text-xs italic text-[#E8E9F2] border-l-4 border-[#F06A25] pl-3 py-1">
                         "{factResult.exact_source_text}"
                       </blockquote>
                     </div>
 
-                    <div className="text-xs text-slate-600 flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs text-[#8F93B5] flex flex-wrap items-center justify-between gap-2">
                       <div>
                         Official Source URL:{' '}
-                        <a href={factResult.official_source_url} target="_blank" rel="noreferrer" className="text-blue-600 hover:underline">
+                        <a href={factResult.official_source_url} target="_blank" rel="noreferrer" className="text-[#38bdf8] hover:underline font-semibold">
                           {factResult.official_source_url}
                         </a>
                       </div>
-                      <div className="font-medium text-slate-800">
+                      <div className="font-bold text-[#E8E9F2]">
                         Advice: {factResult.action_advice_for_citizens}
                       </div>
                     </div>
@@ -840,27 +895,31 @@ export default function App() {
           </div>
         )}
 
-        {/* TAB 4: TRACKING & ESCALATION STUDIO */}
+        {/* ============================================================ */}
+        {/* TAB 4: TRACKING & ESCALATION STUDIO                          */}
+        {/* ============================================================ */}
         {activeTab === 'ledger' && (
           <div className="space-y-6">
-            <div className="bg-white p-6 rounded-2xl shadow-sm border border-slate-200">
+            <div className="glass-panel p-6">
+              
+              {/* Header */}
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
                 <div>
-                  <h2 className="text-lg font-bold text-slate-900">Grievance Tracking & Escalation Studio</h2>
-                  <p className="text-xs text-slate-500">Live database ledger with "Simulate 15 Days Later" demo control and RTI/Appeal generator</p>
+                  <h2 className="text-lg font-black text-[#E8E9F2]">Grievance Tracking & Escalation Studio</h2>
+                  <p className="text-xs text-[#8F93B5] mt-0.5">Live database ledger with "Simulate 15 Days Later" demo control and RTI/Appeal generator</p>
                 </div>
-                <div className="flex items-center gap-2">
+                <div className="flex items-center gap-2.5">
                   <a
                     href="http://localhost:8000/portal/admin"
                     target="_blank"
                     rel="noreferrer"
-                    className="text-xs bg-slate-100 hover:bg-slate-200 text-slate-700 px-3 py-1.5 rounded-lg font-medium flex items-center gap-1.5"
+                    className="btn-slate-action px-3 py-1.5 text-xs font-bold flex items-center gap-1.5"
                   >
-                    Operator Portal Console <ExternalLink className="w-3.5 h-3.5" />
+                    Operator Portal Console <ExternalLink className="w-3.5 h-3.5 text-[#E58C5C]" />
                   </a>
                   <button
                     onClick={fetchLedger}
-                    className="px-3 py-1.5 text-xs font-medium bg-slate-900 hover:bg-slate-800 text-white rounded-lg flex items-center gap-1.5"
+                    className="btn-primary-orange px-3.5 py-1.5 text-xs flex items-center gap-1.5"
                   >
                     <RefreshCw className="w-3.5 h-3.5" /> Refresh
                   </button>
@@ -868,73 +927,75 @@ export default function App() {
               </div>
 
               {/* Table */}
-              <div className="overflow-x-auto">
+              <div className="overflow-x-auto rounded-xl border border-[rgba(255,255,255,0.08)] bg-[rgba(11,14,27,0.7)]">
                 <table className="w-full text-left text-xs">
-                  <thead className="bg-slate-100 text-slate-600 uppercase font-semibold border-b border-slate-200">
+                  <thead className="bg-[rgba(31,37,63,0.6)] text-[#8F93B5] uppercase font-black border-b border-[rgba(255,255,255,0.08)] tracking-wider">
                     <tr>
-                      <th className="py-3 px-4">Tracking ID</th>
-                      <th className="py-3 px-4">Citizen & Ward</th>
-                      <th className="py-3 px-4">Department & Issue</th>
-                      <th className="py-3 px-4">Status</th>
-                      <th className="py-3 px-4">Days Elapsed</th>
-                      <th className="py-3 px-4 text-center">Overdue Actions</th>
+                      <th className="py-3.5 px-4">Tracking ID</th>
+                      <th className="py-3.5 px-4">Citizen & Ward</th>
+                      <th className="py-3.5 px-4">Department & Issue</th>
+                      <th className="py-3.5 px-4">Status</th>
+                      <th className="py-3.5 px-4">Days Elapsed</th>
+                      <th className="py-3.5 px-4 text-center">Overdue Actions</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-slate-100">
+                  <tbody className="divide-y divide-[rgba(255,255,255,0.05)]">
                     {grievancesList.map(g => {
                       const days = (simulatedDays[g.tracking_id] || 0) + (g.status === 'Resolved' ? 2 : 4);
                       const isOverdue = days >= 15 || g.status === 'Overdue';
 
                       return (
-                        <tr key={g.tracking_id} className="hover:bg-slate-50 transition">
-                          <td className="py-3.5 px-4 font-mono font-bold text-amber-600">
+                        <tr key={g.tracking_id} className="hover:bg-[rgba(255,255,255,0.03)] transition-colors">
+                          <td className="py-4 px-4 font-mono font-black text-[#E58C5C]">
                             {g.tracking_id}
                           </td>
-                          <td className="py-3.5 px-4">
-                            <div className="font-semibold text-slate-900">{g.citizen_name}</div>
-                            <div className="text-slate-400 text-[11px]">{g.location}</div>
+                          <td className="py-4 px-4">
+                            <div className="font-bold text-[#E8E9F2]">{g.citizen_name}</div>
+                            <div className="text-[#8F93B5] text-[11px]">{g.location}</div>
                           </td>
-                          <td className="py-3.5 px-4">
-                            <div className="font-medium text-slate-800">{g.department}</div>
-                            <div className="text-slate-500 text-[11px] truncate max-w-xs">{g.title}</div>
+                          <td className="py-4 px-4">
+                            <div className="font-bold text-[#E8E9F2]">{g.department}</div>
+                            <div className="text-[#8F93B5] text-[11px] truncate max-w-xs">{g.title}</div>
                           </td>
-                          <td className="py-3.5 px-4">
-                            <span className={`px-2 py-0.5 rounded font-bold text-[10px] ${
-                              isOverdue ? 'bg-red-100 text-red-700' : 'bg-blue-100 text-blue-700'
+                          <td className="py-4 px-4">
+                            <span className={`px-2.5 py-0.5 rounded-full font-black text-[10px] ${
+                              isOverdue 
+                                ? 'bg-red-500/20 text-red-400 border border-red-500/30' 
+                                : 'bg-blue-500/20 text-blue-400 border border-blue-500/30'
                             }`}>
                               {isOverdue ? 'Overdue' : g.status}
                             </span>
                           </td>
-                          <td className="py-3.5 px-4 font-mono">
+                          <td className="py-4 px-4 font-mono text-[#E8E9F2]">
                             {days} Days
                           </td>
-                          <td className="py-3.5 px-4 text-center">
+                          <td className="py-4 px-4 text-center">
                             <div className="flex items-center justify-center gap-2">
                               {!isOverdue && (
                                 <button
                                   onClick={() => handleSimulateOverdue(g.tracking_id)}
-                                  className="px-2.5 py-1 bg-amber-50 hover:bg-amber-100 text-amber-700 border border-amber-300 rounded font-medium text-[11px] flex items-center gap-1"
+                                  className="px-3 py-1 bg-[rgba(240,106,37,0.15)] hover:bg-[rgba(240,106,37,0.25)] text-[#E58C5C] border border-[rgba(240,106,37,0.35)] rounded-lg font-bold text-[11px] flex items-center gap-1 transition-all"
                                 >
                                   <FastForward className="w-3 h-3" /> +15 Days
                                 </button>
                               )}
                               {isOverdue && (
-                                <div className="flex gap-1">
+                                <div className="flex gap-1.5">
                                   <button
                                     onClick={() => handleOpenEscalation(g.tracking_id, 'reminder')}
-                                    className="px-2 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-[10px] font-bold"
+                                    className="px-2.5 py-1 bg-[#2563eb] hover:bg-[#1d4ed8] text-white rounded-lg text-[10px] font-black shadow-md transition-all"
                                   >
                                     Reminder
                                   </button>
                                   <button
                                     onClick={() => handleOpenEscalation(g.tracking_id, 'appeal')}
-                                    className="px-2 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-[10px] font-bold"
+                                    className="px-2.5 py-1 bg-[#7c3aed] hover:bg-[#6d28d9] text-white rounded-lg text-[10px] font-black shadow-md transition-all"
                                   >
                                     1st Appeal
                                   </button>
                                   <button
                                     onClick={() => handleOpenEscalation(g.tracking_id, 'rti')}
-                                    className="px-2 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-[10px] font-bold"
+                                    className="px-2.5 py-1 bg-[#dc2626] hover:bg-[#b91c1c] text-white rounded-lg text-[10px] font-black shadow-md transition-all"
                                   >
                                     RTI Draft
                                   </button>
@@ -953,48 +1014,48 @@ export default function App() {
         )}
       </main>
 
-      {/* Escalation Letter Modal */}
+      {/* VisionOS Floating Escalation Letter Modal */}
       {selectedEscalation && (
-        <div className="fixed inset-0 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-2xl max-w-2xl w-full p-6 shadow-2xl border border-slate-200 max-h-[90vh] flex flex-col justify-between">
+        <div className="fixed inset-0 bg-black/70 backdrop-blur-md flex items-center justify-center p-4 z-50">
+          <div className="glass-panel max-w-2xl w-full p-6 shadow-[0_25px_60px_rgba(0,0,0,0.9)] max-h-[90vh] flex flex-col justify-between">
             <div>
-              <div className="flex items-center justify-between pb-4 border-b border-slate-100 mb-4">
+              <div className="flex items-center justify-between pb-4 border-b border-[rgba(255,255,255,0.08)] mb-4">
                 <div>
-                  <span className="text-xs font-bold text-amber-600 uppercase">Statutory Escalation Document</span>
-                  <h3 className="font-bold text-slate-900 text-base">{selectedEscalation.subject_line}</h3>
+                  <span className="text-xs font-black text-[#F06A25] uppercase tracking-wider">Statutory Escalation Document</span>
+                  <h3 className="font-black text-[#E8E9F2] text-base mt-0.5">{selectedEscalation.subject_line}</h3>
                 </div>
-                <button onClick={() => setSelectedEscalation(null)} className="p-1 text-slate-400 hover:text-slate-600">
+                <button onClick={() => setSelectedEscalation(null)} className="p-1.5 text-[#8F93B5] hover:text-white rounded-lg hover:bg-[rgba(255,255,255,0.08)] transition-colors">
                   <X className="w-5 h-5" />
                 </button>
               </div>
 
-              <div className="mb-4 text-xs text-slate-500">
-                <span>Quoting Statute: <strong>{selectedEscalation.statutory_act_quoted}</strong></span>
+              <div className="mb-4 text-xs text-[#8F93B5]">
+                <span>Quoting Statute: <strong className="text-[#E8E9F2]">{selectedEscalation.statutory_act_quoted}</strong></span>
               </div>
 
               <textarea
-                rows={12}
+                rows={11}
                 value={selectedEscalation.letter_body}
                 onChange={e => setSelectedEscalation({ ...selectedEscalation, letter_body: e.target.value })}
-                className="w-full p-3 font-mono text-xs bg-slate-50 border border-slate-300 rounded-xl outline-none focus:ring-2 focus:ring-amber-500 text-slate-800 leading-relaxed"
+                className="w-full p-3.5 font-mono text-xs glass-input text-[#E8E9F2] leading-relaxed resize-none"
               />
 
-              <div className="mt-3 p-3 bg-amber-50 rounded-xl text-xs text-amber-900 border border-amber-200">
+              <div className="mt-3.5 p-3.5 bg-[rgba(46,26,12,0.85)] rounded-xl text-xs text-[#ffedd5] border border-[rgba(240,106,37,0.35)]">
                 💡 <strong>Notice:</strong> {selectedEscalation.action_note} (Never auto-sent).
               </div>
             </div>
 
-            <div className="pt-4 border-t border-slate-100 flex items-center justify-end gap-3 mt-4">
+            <div className="pt-4 border-t border-[rgba(255,255,255,0.08)] flex items-center justify-end gap-3 mt-4">
               <button
                 onClick={handleCopyDraft}
-                className="px-4 py-2 text-xs font-semibold bg-slate-100 hover:bg-slate-200 text-slate-700 rounded-xl flex items-center gap-1.5"
+                className="btn-slate-action px-4 py-2.5 text-xs font-bold flex items-center gap-2"
               >
-                {copiedDraft ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+                {copiedDraft ? <Check className="w-4 h-4 text-[#34d399]" /> : <Copy className="w-4 h-4" />}
                 {copiedDraft ? 'Copied!' : 'Copy to Clipboard'}
               </button>
               <button
                 onClick={handleDownloadDraft}
-                className="px-4 py-2 text-xs font-semibold bg-slate-900 hover:bg-slate-800 text-white rounded-xl flex items-center gap-1.5"
+                className="btn-primary-orange px-4 py-2.5 text-xs flex items-center gap-2"
               >
                 <Download className="w-4 h-4" /> Download .txt Draft
               </button>
@@ -1004,10 +1065,17 @@ export default function App() {
       )}
 
       {/* Footer */}
-      <footer className="border-t border-slate-200 bg-white py-6 mt-12 text-center text-xs text-slate-400">
-        <p className="font-medium text-slate-600 mb-1">JanSetu Lite — Built for NxtWave Buildathon 2026</p>
-        <p>Civic Pulse, Digital Governance & Public Information Track</p>
-        <p className="mt-1">Developed by @cyugandharreddy08, @baliharsha999 & @Raghavendra-Kasireddy</p>
+      <footer className="border-t border-[rgba(255,255,255,0.08)] bg-[rgba(11,14,27,0.7)] py-8 mt-16 text-center text-xs text-[#8F93B5]">
+        <div className="max-w-7xl mx-auto px-4 flex flex-col items-center justify-center">
+          <div className="flex items-center gap-2 mb-2">
+            <img src="/logo_emblem.png" alt="Nagarik AI" className="w-5 h-5 rounded-full" />
+            <span className="font-black text-sm text-[#E8E9F2]">Nagarik AI (नागरिक AI)</span>
+            <span className="text-[#F06A25] font-bold">— "Empowering Every Citizen"</span>
+          </div>
+          <p className="font-semibold text-[#8F93B5] mb-1">Built for NxtWave Buildathon 2026</p>
+          <p className="text-[11px] text-[#8F93B5]/80">Civic Pulse, Digital Governance & Public Information Track</p>
+          <p className="mt-2 text-[11px] text-[#8F93B5]/60">Developed by @cyugandharreddy08, @baliharsha999 & @Raghavendra-Kasireddy</p>
+        </div>
       </footer>
     </div>
   );

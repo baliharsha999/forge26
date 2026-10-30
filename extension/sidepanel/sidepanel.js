@@ -133,6 +133,14 @@ document.addEventListener("DOMContentLoaded", () => {
   const step4 = document.getElementById("wizard-step-4");
   const step5 = document.getElementById("wizard-step-5");
   const step6 = document.getElementById("wizard-step-6");
+  const step6Icon = document.getElementById("step6-icon");
+  const step6Title = document.getElementById("step6-title");
+  const step6Subtitle = document.getElementById("step6-subtitle");
+  const step6ActionBox = document.getElementById("step6-action-box");
+  const step6ActionIcon = document.getElementById("step6-action-icon");
+  const step6ActionTitle = document.getElementById("step6-action-title");
+  const step6ActionText = document.getElementById("step6-action-text");
+  const btnInjectNow = document.getElementById("btn-inject-now");
   const receiptCard = document.getElementById("receipt-card");
   const receiptTrackingId = document.getElementById("receipt-tracking-id");
   const privacyBanner = document.getElementById("privacy-banner");
@@ -395,7 +403,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // ----------------------------------------------------------------
   // Wizard Navigation & State Machine
   // ----------------------------------------------------------------
-  function showStep(stepNum) {
+  function showStep(stepNum, shouldSpeak = true) {
     currentStep = stepNum;
     analyzingStage.classList.add("hidden");
 
@@ -409,9 +417,11 @@ document.addEventListener("DOMContentLoaded", () => {
     progressStepCount.innerText = `${stepNum} of 5`;
     progressBar.style.width = `${Math.min(stepNum * 20, 100)}%`;
 
-    const questionText = DIALOGS[currentLang][`q${stepNum}`];
-    if (questionText) {
-      setTimeout(() => speak(questionText), 200);
+    if (shouldSpeak) {
+      const questionText = DIALOGS[currentLang][`q${stepNum}`];
+      if (questionText) {
+        setTimeout(() => speak(questionText), 200);
+      }
     }
   }
 
@@ -419,6 +429,7 @@ document.addEventListener("DOMContentLoaded", () => {
   // Autonomous Zero-Touch Portal Inspection & Studying
   // ----------------------------------------------------------------
   let activePortalName = "Civic Portal";
+  let activePageHasForm = false;
 
   function autoStudyPortal() {
     if (tabStatusText) tabStatusText.innerText = "🔍 Nagarik AI is studying active page DOM...";
@@ -431,31 +442,57 @@ document.addEventListener("DOMContentLoaded", () => {
     chrome.runtime.sendMessage({ action: "TRIGGER_INSPECT_PAGE" }, (res) => {
       if (res && res.supported) {
         activePortalName = res.portalName || "Public Service Portal";
-        const fieldsCount = (res.fields && res.fields.length) ? res.fields.length : (res.totalRequired || 6);
+        activePageHasForm = !!res.hasForm;
 
-        if (tabStatusText) {
-          tabStatusText.innerHTML = `🏛️ <strong>${activePortalName}</strong> <span style="color: var(--muted-on-slate); font-size: 10px;">(${fieldsCount} fields mapped)</span>`;
-        }
-        if (tabStatusBadge) {
-          tabStatusBadge.innerText = "● READY";
-          tabStatusBadge.style.background = "#059669";
-          tabStatusBadge.style.color = "#ffffff";
-          tabStatusBadge.style.borderColor = "#047857";
-        }
+        if (res.hasForm) {
+          const fieldsCount = (res.fields && res.fields.length) ? res.fields.length : (res.totalRequired || 0);
+          if (tabStatusText) {
+            tabStatusText.innerHTML = `🏛️ <strong>${activePortalName}</strong> <span style="color: var(--muted-on-slate); font-size: 10px;">(${fieldsCount} fields ready)</span>`;
+          }
+          if (tabStatusBadge) {
+            tabStatusBadge.innerText = "● FORM READY";
+            tabStatusBadge.style.background = "#059669";
+            tabStatusBadge.style.color = "#ffffff";
+            tabStatusBadge.style.borderColor = "#047857";
+          }
+          if (q1Sub) {
+            q1Sub.innerText = `Grievance form detected on this page. Tell me what happened in simple everyday words or tap the mic.`;
+          }
 
-        if (q1Sub) {
-          q1Sub.innerText = `Studied ${activePortalName}. Tell me what happened in simple everyday words or tap the mic.`;
-        }
+          const welcomeMsg = currentLang === "hi" 
+            ? `नमस्ते! मैं नागरिक एआई हूँ। पोर्टल पर शिकायत फॉर्म मिल गया है। आपकी क्या समस्या है?`
+            : (currentLang === "te" 
+                ? `నమస్కారం! నేను నాగరిక్ AI. పోర్టల్‌లో ఫిర్యాదు ఫారమ్ గుర్తించబడింది. మీ సమస్య ఏమిటి?`
+                : `Namaste! I am Nagarik AI. I found the active grievance form on this page. What problem are you facing?`);
+          setTimeout(() => speak(welcomeMsg), 400);
 
-        // Welcome greeting with studied portal name
-        const welcomeMsg = currentLang === "hi" 
-          ? `नमस्ते! मैं नागरिक एआई हूँ। मैंने इस पोर्टल का अध्ययन कर लिया है: ${activePortalName}। आपकी क्या समस्या है?`
-          : (currentLang === "te" 
-              ? `నమస్కారం! నేను నాగరిక్ AI. నేను ఈ పోర్టల్‌ని పరిశీలించాను: ${activePortalName}. మీకు ఎలాంటి సమస్య ఎదురవుతోంది?`
-              : `Namaste! I am Nagarik AI. I have studied this portal: ${activePortalName}. Let's fill your complaint. What problem are you facing?`);
-        
-        setTimeout(() => speak(welcomeMsg), 400);
+        } else {
+          // Landing page or Sign-in page (e.g. pgportal.gov.in homepage)
+          const isCPGRAMS = activePortalName.toLowerCase().includes("cpgrams") || (res.url && res.url.includes("pgportal"));
+          if (tabStatusText) {
+            tabStatusText.innerHTML = `🏛️ <strong>${activePortalName}</strong> <span style="color: #f59e0b; font-size: 10px;">(Home / Landing Page)</span>`;
+          }
+          if (tabStatusBadge) {
+            tabStatusBadge.innerText = "⚠️ SIGN-IN TO LODGE";
+            tabStatusBadge.style.background = "#d97706";
+            tabStatusBadge.style.color = "#0B0C1E";
+            tabStatusBadge.style.borderColor = "#b45309";
+          }
+          if (q1Sub) {
+            q1Sub.innerText = isCPGRAMS 
+              ? `You are on the CPGRAMS Home Page. You can speak your grievance now — I will draft your petition and auto-fill it once you sign in.`
+              : `Grievance form not yet open. Tell me what happened and I will prepare your draft.`;
+          }
+
+          const welcomeMsg = currentLang === "hi" 
+            ? `नमस्ते! आप सीपीग्राम्स होमपेज पर हैं। सरकारी नियमों के अनुसार शिकायत दर्ज करने के लिए साइन इन करना आवश्यक है। आप अपनी समस्या बताइए, मैं मसौदा तैयार कर लूँगा।`
+            : (currentLang === "te" 
+                ? `నమస్కారం! మీరు CPGRAMS హోమ్‌పేజీలో ఉన్నారు. దయచేసి సైన్ ఇన్ చేయండి. మీ సమస్య చెప్పండి, నేను సిద్ధం చేస్తాను.`
+                : `Namaste! You are on the CPGRAMS home page. Official grievance filing requires signing in. Tell me your problem, and I will prepare your petition in memory.`);
+          setTimeout(() => speak(welcomeMsg), 400);
+        }
       } else {
+        activePageHasForm = false;
         if (tabStatusText) {
           tabStatusText.innerText = "🌐 Open CPGRAMS (pgportal.gov.in) or Municipal Portal";
         }
@@ -657,7 +694,97 @@ document.addEventListener("DOMContentLoaded", () => {
     revName.innerText = complaintData.citizen_name;
     revPhone.innerText = complaintData.citizen_phone;
 
-    showStep(6);
+    // Verify whether active portal actually has an open form
+    chrome.runtime.sendMessage({ action: "TRIGGER_INSPECT_PAGE" }, (res) => {
+      activePageHasForm = res && res.supported && res.hasForm;
+
+      if (activePageHasForm) {
+        // Grievance form is active on page! Perform full batch injection
+        chrome.runtime.sendMessage({
+          action: "TRIGGER_FILL_FIELDS",
+          fields: complaintData
+        });
+
+        if (step6Icon) step6Icon.innerText = "🎉";
+        if (step6Title) {
+          step6Title.innerText = "All Fields Populated on Portal!";
+          step6Title.style.color = "#34d399";
+        }
+        if (step6Subtitle) {
+          step6Subtitle.innerText = "Nagarik AI has populated every required field directly into the active portal on your screen.";
+        }
+        if (step6ActionBox) step6ActionBox.style.borderColor = "var(--orange-primary)";
+        if (step6ActionIcon) step6ActionIcon.innerText = "👉";
+        if (step6ActionTitle) {
+          step6ActionTitle.innerText = "LOOK AT THE PORTAL ON YOUR SCREEN";
+          step6ActionTitle.style.color = "var(--orange-hover)";
+        }
+        if (step6ActionText) {
+          step6ActionText.innerHTML = `All form fields have been highlighted and populated. Please verify, complete CAPTCHA if needed, and click the <strong>"Submit Grievance"</strong> button on the webpage to finish!`;
+        }
+        if (btnInjectNow) btnInjectNow.classList.add("hidden");
+
+        showStep(6, false);
+        speak(`All done! Every detail has been populated on the active portal. Please look at your screen, verify, and click Submit on the webpage to finish.`);
+      } else {
+        // Landing page or Sign-in page (e.g. pgportal.gov.in homepage)
+        if (step6Icon) step6Icon.innerText = "📋";
+        if (step6Title) {
+          step6Title.innerText = "Petition Drafted & Ready in Copilot Memory!";
+          step6Title.style.color = "#f59e0b";
+        }
+        if (step6Subtitle) {
+          step6Subtitle.innerText = "You are currently on the CPGRAMS home page. Government rules require signing in before lodging a grievance.";
+        }
+        if (step6ActionBox) step6ActionBox.style.borderColor = "#f59e0b";
+        if (step6ActionIcon) step6ActionIcon.innerText = "🔐";
+        if (step6ActionTitle) {
+          step6ActionTitle.innerText = "SIGN IN TO CPGRAMS TO FILE";
+          step6ActionTitle.style.color = "#f59e0b";
+        }
+        if (step6ActionText) {
+          step6ActionText.innerHTML = `Please click the yellow <strong>"Sign In"</strong> button on the CPGRAMS page (top-right). As soon as the grievance form opens, tap the button below to inject everything in 1 second!`;
+        }
+        if (btnInjectNow) btnInjectNow.classList.remove("hidden");
+
+        showStep(6, false);
+        speak(`Your petition has been drafted and saved in memory. You are currently on the CPGRAMS home page. Please click Sign In to reach the grievance filing page, then tap Inject to populate all fields.`);
+      }
+    });
+  }
+
+  // Handler for "Inject Saved Draft into Form" button
+  if (btnInjectNow) {
+    btnInjectNow.addEventListener("click", () => {
+      chrome.runtime.sendMessage({ action: "TRIGGER_INSPECT_PAGE" }, (res) => {
+        if (res && res.supported && res.hasForm) {
+          chrome.runtime.sendMessage({
+            action: "TRIGGER_FILL_FIELDS",
+            fields: complaintData
+          }, (fillRes) => {
+            if (step6Icon) step6Icon.innerText = "🎉";
+            if (step6Title) {
+              step6Title.innerText = "All Fields Populated on Portal!";
+              step6Title.style.color = "#34d399";
+            }
+            if (step6Subtitle) {
+              step6Subtitle.innerText = "Nagarik AI has populated every required field directly into the active portal on your screen.";
+            }
+            if (step6ActionTitle) {
+              step6ActionTitle.innerText = "LOOK AT THE PORTAL ON YOUR SCREEN";
+              step6ActionTitle.style.color = "var(--orange-hover)";
+            }
+            if (step6ActionText) {
+              step6ActionText.innerHTML = `All form fields have been highlighted and populated. Please verify, enter CAPTCHA if needed, and click the <strong>"Submit Grievance"</strong> button on the webpage to finish!`;
+            }
+            btnInjectNow.classList.add("hidden");
+            speak(`Draft injected into portal! Please verify, solve CAPTCHA, and click Submit.`);
+          });
+        } else {
+          alert("Grievance form is not yet open on the active tab.\n\nPlease click 'Sign In' (or 'Lodge a Grievance') on CPGRAMS first to reach the grievance form, then tap this button.");
+        }
+      });
+    });
   }
 
   btnSkipPhoto.addEventListener("click", finalizeToStep6);

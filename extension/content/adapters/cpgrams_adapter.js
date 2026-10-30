@@ -13,9 +13,10 @@ class CPGRAMSAdapter extends BasePortalAdapter {
    */
   async inspect() {
     const fields = [];
+    const url = window.location.href.toLowerCase();
 
     // CPGRAMS grievance description textarea
-    const textarea = document.querySelector("textarea#grievance, textarea[name*='grievance' i], textarea");
+    const textarea = document.querySelector("textarea#grievance, textarea[name*='grievance' i], textarea[id*='grievance' i], textarea");
     if (textarea) {
       fields.push({
         key: 'description',
@@ -70,6 +71,12 @@ class CPGRAMSAdapter extends BasePortalAdapter {
       });
     }
 
+    const hasForm = fields.length > 0;
+    const isLandingPage = url.endsWith("pgportal.gov.in/") || 
+                          url.endsWith("pgportal.gov.in") || 
+                          url.includes("/home") && !url.includes("lodge");
+    const isSignInPage = url.includes("/signin") || url.includes("/login");
+
     const totalRequired = fields.filter(f => f.required).length;
     const filledRequired = fields.filter(f => f.required && f.isFilled).length;
 
@@ -78,7 +85,11 @@ class CPGRAMSAdapter extends BasePortalAdapter {
       fields: fields,
       totalRequired: totalRequired,
       filledRequired: filledRequired,
-      isFullyFilled: totalRequired > 0 && totalRequired === filledRequired
+      hasForm: hasForm,
+      isLandingPage: isLandingPage,
+      isSignInPage: isSignInPage,
+      isFullyFilled: hasForm && totalRequired > 0 && totalRequired === filledRequired,
+      pageState: hasForm ? "FORM_ACTIVE" : (isSignInPage ? "SIGNIN_REQUIRED" : (isLandingPage ? "LANDING_PAGE" : "NO_FORM_DETECTED"))
     };
   }
 
@@ -126,7 +137,11 @@ class CPGRAMSAdapter extends BasePortalAdapter {
       }
     }
 
-    return { success: false, error: 'Field not found on active page' };
+    return { 
+      success: false, 
+      error: 'Form field not present on current page. Form may require login first.',
+      requiresForm: true
+    };
   }
 
   async fill(formData, onProgress) {
@@ -144,19 +159,18 @@ class CPGRAMSAdapter extends BasePortalAdapter {
       }
       this.setValueWithEvents(textarea, fullText);
       report("Filled CPGRAMS Grievance Description");
+      return {
+        success: true,
+        readyToSubmit: false,
+        notice: "Nagarik AI has populated your petition. Please verify, enter CAPTCHA/OTP, and click Submit."
+      };
     } else {
       return {
         success: false,
-        error: "LAYOUT_CHANGED",
-        missingSelectors: ["textarea"]
+        error: "NO_GRIEVANCE_FORM_ON_PAGE",
+        message: "You are on the CPGRAMS landing page. Please Sign In and open the grievance form to populate fields."
       };
     }
-
-    return {
-      success: true,
-      readyToSubmit: false,
-      notice: "Nagarik AI has populated your petition. Please verify, enter CAPTCHA/OTP, and click Submit."
-    };
   }
 
   async readTrackingId() {

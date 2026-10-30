@@ -7,6 +7,12 @@
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
+  <!-- Floating Ambient Glowing Orbs for Apple-Grade Glassmorphism Refraction -->
+  <div class="glass-ambient-container" aria-hidden="true">
+    <div class="ambient-orb orb-saffron"></div>
+    <div class="ambient-orb orb-indigo"></div>
+    <div class="ambient-orb orb-cyan"></div>
+  </div>
   
   <!-- Header with Nagarik AI Logo & Tagline -->
   <header class="header">
@@ -238,9 +244,9 @@
 
     <div class="input-wrapper">
       <input type="file" id="input-photo" accept="image/*" class="big-input" style="padding: 6px;">
-      <div id="photo-preview-box" class="assist-row hidden" style="margin-top: 8px;">
-        <img id="photo-preview-img" src="" alt="Proof Preview" style="max-height: 100px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: cover;">
-        <button id="btn-remove-photo" style="border: none; background: #fee2e2; color: #dc2626; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer; align-self: flex-start; margin-top: 4px;">Remove Photo</button>
+      <div id="photo-preview-box" class="assist-row hidden" style="margin-top: 10px;">
+        <img id="photo-preview-img" src="" alt="Proof Preview" style="max-height: 110px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.2); object-fit: cover; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);">
+        <button id="btn-remove-photo" style="border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(220, 38, 38, 0.25); color: #fca5a5; font-size: 11px; font-weight: 800; padding: 6px 12px; border-radius: 8px; cursor: pointer; align-self: flex-start; margin-top: 6px; backdrop-filter: blur(16px); transition: all 0.2s;">Remove Photo</button>
       </div>
     </div>
 
@@ -258,9 +264,9 @@
   <!-- ============================================================ -->
   <div id="wizard-step-6" class="step-card">
     <div class="question-box">
-      <div class="question-icon">🎉</div>
-      <h2 class="step-title" style="color: #166534;">All Fields Populated on Portal!</h2>
-      <p class="step-subtitle">Nagarik AI has injected every required field directly into the active municipal portal on your screen.</p>
+      <div id="step6-icon" class="question-icon">🎉</div>
+      <h2 id="step6-title" class="step-title" style="color: #34d399;">All Fields Populated on Portal!</h2>
+      <p id="step6-subtitle" class="step-subtitle">Nagarik AI has injected every required field directly into the active municipal portal on your screen.</p>
     </div>
 
     <!-- Review Card -->
@@ -275,7 +281,7 @@
       </div>
       <div class="review-item">
         <span class="review-key">⚡ Urgency</span>
-        <span id="rev-urgency" class="review-val" style="color: #b91c1c;">HIGH (Safety Risk)</span>
+        <span id="rev-urgency" class="review-val" style="color: var(--orange-hover);">HIGH (Safety Risk)</span>
       </div>
       <div class="review-item">
         <span class="review-key">📍 Location</span>
@@ -291,11 +297,14 @@
       </div>
     </div>
 
-    <!-- Prominent Pointer to the webpage -->
-    <div class="pulse-target-prompt">
-      <span class="pulse-icon">👉</span>
-      <div class="pulse-title">LOOK AT THE PORTAL ON YOUR SCREEN</div>
-      <p class="pulse-text">All form fields have been highlighted and populated. Please click the blue <strong>"Submit Grievance to Municipal Dispatch"</strong> button on the webpage to finish!</p>
+    <!-- Prominent Pointer to the webpage or Action Button -->
+    <div id="step6-action-box" class="pulse-target-prompt">
+      <span id="step6-action-icon" class="pulse-icon">👉</span>
+      <div id="step6-action-title" class="pulse-title">LOOK AT THE PORTAL ON YOUR SCREEN</div>
+      <p id="step6-action-text" class="pulse-text">All form fields have been highlighted and populated. Please click the blue <strong>"Submit Grievance"</strong> button on the webpage to finish!</p>
+      <button id="btn-inject-now" class="btn-next hidden" style="margin-top: 10px; width: 100%;">
+        <span>🚀 Inject Saved Draft into Form</span>
+      </button>
     </div>
 
     <div class="wizard-nav">
@@ -306,10 +315,10 @@
   <!-- ============================================================ -->
   <!-- Official Receipt (Captured by Mutation Observer on Submit)  -->
   <!-- ============================================================ -->
-  <div id="receipt-card" class="step-card" style="border-color: #86efac; background: #f0fdf4;">
+  <div id="receipt-card" class="step-card">
     <div class="receipt-header">✅ Grievance Officially Dispatched!</div>
     <p id="receipt-tracking-id" class="receipt-id">CP-2026-00000</p>
-    <p class="subtitle" style="margin-bottom: 12px; color: #166534;">Tracking reference detected live from portal receipt. Grievance entered into public municipal dispatch records.</p>
+    <p class="step-subtitle" style="margin-bottom: 14px; color: #a7f3d0; line-height: 1.5;">Tracking reference detected live from portal receipt. Grievance entered into public municipal dispatch records.</p>
     <button id="btn-new-after-receipt" class="btn-next success" style="width: 100%;">
       <span>File Another Grievance ➔</span>
     </button>

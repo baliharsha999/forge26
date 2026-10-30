@@ -1,6 +1,6 @@
 /**
- * JanSetu Lite - Base Portal Adapter
- * Defines the contract for all municipal and public service portals.
+ * Nagarik AI - Base Portal Adapter
+ * Defines the contract and gold-standard DOM event emulation for all municipal and public portals.
  */
 class BasePortalAdapter {
   constructor(name, domainPatterns) {
@@ -13,26 +13,42 @@ class BasePortalAdapter {
   }
 
   /**
-   * Helper to set input value and dispatch standard DOM events
-   * so React, Angular, and Vue portals register the change.
+   * Gold-Standard Value Setter:
+   * Bypasses React 16+, Vue, and Angular internal value interception,
+   * fires input, change, and blur events with bubble/composed flags.
    */
   setValueWithEvents(element, value) {
     if (!element) return false;
     element.focus();
-    element.value = value;
-    element.dispatchEvent(new Event("input", { bubbles: true }));
-    element.dispatchEvent(new Event("change", { bubbles: true }));
+
+    // Call native prototype setters to bypass framework state proxies
+    const inputProto = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    const textareaProto = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+    const selectProto = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value")?.set;
+
+    if (element.tagName === "INPUT" && inputProto) {
+      inputProto.call(element, value);
+    } else if (element.tagName === "TEXTAREA" && textareaProto) {
+      textareaProto.call(element, value);
+    } else if (element.tagName === "SELECT" && selectProto) {
+      selectProto.call(element, value);
+    } else {
+      element.value = value;
+    }
+
+    element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+    element.dispatchEvent(new Event("blur", { bubbles: true, composed: true }));
     element.classList.add("jansetu-highlight");
     return true;
   }
 
   /**
-   * Helper to attach image file using DataTransfer API
+   * Attaches image file using browser DataTransfer API
    */
   setFileInputWithDataTransfer(inputElement, base64Data, fileName = "evidence.png") {
     if (!inputElement || !base64Data) return false;
     try {
-      // Decode base64 if prefixed
       const parts = base64Data.split(";base64,");
       const contentType = parts.length > 1 ? parts[0].replace("data:", "") : "image/png";
       const rawBase64 = parts.length > 1 ? parts[1] : parts[0];
@@ -49,14 +65,44 @@ class BasePortalAdapter {
       const dt = new DataTransfer();
       dt.items.add(file);
       inputElement.files = dt.files;
-      inputElement.dispatchEvent(new Event("input", { bubbles: true }));
-      inputElement.dispatchEvent(new Event("change", { bubbles: true }));
+      inputElement.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+      inputElement.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
       inputElement.classList.add("jansetu-highlight");
       return true;
     } catch (e) {
-      console.warn("JanSetu: DataTransfer file attachment note:", e);
+      console.warn("Nagarik AI: DataTransfer file attachment note:", e);
       return false;
     }
+  }
+
+  /**
+   * Universal batch filler: loops through each key in fieldsMap
+   * and delegates to concrete fillSingleField(key, value)
+   */
+  async fillFields(fieldsMap) {
+    if (!fieldsMap || typeof fieldsMap !== "object") {
+      return { success: false, error: "Invalid fields map" };
+    }
+    const results = {};
+    let atLeastOneSuccess = false;
+
+    for (const [key, value] of Object.entries(fieldsMap)) {
+      if (typeof this.fillSingleField === "function") {
+        try {
+          const res = await this.fillSingleField(key, value);
+          results[key] = res;
+          if (res && res.success) atLeastOneSuccess = true;
+        } catch (err) {
+          results[key] = { success: false, error: err.message };
+        }
+      }
+    }
+
+    return {
+      success: atLeastOneSuccess,
+      results: results,
+      notice: atLeastOneSuccess ? "Nagarik AI populated available fields." : "No matching fields found on current page."
+    };
   }
 
   async fill(formData, onProgress) {
@@ -68,5 +114,4 @@ class BasePortalAdapter {
   }
 }
 
-// Make globally accessible in content script scope
 window.BasePortalAdapter = BasePortalAdapter;

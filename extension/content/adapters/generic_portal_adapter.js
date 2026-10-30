@@ -117,12 +117,16 @@ class GenericCivicAdapter extends BasePortalAdapter {
     const totalRequired = fields.filter(f => f.required).length;
     const filledRequired = fields.filter(f => f.required && f.isFilled).length;
 
+    const hasForm = fields.length > 0;
+
     return {
       portalName: this.name,
       fields: fields,
       totalRequired: totalRequired,
       filledRequired: filledRequired,
-      isFullyFilled: totalRequired > 0 && totalRequired === filledRequired
+      hasForm: hasForm,
+      pageState: hasForm ? "FORM_ACTIVE" : "NO_FORM_DETECTED",
+      isFullyFilled: hasForm && totalRequired > 0 && totalRequired === filledRequired
     };
   }
 

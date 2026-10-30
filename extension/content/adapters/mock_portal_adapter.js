@@ -186,6 +186,8 @@ class MockPortalAdapter extends BasePortalAdapter {
 
     return {
       portalName: this.name,
+      hasForm: true,
+      pageState: "FORM_ACTIVE",
       fields: fields,
       totalRequired: totalRequired,
       filledRequired: filledRequired,
