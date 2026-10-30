@@ -38,13 +38,26 @@ class MockPortalAdapter extends BasePortalAdapter {
     // 3. Department
     const deptEl = document.getElementById("department-select");
     if (deptEl) {
-      // Find closest matching option or set value
+      // Find closest matching option using bidirectional substring & keyword overlap
       let matched = false;
+      const deptLower = (formData.department || "").toLowerCase();
       for (let opt of deptEl.options) {
-        if (opt.value.toLowerCase().includes(formData.department?.toLowerCase() || "")) {
+        const optLower = opt.value.toLowerCase();
+        if (optLower.includes(deptLower) || deptLower.includes(optLower)) {
           deptEl.value = opt.value;
           matched = true;
           break;
+        }
+      }
+      if (!matched) {
+        const words = deptLower.split(/[\s\-_&,]+/).filter(w => w.length > 3);
+        for (let opt of deptEl.options) {
+          const optLower = opt.value.toLowerCase();
+          if (words.some(w => optLower.includes(w))) {
+            deptEl.value = opt.value;
+            matched = true;
+            break;
+          }
         }
       }
       if (!matched && deptEl.options.length > 0) {

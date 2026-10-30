@@ -1,8 +1,18 @@
 import os
+from pathlib import Path
 from pydantic import BaseModel
 from dotenv import load_dotenv
 
-load_dotenv()
+# Search for .env in current directory, backend directory, and repo root
+_env_paths = [
+    Path.cwd() / ".env",
+    Path(__file__).resolve().parent.parent.parent / ".env",
+    Path(__file__).resolve().parent.parent / ".env",
+]
+for p in _env_paths:
+    if p.exists():
+        load_dotenv(dotenv_path=p, override=True)
+
 
 class Settings(BaseModel):
     PROJECT_NAME: str = "JanSetu Lite - Civic Pulse Engine"
