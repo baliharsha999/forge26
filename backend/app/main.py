@@ -9,7 +9,7 @@ from app.db.database import init_db
 app = FastAPI(
     title=settings.PROJECT_NAME,
     version=settings.VERSION,
-    description="JanSetu Lite: Multimodal Civic Grievance, Scheme Navigator & Policy Fact Checker"
+    description="Nagarik AI: Empowering Every Citizen - Multimodal Civic Grievance & Redressal Copilot"
 )
 
 # Initialize live SQLite database

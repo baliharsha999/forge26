@@ -1,4 +1,9 @@
-# 🏛️ JanSetu Lite (जन सेतु) — Multimodal Civic Complaint Copilot
+# 🏛️ Nagarik AI (नागरिक AI) — Empowering Every Citizen
+### Multimodal Civic Redressal & Browser Form-Filling Copilot
+
+<p align="center">
+  <img src="assets/logo_full.png" alt="Nagarik AI Logo" width="400" />
+</p>
 
 [![Hackathon Track](https://img.shields.io/badge/Track-Civic%20Pulse%20%26%20Digital%20Governance-orange.svg)](https://github.com/cyugandharreddy08/nxtwave-buildathon-2026)
 [![Chrome Extension](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3%20Side%20Panel-blue.svg)](https://developer.chrome.com/docs/extensions/reference/manifest)
@@ -6,7 +11,7 @@
 [![Scheme Source](https://img.shields.io/badge/Scheme%20Provider-API%20Setu%20%2B%20Verified%20Store-emerald.svg)](https://apisetu.gov.in)
 [![Tests Status](https://img.shields.io/badge/Tests-14%20Passed%20(100%25)-brightgreen.svg)](#running-the-test-suite)
 
-> **JanSetu Lite** is an autonomous, multimodal civic copilot engineered as a **Chrome (Manifest V3) Extension with a Native Side Panel**. A citizen speaks in their mother tongue (Hindi, Telugu, or English) or uploads a photo. The extension converts this into a structured petition, displays it in the side panel for explicit citizen confirmation, injects an in-page content script that auto-fills the portal form with progressive field highlights, and leaves the final submission to the citizen. If a complaint exceeds the statutory SLA, JanSetu Lite drafts formal Reminders, First Appeals (RPSA), and Section 6(1) RTI applications.
+> **Nagarik AI** is an autonomous, multimodal civic copilot engineered as a **Chrome (Manifest V3) Extension with a Native Side Panel**. A citizen speaks in their mother tongue (Hindi, Telugu, or English) or uploads a photo. The extension converts this into a structured petition, displays it in the side panel for explicit citizen confirmation, injects an in-page content script that auto-fills the portal form with progressive field highlights, and leaves the final submission to the citizen. If a complaint exceeds the statutory SLA, Nagarik AI drafts formal Reminders, First Appeals (RPSA), and Section 6(1) RTI applications.
 
 ---
 

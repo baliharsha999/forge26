@@ -50,7 +50,7 @@ PORTAL_HTML = """
       </div>
 
       <h2 class="text-base font-bold text-slate-900 mb-1">File a Public Grievance</h2>
-      <p class="text-xs text-slate-500 mb-6">Enter details below or let JanSetu autonomous agent fill it automatically.</p>
+      <p class="text-xs text-slate-500 mb-6">Enter details below or let Nagarik AI copilot fill it automatically.</p>
 
       <form id="complaint-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
         

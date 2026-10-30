@@ -15,7 +15,7 @@ for p in _env_paths:
 
 
 class Settings(BaseModel):
-    PROJECT_NAME: str = "JanSetu Lite - Civic Pulse Engine"
+    PROJECT_NAME: str = "Nagarik AI - Civic Engine"
     VERSION: str = "0.2.0"
     API_PREFIX: str = "/api/v1"
     

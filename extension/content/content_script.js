@@ -14,7 +14,10 @@
     activeBanner.innerHTML = `
       <div class="${isDone ? '' : 'jansetu-spinner'}"></div>
       <div>
-        <div style="font-weight: 700; color: #f59e0b;">JanSetu Lite Civic Copilot</div>
+        <div style="font-weight: 800; color: #ea580c; font-size: 13px; display: flex; align-items: center; gap: 6px;">
+          <span>Nagarik AI</span>
+          <span style="font-size: 9px; color: #94a3b8; font-weight: normal; text-transform: uppercase; letter-spacing: 0.5px;">Auto-Filling Portal</span>
+        </div>
         <div style="color: #cbd5e1; font-size: 11px;">${text}</div>
       </div>
     `;

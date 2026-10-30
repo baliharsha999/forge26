@@ -3,18 +3,21 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>JanSetu Lite - Civic Copilot</title>
+  <title>Nagarik AI - Civic Copilot</title>
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
   
-  <!-- Header -->
+  <!-- Header with Nagarik AI Logo & Tagline -->
   <header class="header">
     <div class="header-brand">
-      <div class="logo">🏛️</div>
-      <div>
-        <h1>JanSetu Lite</h1>
-        <div class="subtitle">Conversational Civic Copilot</div>
+      <img src="../assets/logo_emblem.png" class="header-logo-img" alt="Nagarik AI Emblem">
+      <div class="brand-text-container">
+        <div class="brand-title">
+          <span>Nagarik</span>
+          <span class="ai-badge">AI</span>
+        </div>
+        <div class="brand-tagline">Empowering Every Citizen</div>
       </div>
     </div>
     
@@ -34,321 +37,283 @@
     </div>
   </header>
 
-  <!-- Navigation Tabs -->
-  <nav class="nav-tabs">
-    <button class="tab-btn active" data-target="tab-complaint">1. File Grievance</button>
-    <button class="tab-btn" data-target="tab-schemes">2. Scheme Checker</button>
-    <button class="tab-btn" data-target="tab-escalate">3. Escalations</button>
-  </nav>
+  <!-- Live Municipal Portal Connection Status -->
+  <div id="tab-status-banner" class="alert-banner live">
+    <span id="tab-status-text">Connected to: Municipal Redressal Portal</span>
+    <span style="font-size: 10px; font-weight: 800; background: #dcfce7; padding: 2px 6px; border-radius: 4px; color: #166534;">AUTO-FILL ACTIVE</span>
+  </div>
 
-  <!-- TAB 1: COMPLAINT INTAKE WIZARD -->
-  <section id="tab-complaint" class="tab-content active">
-    
-    <!-- Privacy Advisory -->
-    <div id="privacy-banner" class="alert-banner warning hidden">
-      <span>⚠️ Aadhaar detected and masked. Government rules forbid storing national IDs on portal forms.</span>
+  <!-- Privacy Advisory -->
+  <div id="privacy-banner" class="alert-banner warning hidden">
+    <span>⚠️ Aadhaar detected & masked. Government security standards prohibit storing national IDs on portal forms.</span>
+  </div>
+
+  <!-- Step Progress Tracker -->
+  <div class="wizard-progress">
+    <div class="progress-header">
+      <span id="progress-step-label" class="step-label">Step 1: The Problem</span>
+      <span id="progress-step-count" class="step-count">1 of 5</span>
+    </div>
+    <div class="progress-track">
+      <div id="progress-bar" class="progress-bar" style="width: 20%;"></div>
+    </div>
+  </div>
+
+  <!-- Audio Speaking Indicator -->
+  <div id="speaking-indicator" class="voice-speaking-indicator hidden">
+    <div class="voice-wave">
+      <span></span><span></span><span></span>
+    </div>
+    <span id="speaking-text">Nagarik AI is speaking...</span>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- ANIMATED AI REASONING & ANALYSIS STAGE (During Gemini Call)  -->
+  <!-- ============================================================ -->
+  <div id="analyzing-stage" class="analyzing-stage hidden">
+    <div class="mandala-glow-wrapper">
+      <div class="mandala-pulse-ring"></div>
+      <img id="mandala-spinner" src="../assets/logo_emblem.png" class="mandala-img" alt="Nagarik AI Mandala">
+    </div>
+    <h3 id="analyzing-title" class="analyzing-heading">Nagarik AI is Analyzing...</h3>
+    <div id="reasoning-ticker" class="reasoning-ticker">
+      <span>🧠 Understanding your civic grievance...</span>
+    </div>
+    <div class="reasoning-dots">
+      <span></span><span></span><span></span>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- STEP 1: The Problem                                          -->
+  <!-- ============================================================ -->
+  <div id="wizard-step-1" class="step-card active">
+    <div class="question-box">
+      <div class="question-icon">📢</div>
+      <h2 id="q1-title" class="step-title">What problem are you facing?</h2>
+      <p id="q1-sub" class="step-subtitle">Tell me what happened in simple everyday words or tap the mic to speak.</p>
     </div>
 
-    <!-- Active Tab Support Status -->
-    <div id="tab-status-banner" class="alert-banner live">
-      <span id="tab-status-text">Connected to: Mock Municipal Corporation Portal</span>
-      <span style="font-size: 10px; font-weight: 800; background: #dcfce7; padding: 2px 6px; border-radius: 4px;">LIVE CO-PILOT</span>
-    </div>
-
-    <!-- Step Progress Tracker -->
-    <div class="wizard-progress">
-      <div class="progress-header">
-        <span id="progress-step-label" class="step-label">Step 1: The Problem</span>
-        <span id="progress-step-count" class="step-count">1 of 5</span>
-      </div>
-      <div class="progress-track">
-        <div id="progress-bar" class="progress-bar" style="width: 20%;"></div>
-      </div>
-    </div>
-
-    <!-- Live Audio Speaking Indicator -->
-    <div id="speaking-indicator" class="voice-speaking-indicator hidden">
-      <div class="voice-wave">
-        <span></span><span></span><span></span>
-      </div>
-      <span id="speaking-text">JanSetu is asking aloud...</span>
-    </div>
-
-    <!-- STEP 1: The Problem -->
-    <div id="wizard-step-1" class="step-card active">
-      <div class="question-box">
-        <div class="question-icon">📢</div>
-        <h2 id="q1-title" class="step-title">What problem are you facing?</h2>
-        <p id="q1-sub" class="step-subtitle">Tell me what happened in simple everyday words or tap the mic to speak.</p>
-      </div>
-
-      <div class="input-wrapper">
-        <textarea id="input-problem" class="big-textarea" rows="3" placeholder="Speak or type: 'my house wall is broken due to muncipal water leakage'"></textarea>
-        <div class="mic-control-bar">
-          <button id="mic-btn-step1" class="mic-toggle-btn" title="Click to speak">
-            <span>🎙️</span>
-            <span class="mic-label">Tap to Speak</span>
-          </button>
-        </div>
-      </div>
-
-      <!-- Quick Samples -->
-      <div class="chips-container">
-        <button class="chip" data-text="my house wall is broken due to muncipal cos water leakage">🚰 Wall Broken / Water Leak</button>
-        <button class="chip" data-text="Deep crater pothole near Main Road junction, two-wheelers skidding">🚧 Dangerous Road Pothole</button>
-        <button class="chip" data-text="High voltage transformer sparking near residential houses">⚡ Transformer Sparking Hazard</button>
-      </div>
-
-      <div class="wizard-nav">
-        <button id="btn-next-step1" class="btn-next">
-          <span class="btn-text">Analyze & Continue ➔</span>
-          <span class="spinner hidden"></span>
+    <div class="input-wrapper">
+      <textarea id="input-problem" class="big-textarea" rows="3" placeholder="Speak or type: 'my house wall is broken due to muncipal water leakage'"></textarea>
+      <div class="mic-control-bar">
+        <button id="mic-btn-step1" class="mic-toggle-btn" title="Click to speak">
+          <span>🎙️</span>
+          <span class="mic-label">Tap to Speak</span>
         </button>
       </div>
     </div>
 
-    <!-- STEP 2: The Location -->
-    <div id="wizard-step-2" class="step-card">
-      <div class="question-box">
-        <div class="question-icon">📍</div>
-        <h2 id="q2-title" class="step-title">Where did this happen?</h2>
-        <p id="q2-sub" class="step-subtitle">Tell me the street name, colony, or tap the button to use GPS.</p>
-      </div>
-
-      <div class="assist-row">
-        <button id="btn-gps-detect" class="gps-prominent-btn">
-          <span>📍</span>
-          <span id="gps-btn-text">Auto-Detect My Current GPS Location</span>
-        </button>
-      </div>
-
-      <div class="input-wrapper">
-        <input type="text" id="input-location" class="big-input" placeholder="e.g. Door 14, Ward 7, Near Water Tank, Kukatpally">
-        <div class="mic-control-bar">
-          <button id="mic-btn-step2" class="mic-toggle-btn">
-            <span>🎙️</span>
-            <span class="mic-label">Speak Location</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="wizard-nav">
-        <button id="btn-back-step2" class="btn-back">⬅ Back</button>
-        <button id="btn-next-step2" class="btn-next">
-          <span>Save & Continue ➔</span>
-        </button>
-      </div>
+    <!-- Quick Samples -->
+    <div class="chips-container">
+      <button class="chip" data-text="my house wall is broken due to muncipal cos water leakage">🚰 Wall Broken / Water Leak</button>
+      <button class="chip" data-text="Deep crater pothole near Main Road junction, two-wheelers skidding">🚧 Dangerous Road Pothole</button>
+      <button class="chip" data-text="High voltage transformer sparking near residential houses">⚡ Transformer Sparking Hazard</button>
     </div>
 
-    <!-- STEP 3: Citizen Full Name -->
-    <div id="wizard-step-3" class="step-card">
-      <div class="question-box">
-        <div class="question-icon">👤</div>
-        <h2 id="q3-title" class="step-title">What is your full name?</h2>
-        <p id="q3-sub" class="step-subtitle">The municipal department requires your legal name for the grievance file.</p>
-      </div>
+    <div class="wizard-nav">
+      <button id="btn-next-step1" class="btn-next">
+        <span class="btn-text">Analyze with Nagarik AI ➔</span>
+        <span class="spinner hidden"></span>
+      </button>
+    </div>
+  </div>
 
-      <!-- Quick profile chip if saved -->
-      <div id="saved-name-container" class="assist-row hidden">
-        <button id="btn-use-saved-name" class="profile-chip-btn">
-          <span>👤</span>
-          <span id="saved-name-text">Use: Ramesh Kumar</span>
-        </button>
-      </div>
-
-      <div class="input-wrapper">
-        <input type="text" id="input-name" class="big-input" placeholder="e.g. Rajesh Sharma">
-        <div class="mic-control-bar">
-          <button id="mic-btn-step3" class="mic-toggle-btn">
-            <span>🎙️</span>
-            <span class="mic-label">Speak Your Name</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="wizard-nav">
-        <button id="btn-back-step3" class="btn-back">⬅ Back</button>
-        <button id="btn-next-step3" class="btn-next">
-          <span>Save & Continue ➔</span>
-        </button>
-      </div>
+  <!-- ============================================================ -->
+  <!-- STEP 2: The Location                                         -->
+  <!-- ============================================================ -->
+  <div id="wizard-step-2" class="step-card">
+    <div class="question-box">
+      <div class="question-icon">📍</div>
+      <h2 id="q2-title" class="step-title">Where did this happen?</h2>
+      <p id="q2-sub" class="step-subtitle">Tell me the street name, colony, or tap the button to use GPS.</p>
     </div>
 
-    <!-- STEP 4: Citizen Phone Number -->
-    <div id="wizard-step-4" class="step-card">
-      <div class="question-box">
-        <div class="question-icon">📞</div>
-        <h2 id="q4-title" class="step-title">What is your mobile number?</h2>
-        <p id="q4-sub" class="step-subtitle">You will receive official SMS tracking updates and inspection alerts on this 10-digit number.</p>
-      </div>
-
-      <!-- Quick profile chip if saved -->
-      <div id="saved-phone-container" class="assist-row hidden">
-        <button id="btn-use-saved-phone" class="profile-chip-btn">
-          <span>📞</span>
-          <span id="saved-phone-text">Use: 9876543210</span>
-        </button>
-      </div>
-
-      <div class="input-wrapper">
-        <input type="tel" id="input-phone" class="big-input" maxlength="10" placeholder="10-digit mobile number (e.g. 9876543210)">
-        <div class="mic-control-bar">
-          <button id="mic-btn-step4" class="mic-toggle-btn">
-            <span>🎙️</span>
-            <span class="mic-label">Speak Number</span>
-          </button>
-        </div>
-      </div>
-
-      <div class="wizard-nav">
-        <button id="btn-back-step4" class="btn-back">⬅ Back</button>
-        <button id="btn-next-step4" class="btn-next">
-          <span>Save & Continue ➔</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- STEP 5: Photo Evidence -->
-    <div id="wizard-step-5" class="step-card">
-      <div class="question-box">
-        <div class="question-icon">📷</div>
-        <h2 id="q5-title" class="step-title">Do you have a photo of the damage?</h2>
-        <p id="q5-sub" class="step-subtitle">Photographic proof helps ward officers inspect and approve repairs faster. You can also skip this.</p>
-      </div>
-
-      <div class="input-wrapper">
-        <input type="file" id="input-photo" accept="image/*" class="big-input" style="padding: 6px;">
-        <div id="photo-preview-box" class="assist-row hidden" style="margin-top: 8px;">
-          <img id="photo-preview-img" src="" alt="Proof Preview" style="max-height: 100px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: cover;">
-          <button id="btn-remove-photo" style="border: none; background: #fee2e2; color: #dc2626; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer; align-self: flex-start; margin-top: 4px;">Remove Photo</button>
-        </div>
-      </div>
-
-      <div class="wizard-nav">
-        <button id="btn-back-step5" class="btn-back">⬅ Back</button>
-        <button id="btn-skip-photo" class="btn-skip">Skip Photo</button>
-        <button id="btn-next-step5" class="btn-next">
-          <span>Finish & Review ➔</span>
-        </button>
-      </div>
-    </div>
-
-    <!-- STEP 6: Review & Final Submission Prompt -->
-    <div id="wizard-step-6" class="step-card">
-      <div class="question-box">
-        <div class="question-icon">🎉</div>
-        <h2 class="step-title" style="color: #166534;">Form Filled on Portal!</h2>
-        <p class="step-subtitle">JanSetu has populated every required field directly into the municipal portal on your screen.</p>
-      </div>
-
-      <!-- Review Card -->
-      <div class="review-card">
-        <div class="review-item">
-          <span class="review-key">🏢 Department</span>
-          <span id="rev-dept" class="review-val">Water Supply Board</span>
-        </div>
-        <div class="review-item">
-          <span class="review-key">🏷️ Category</span>
-          <span id="rev-cat" class="review-val">Water Pipeline Leak</span>
-        </div>
-        <div class="review-item">
-          <span class="review-key">⚡ Urgency</span>
-          <span id="rev-urgency" class="review-val" style="color: #b91c1c;">HIGH (Safety Risk)</span>
-        </div>
-        <div class="review-item">
-          <span class="review-key">📍 Location</span>
-          <span id="rev-loc" class="review-val">Ward 7</span>
-        </div>
-        <div class="review-item">
-          <span class="review-key">👤 Citizen</span>
-          <span id="rev-name" class="review-val">Ramesh</span>
-        </div>
-        <div class="review-item">
-          <span class="review-key">📞 Mobile</span>
-          <span id="rev-phone" class="review-val">9876543210</span>
-        </div>
-      </div>
-
-      <!-- Prominent Callout pointing to portal page -->
-      <div class="pulse-target-prompt">
-        <span class="pulse-icon">👉</span>
-        <div class="pulse-title">LOOK AT THE PORTAL ON YOUR SCREEN</div>
-        <p class="pulse-text">All form fields have been filled in for you. Click the blue <strong>"Submit Grievance"</strong> button on the webpage to finish!</p>
-      </div>
-
-      <div class="wizard-nav">
-        <button id="btn-restart-wizard" class="btn-back" style="flex: 1;">🔄 File Another Grievance</button>
-      </div>
-    </div>
-
-    <!-- Official Receipt (Shown when tracking ID detected) -->
-    <div id="receipt-card" class="step-card" style="border-color: #86efac; background: #f0fdf4;">
-      <div class="receipt-header">✅ Grievance Officially Dispatched!</div>
-      <p id="receipt-tracking-id" class="receipt-id">CP-2026-00000</p>
-      <p class="subtitle" style="margin-bottom: 10px;">Tracking reference detected live from portal receipt. Grievance entered into public municipal ledger.</p>
-      <button id="btn-view-escalations" class="btn-next success" style="width: 100%;">
-        <span>Check Statutory Escalation Deadlines ➔</span>
+    <div class="assist-row">
+      <button id="btn-gps-detect" class="gps-prominent-btn">
+        <span>📍</span>
+        <span id="gps-btn-text">Auto-Detect My Current GPS Location</span>
       </button>
     </div>
 
-  </section>
-
-  <!-- TAB 2: SCHEME CLAIM CHECKER -->
-  <section id="tab-schemes" class="tab-content">
-    <div class="step-card active">
-      <div class="question-box">
-        <div class="question-icon">📜</div>
-        <h2 class="step-title">Government Scheme Fact-Checker</h2>
-        <p class="step-subtitle">Paste any viral forward or claim to verify it against official gazette rules and API Setu records.</p>
-      </div>
-
-      <textarea id="claim-input" class="big-textarea" rows="2" placeholder="Paste claim: 'PM-KISAN gives farmers Rs 6,000 per year...'"></textarea>
-      <button id="check-claim-btn" class="btn-next mt-2" style="width: 100%; margin-top: 8px;">Verify Against Official Schemes</button>
-      
-      <div id="claim-result" class="review-card hidden" style="margin-top: 12px;">
-        <div class="step-title" id="claim-verdict" style="font-size: 13px; color: #166534;">MATCHES OFFICIAL SOURCE</div>
-        <p id="claim-summary" class="step-subtitle" style="margin-top: 4px;"></p>
-        <div style="background: #ffffff; padding: 8px; border-radius: 6px; border: 1px solid #e2e8f0; margin: 8px 0;">
-          <small style="color: #64748b; font-weight: 700;">Exact Quoted Statutory Text:</small>
-          <blockquote id="claim-quote" style="font-size: 11px; color: #334155; margin-top: 4px; font-style: italic;"></blockquote>
-        </div>
-        <a id="claim-link" href="#" target="_blank" style="color: #2563eb; font-weight: 700; font-size: 11px; text-decoration: none;">View Official Scheme on myScheme ➔</a>
+    <div class="input-wrapper">
+      <input type="text" id="input-location" class="big-input" placeholder="e.g. Door 14, Ward 7, Near Water Tank, Kukatpally">
+      <div class="mic-control-bar">
+        <button id="mic-btn-step2" class="mic-toggle-btn">
+          <span>🎙️</span>
+          <span class="mic-label">Speak Location</span>
+        </button>
       </div>
     </div>
-  </section>
 
-  <!-- TAB 3: ESCALATIONS -->
-  <section id="tab-escalate" class="tab-content">
-    <div class="step-card active">
-      <div class="question-box">
-        <div class="question-icon">⚖️</div>
-        <h2 class="step-title">Statutory Escalation Studio</h2>
-        <p class="step-subtitle">Generate legally binding Reminder letters, Right to Public Services Appeals, or RTI Applications for overdue complaints.</p>
-      </div>
+    <div class="wizard-nav">
+      <button id="btn-back-step2" class="btn-back">⬅ Back</button>
+      <button id="btn-next-step2" class="btn-next">
+        <span>Save & Fill Portal ➔</span>
+      </button>
+    </div>
+  </div>
 
-      <div class="input-wrapper">
-        <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Grievance Reference Number:</label>
-        <input type="text" id="esc-tracking-id" class="big-input" value="CP-2026-98124">
-      </div>
-      
-      <div class="input-wrapper">
-        <label style="font-size: 11px; font-weight: 700; color: #475569; display: block; margin-bottom: 4px;">Select Statutory Escalation Type:</label>
-        <div style="display: flex; flex-direction: column; gap: 6px; font-size: 12px; margin-top: 4px;">
-          <label style="display: flex; align-items: center; gap: 6px;"><input type="radio" name="esc-type" value="reminder" checked> Urgent Notice & Reminder (Day 7+)</label>
-          <label style="display: flex; align-items: center; gap: 6px;"><input type="radio" name="esc-type" value="appeal"> 1st Appeal under Right to Public Services Act (Day 15+)</label>
-          <label style="display: flex; align-items: center; gap: 6px;"><input type="radio" name="esc-type" value="rti"> Section 6(1) RTI Application (Day 30+)</label>
-        </div>
-      </div>
+  <!-- ============================================================ -->
+  <!-- STEP 3: Citizen Full Name                                    -->
+  <!-- ============================================================ -->
+  <div id="wizard-step-3" class="step-card">
+    <div class="question-box">
+      <div class="question-icon">👤</div>
+      <h2 id="q3-title" class="step-title">What is your full name?</h2>
+      <p id="q3-sub" class="step-subtitle">The municipal department requires your legal name for the grievance file.</p>
+    </div>
 
-      <button id="generate-esc-btn" class="btn-next" style="width: 100%; margin-top: 8px;">Generate Statutory Draft</button>
+    <!-- Quick profile chip if saved -->
+    <div id="saved-name-container" class="assist-row hidden">
+      <button id="btn-use-saved-name" class="profile-chip-btn">
+        <span>👤</span>
+        <span id="saved-name-text">Use: Ramesh Kumar</span>
+      </button>
+    </div>
 
-      <div id="esc-result-container" class="review-card hidden" style="margin-top: 12px;">
-        <h4 id="esc-subject" style="font-weight: 800; font-size: 12px; color: #0f172a; margin-bottom: 6px;"></h4>
-        <textarea id="esc-body" rows="8" class="big-textarea" style="font-family: monospace; font-size: 11px;"></textarea>
-        <button id="copy-esc-btn" class="btn-back" style="width: 100%; margin-top: 6px; font-weight: 800; color: #2563eb;">📋 Copy Escalation to Clipboard</button>
+    <div class="input-wrapper">
+      <input type="text" id="input-name" class="big-input" placeholder="e.g. Rajesh Sharma">
+      <div class="mic-control-bar">
+        <button id="mic-btn-step3" class="mic-toggle-btn">
+          <span>🎙️</span>
+          <span class="mic-label">Speak Your Name</span>
+        </button>
       </div>
     </div>
-  </section>
+
+    <div class="wizard-nav">
+      <button id="btn-back-step3" class="btn-back">⬅ Back</button>
+      <button id="btn-next-step3" class="btn-next">
+        <span>Save & Fill Portal ➔</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- STEP 4: Citizen Phone Number                                 -->
+  <!-- ============================================================ -->
+  <div id="wizard-step-4" class="step-card">
+    <div class="question-box">
+      <div class="question-icon">📞</div>
+      <h2 id="q4-title" class="step-title">What is your mobile number?</h2>
+      <p id="q4-sub" class="step-subtitle">You will receive official SMS tracking updates and inspection alerts on this 10-digit number.</p>
+    </div>
+
+    <!-- Quick profile chip if saved -->
+    <div id="saved-phone-container" class="assist-row hidden">
+      <button id="btn-use-saved-phone" class="profile-chip-btn">
+        <span>📞</span>
+        <span id="saved-phone-text">Use: 9876543210</span>
+      </button>
+    </div>
+
+    <div class="input-wrapper">
+      <input type="tel" id="input-phone" class="big-input" maxlength="10" placeholder="10-digit mobile number (e.g. 9876543210)">
+      <div class="mic-control-bar">
+        <button id="mic-btn-step4" class="mic-toggle-btn">
+          <span>🎙️</span>
+          <span class="mic-label">Speak Number</span>
+        </button>
+      </div>
+    </div>
+
+    <div class="wizard-nav">
+      <button id="btn-back-step4" class="btn-back">⬅ Back</button>
+      <button id="btn-next-step4" class="btn-next">
+        <span>Save & Fill Portal ➔</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- STEP 5: Photo Evidence                                       -->
+  <!-- ============================================================ -->
+  <div id="wizard-step-5" class="step-card">
+    <div class="question-box">
+      <div class="question-icon">📷</div>
+      <h2 id="q5-title" class="step-title">Do you have a photo of the damage?</h2>
+      <p id="q5-sub" class="step-subtitle">Photographic proof helps ward officers inspect and approve repairs faster. You can also skip this.</p>
+    </div>
+
+    <div class="input-wrapper">
+      <input type="file" id="input-photo" accept="image/*" class="big-input" style="padding: 6px;">
+      <div id="photo-preview-box" class="assist-row hidden" style="margin-top: 8px;">
+        <img id="photo-preview-img" src="" alt="Proof Preview" style="max-height: 100px; border-radius: 8px; border: 1px solid #cbd5e1; object-fit: cover;">
+        <button id="btn-remove-photo" style="border: none; background: #fee2e2; color: #dc2626; font-size: 11px; font-weight: 700; padding: 4px 8px; border-radius: 6px; cursor: pointer; align-self: flex-start; margin-top: 4px;">Remove Photo</button>
+      </div>
+    </div>
+
+    <div class="wizard-nav">
+      <button id="btn-back-step5" class="btn-back">⬅ Back</button>
+      <button id="btn-skip-photo" class="btn-skip">Skip Photo</button>
+      <button id="btn-next-step5" class="btn-next">
+        <span>Attach & Review ➔</span>
+      </button>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- STEP 6: Review & Final Submission Prompt                     -->
+  <!-- ============================================================ -->
+  <div id="wizard-step-6" class="step-card">
+    <div class="question-box">
+      <div class="question-icon">🎉</div>
+      <h2 class="step-title" style="color: #166534;">All Fields Populated on Portal!</h2>
+      <p class="step-subtitle">Nagarik AI has injected every required field directly into the active municipal portal on your screen.</p>
+    </div>
+
+    <!-- Review Card -->
+    <div class="review-card">
+      <div class="review-item">
+        <span class="review-key">🏢 Department</span>
+        <span id="rev-dept" class="review-val">Water Supply Board</span>
+      </div>
+      <div class="review-item">
+        <span class="review-key">🏷️ Category</span>
+        <span id="rev-cat" class="review-val">Water Pipeline Leak</span>
+      </div>
+      <div class="review-item">
+        <span class="review-key">⚡ Urgency</span>
+        <span id="rev-urgency" class="review-val" style="color: #b91c1c;">HIGH (Safety Risk)</span>
+      </div>
+      <div class="review-item">
+        <span class="review-key">📍 Location</span>
+        <span id="rev-loc" class="review-val">Ward 7</span>
+      </div>
+      <div class="review-item">
+        <span class="review-key">👤 Citizen</span>
+        <span id="rev-name" class="review-val">Ramesh</span>
+      </div>
+      <div class="review-item">
+        <span class="review-key">📞 Mobile</span>
+        <span id="rev-phone" class="review-val">9876543210</span>
+      </div>
+    </div>
+
+    <!-- Prominent Pointer to the webpage -->
+    <div class="pulse-target-prompt">
+      <span class="pulse-icon">👉</span>
+      <div class="pulse-title">LOOK AT THE PORTAL ON YOUR SCREEN</div>
+      <p class="pulse-text">All form fields have been highlighted and populated. Please click the blue <strong>"Submit Grievance to Municipal Dispatch"</strong> button on the webpage to finish!</p>
+    </div>
+
+    <div class="wizard-nav">
+      <button id="btn-restart-wizard" class="btn-back" style="width: 100%;">🔄 File Another Grievance</button>
+    </div>
+  </div>
+
+  <!-- ============================================================ -->
+  <!-- Official Receipt (Captured by Mutation Observer on Submit)  -->
+  <!-- ============================================================ -->
+  <div id="receipt-card" class="step-card" style="border-color: #86efac; background: #f0fdf4;">
+    <div class="receipt-header">✅ Grievance Officially Dispatched!</div>
+    <p id="receipt-tracking-id" class="receipt-id">CP-2026-00000</p>
+    <p class="subtitle" style="margin-bottom: 12px; color: #166534;">Tracking reference detected live from portal receipt. Grievance entered into public municipal dispatch records.</p>
+    <button id="btn-new-after-receipt" class="btn-next success" style="width: 100%;">
+      <span>File Another Grievance ➔</span>
+    </button>
+  </div>
 
   <script src="sidepanel.js"></script>
 </body>

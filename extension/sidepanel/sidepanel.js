@@ -1,17 +1,20 @@
 /**
- * JanSetu Lite - Conversational One-by-One Civic Copilot
+ * Nagarik AI - Conversational Civic Copilot
+ * "Empowering Every Citizen"
+ * 
  * Features:
+ * - Animated Nagarik AI Mandala Reasoning Stage
  * - Ultra-accessible one-question-at-a-time wizard
- * - Natural multilingual voice TTS (English, Hindi, Telugu)
- * - Speech-to-Text with spoken numbers normalization
- * - Real-time progressive form filling on the active portal tab
- * - GPS Reverse Geocoding
- * - Offline Fallback & Fact-Checking
+ * - Multilingual natural speech (English, Hindi, Telugu)
+ * - Progressive live portal DOM auto-filling
+ * - GPS Reverse Geocoding via OpenStreetMap
+ * - Speech-to-digits parser
  */
 document.addEventListener("DOMContentLoaded", () => {
   let currentLang = "en";
   let voiceEnabled = true;
   let currentStep = 1;
+  let reasoningInterval = null;
 
   // Stored state for current grievance
   let complaintData = {
@@ -31,9 +34,9 @@ document.addEventListener("DOMContentLoaded", () => {
   const DIALOGS = {
     en: {
       q1: "What problem are you facing? Tell me what happened in simple words.",
-      q1_confirm: (dept) => `Got it. I have classified this under ${dept} with high urgency and filled it on the portal.`,
+      q1_confirm: (dept) => `Got it. I have classified this under ${dept} with high urgency and filled it directly into the portal.`,
       q2: "Where did this problem happen? Tell me your street name, colony, or tap the GPS button.",
-      q3: "What is your full name? The municipal department needs your name for the file.",
+      q3: "What is your full name? The municipal department requires your name for the official file.",
       q4: "What is your 10-digit mobile number for official SMS updates?",
       q5: "Do you have a photo of the damage? You can choose a photo or skip.",
       q6: "All done! Every detail has been filled on the municipal portal page. Please look at the screen and click the blue Submit Grievance button to finish.",
@@ -45,7 +48,7 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     hi: {
       q1: "नमस्ते! आपको क्या समस्या आ रही है? कृपया सरल शब्दों में बताइए।",
-      q1_confirm: (dept) => `समझ गया। मैंने इसे ${dept} के अंतर्गत दर्ज कर दिया है।`,
+      q1_confirm: (dept) => `समझ गया। मैंने इसे ${dept} के अंतर्गत दर्ज कर के पोर्टल पर भर दिया है।`,
       q2: "यह समस्या कहाँ हुई है? अपनी कॉलोनी या गली का नाम बताइए या जीपीएस बटन दबाएं।",
       q3: "आपका पूरा नाम क्या है?",
       q4: "स्टेटस अपडेट के लिए आपका 10 अंकों का मोबाइल नंबर क्या है?",
@@ -73,6 +76,32 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   };
 
+  // AI Reasoning Steps for Animated Stage
+  const REASONING_STEPS = {
+    en: [
+      "🧠 Nagarik AI is understanding your grievance...",
+      "🏛️ Identifying municipal jurisdiction & department...",
+      "⚖️ Mapping applicable Municipal Corporation acts...",
+      "⚡ Assessing urgency priority & immediate remedy...",
+      "📝 Generating formal legal petition wording...",
+      "🤖 Preparing live browser DOM form injection..."
+    ],
+    hi: [
+      "🧠 नागरिक एआई आपकी शिकायत का विश्लेषण कर रहा है...",
+      "🏛️ संबंधित नगर निगम विभाग की पहचान की जा रही है...",
+      "⚖️ लागू नियमों और अधिनियमों का मिलान हो रहा है...",
+      "⚡ तात्कालिकता और समाधान तैयार किया जा रहा है...",
+      "🤖 पोर्टल फॉर्म में लाइव ऑटो-फिल की तैयारी हो रही है..."
+    ],
+    te: [
+      "🧠 నాగరిక్ AI మీ సమస్యను విశ్లేషిస్తోంది...",
+      "🏛️ సంబంధిత మున్సిపల్ విభాగాన్ని గుర్తిస్తోంది...",
+      "⚖️ చట్టపరమైన నిబంధనలను పరిశీలిస్తోంది...",
+      "⚡ అత్యవసర స్థాయిని అంచనా వేస్తోంది...",
+      "🤖 పోర్టల్ ఫారమ్‌లో లైవ్ ఆటో-ఫిల్ చేస్తోంది..."
+    ]
+  };
+
   // DOM Elements - Voice & Language
   const voiceToggleBtn = document.getElementById("voice-toggle-btn");
   const voiceIcon = document.getElementById("voice-icon");
@@ -84,6 +113,12 @@ document.addEventListener("DOMContentLoaded", () => {
   const progressStepLabel = document.getElementById("progress-step-label");
   const progressStepCount = document.getElementById("progress-step-count");
   const progressBar = document.getElementById("progress-bar");
+
+  // DOM Elements - Animated Analyzing Stage
+  const analyzingStage = document.getElementById("analyzing-stage");
+  const mandalaSpinner = document.getElementById("mandala-spinner");
+  const analyzingTitle = document.getElementById("analyzing-title");
+  const reasoningTicker = document.getElementById("reasoning-ticker");
 
   // DOM Elements - Steps
   const step1 = document.getElementById("wizard-step-1");
@@ -144,6 +179,7 @@ document.addEventListener("DOMContentLoaded", () => {
   const revName = document.getElementById("rev-name");
   const revPhone = document.getElementById("rev-phone");
   const btnRestartWizard = document.getElementById("btn-restart-wizard");
+  const btnNewAfterReceipt = document.getElementById("btn-new-after-receipt");
 
   // ----------------------------------------------------------------
   // Speech Synthesis (Text-to-Speech)
@@ -151,29 +187,22 @@ document.addEventListener("DOMContentLoaded", () => {
   function speak(text) {
     if (!voiceEnabled || !("speechSynthesis" in window)) return;
     
-    window.speechSynthesis.cancel(); // Stop any pending speech
+    window.speechSynthesis.cancel();
     const utterance = new SpeechSynthesisUtterance(text);
-    
-    // Choose appropriate voice
-    const voices = window.speechSynthesis.getVoices();
     const langCode = currentLang === "te" ? "te-IN" : (currentLang === "hi" ? "hi-IN" : "en-IN");
     utterance.lang = langCode;
-    utterance.rate = 0.95; // Slightly slower for clear municipal comprehension
+    utterance.rate = 0.95;
     utterance.pitch = 1.0;
 
+    const voices = window.speechSynthesis.getVoices();
     const matchedVoice = voices.find(v => v.lang.startsWith(currentLang) || v.lang.includes(langCode));
     if (matchedVoice) utterance.voice = matchedVoice;
 
     speakingIndicator.classList.remove("hidden");
-    speakingText.innerText = `JanSetu speaking: "${text.length > 50 ? text.substring(0, 48) + '...' : text}"`;
+    speakingText.innerText = `Nagarik AI: "${text.length > 50 ? text.substring(0, 48) + '...' : text}"`;
 
-    utterance.onend = () => {
-      speakingIndicator.classList.add("hidden");
-    };
-
-    utterance.onerror = () => {
-      speakingIndicator.classList.add("hidden");
-    };
+    utterance.onend = () => speakingIndicator.classList.add("hidden");
+    utterance.onerror = () => speakingIndicator.classList.add("hidden");
 
     window.speechSynthesis.speak(utterance);
   }
@@ -258,7 +287,6 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
-  // Normalizes spoken numbers ("nine eight seven six...") to digits
   function normalizeSpokenNumbers(text) {
     const wordMap = {
       zero: "0", one: "1", two: "2", three: "3", four: "4",
@@ -280,9 +308,7 @@ document.addEventListener("DOMContentLoaded", () => {
   setupSpeechRecognition(micBtnStep3, inputName);
   setupSpeechRecognition(micBtnStep4, inputPhone, true);
 
-  // ----------------------------------------------------------------
-  // Saved Profile Restoration
-  // ----------------------------------------------------------------
+  // Restore saved profile from chrome.storage
   if (chrome.storage && chrome.storage.local) {
     chrome.storage.local.get(["saved_citizen_name", "saved_citizen_phone"], (res) => {
       if (res.saved_citizen_name) {
@@ -309,7 +335,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
-  // Photo Upload Handler
+  // Photo Input Handler
   inputPhoto.addEventListener("change", (e) => {
     const file = e.target.files[0];
     if (file) {
@@ -365,6 +391,8 @@ document.addEventListener("DOMContentLoaded", () => {
   // ----------------------------------------------------------------
   function showStep(stepNum) {
     currentStep = stepNum;
+    analyzingStage.classList.add("hidden");
+
     [step1, step2, step3, step4, step5, step6].forEach((el, idx) => {
       if (idx + 1 === stepNum) el.classList.add("active");
       else el.classList.remove("active");
@@ -375,17 +403,18 @@ document.addEventListener("DOMContentLoaded", () => {
     progressStepCount.innerText = `${stepNum} of 5`;
     progressBar.style.width = `${Math.min(stepNum * 20, 100)}%`;
 
-    // Speak Question for the new step
     const questionText = DIALOGS[currentLang][`q${stepNum}`];
     if (questionText) {
       setTimeout(() => speak(questionText), 200);
     }
   }
 
-  // Initial welcome speech on load
+  // Welcome speech on initial load
   setTimeout(() => speak(DIALOGS[currentLang].q1), 600);
 
-  // STEP 1 -> STEP 2: Analyze problem and auto-fill Department, Category, Urgency, Description
+  // ----------------------------------------------------------------
+  // STEP 1 -> ANIMATED REASONING -> STEP 2
+  // ----------------------------------------------------------------
   btnNextStep1.addEventListener("click", () => {
     const text = inputProblem.value.trim();
     if (!text) {
@@ -393,12 +422,30 @@ document.addEventListener("DOMContentLoaded", () => {
       return;
     }
 
-    btnNextStep1.disabled = true;
-    btnNextStep1.querySelector(".btn-text").innerText = "Analyzing with Gemini...";
-    btnNextStep1.querySelector(".spinner").classList.remove("hidden");
-
     complaintData.problem_raw = text;
 
+    // 1. Hide Step 1 and activate the Animated Nagarik AI Reasoning Stage
+    step1.classList.remove("active");
+    analyzingStage.classList.remove("hidden");
+    mandalaSpinner.classList.remove("complete");
+    analyzingTitle.innerText = "Nagarik AI is Analyzing...";
+
+    // Cycle through live reasoning steps
+    let stepIndex = 0;
+    const steps = REASONING_STEPS[currentLang] || REASONING_STEPS.en;
+    reasoningTicker.innerHTML = `<span>${steps[0]}</span>`;
+    
+    if (reasoningInterval) clearInterval(reasoningInterval);
+    reasoningInterval = setInterval(() => {
+      stepIndex = (stepIndex + 1) % steps.length;
+      reasoningTicker.style.opacity = "0";
+      setTimeout(() => {
+        reasoningTicker.innerHTML = `<span>${steps[stepIndex]}</span>`;
+        reasoningTicker.style.opacity = "1";
+      }, 200);
+    }, 1600);
+
+    // 2. Call Backend API
     chrome.runtime.sendMessage({
       action: "CALL_BACKEND_ANALYZE",
       payload: {
@@ -406,9 +453,7 @@ document.addEventListener("DOMContentLoaded", () => {
         language: currentLang
       }
     }, (res) => {
-      btnNextStep1.disabled = false;
-      btnNextStep1.querySelector(".btn-text").innerText = "Analyze & Continue ➔";
-      btnNextStep1.querySelector(".spinner").classList.add("hidden");
+      if (reasoningInterval) clearInterval(reasoningInterval);
 
       if (res && res.success && res.data) {
         const d = res.data;
@@ -418,17 +463,15 @@ document.addEventListener("DOMContentLoaded", () => {
         complaintData.urgency_score = d.urgency_score;
         complaintData.description = d.description;
 
-        // Privacy Warning
         if (d.privacy_warning) {
           privacyBanner.classList.remove("hidden");
         }
 
-        // Pre-fill location if Gemini found it
         if (d.location_text && !d.location_text.toLowerCase().includes("pending")) {
           inputLocation.value = d.location_text;
         }
 
-        // Live Fill fields onto Portal page!
+        // Live progressive auto-fill onto the open portal tab
         chrome.runtime.sendMessage({
           action: "TRIGGER_FILL_FIELDS",
           fields: {
@@ -439,13 +482,21 @@ document.addEventListener("DOMContentLoaded", () => {
           }
         });
 
-        // Speak Confirmation
+        // Beautiful animation completion state
+        mandalaSpinner.classList.add("complete");
+        analyzingTitle.innerText = "✅ Analysis Complete!";
+        reasoningTicker.innerHTML = `<span style="color: #166534;">Injected ${d.department} into portal</span>`;
+
         speak(DIALOGS[currentLang].q1_confirm(d.department));
 
         // Advance to Step 2
-        setTimeout(() => showStep(2), 1200);
+        setTimeout(() => {
+          showStep(2);
+        }, 1400);
       } else {
-        alert("Could not reach JanSetu backend. Ensure port 8000 is running.");
+        analyzingStage.classList.add("hidden");
+        step1.classList.add("active");
+        alert("Could not reach Nagarik AI backend. Ensure port 8000 is active.");
       }
     });
   });
@@ -461,7 +512,6 @@ document.addEventListener("DOMContentLoaded", () => {
 
     complaintData.location = loc;
 
-    // Live Fill onto portal
     chrome.runtime.sendMessage({
       action: "TRIGGER_SINGLE_FIELD_FILL",
       key: "location",
@@ -470,7 +520,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     speak(DIALOGS[currentLang].location_saved);
-    setTimeout(() => showStep(3), 600);
+    setTimeout(() => showStep(3), 500);
   });
 
   // STEP 3 -> STEP 4: Citizen Name
@@ -484,12 +534,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     complaintData.citizen_name = name;
 
-    // Save profile locally
     if (chrome.storage && chrome.storage.local) {
       chrome.storage.local.set({ saved_citizen_name: name });
     }
 
-    // Live Fill onto portal
     chrome.runtime.sendMessage({
       action: "TRIGGER_SINGLE_FIELD_FILL",
       key: "citizen_name",
@@ -498,7 +546,7 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     speak(DIALOGS[currentLang].name_saved(name));
-    setTimeout(() => showStep(4), 600);
+    setTimeout(() => showStep(4), 500);
   });
 
   // STEP 4 -> STEP 5: Phone Number
@@ -512,12 +560,10 @@ document.addEventListener("DOMContentLoaded", () => {
 
     complaintData.citizen_phone = rawDigits.slice(-10);
 
-    // Save profile locally
     if (chrome.storage && chrome.storage.local) {
       chrome.storage.local.set({ saved_citizen_phone: complaintData.citizen_phone });
     }
 
-    // Live Fill onto portal
     chrome.runtime.sendMessage({
       action: "TRIGGER_SINGLE_FIELD_FILL",
       key: "citizen_phone",
@@ -526,14 +572,13 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     speak(DIALOGS[currentLang].phone_saved);
-    setTimeout(() => showStep(5), 600);
+    setTimeout(() => showStep(5), 500);
   });
 
-  // STEP 5 -> STEP 6: Photo Evidence & Review
+  // STEP 5 -> STEP 6: Photo & Final Review
   btnBackStep5.addEventListener("click", () => showStep(4));
   
   function finalizeToStep6() {
-    // Fill photo if present
     if (complaintData.photo_base64) {
       chrome.runtime.sendMessage({
         action: "TRIGGER_SINGLE_FIELD_FILL",
@@ -558,7 +603,7 @@ document.addEventListener("DOMContentLoaded", () => {
   btnNextStep5.addEventListener("click", finalizeToStep6);
 
   // Restart Wizard
-  btnRestartWizard.addEventListener("click", () => {
+  function restartWizard() {
     inputProblem.value = "";
     inputLocation.value = "";
     complaintData.photo_base64 = null;
@@ -566,7 +611,10 @@ document.addEventListener("DOMContentLoaded", () => {
     photoPreviewBox.classList.add("hidden");
     receiptCard.classList.add("hidden");
     showStep(1);
-  });
+  }
+
+  btnRestartWizard.addEventListener("click", restartWizard);
+  if (btnNewAfterReceipt) btnNewAfterReceipt.addEventListener("click", restartWizard);
 
   // ----------------------------------------------------------------
   // Official Receipt Detection from Portal DOM
@@ -577,112 +625,7 @@ document.addEventListener("DOMContentLoaded", () => {
       step6.classList.remove("active");
       receiptCard.classList.remove("hidden");
       receiptCard.scrollIntoView({ behavior: "smooth" });
-      speak(`Congratulations! Your grievance has been registered with tracking reference ${message.trackingId}`);
+      speak(`Grievance registered! Official tracking reference is ${message.trackingId}`);
     }
-  });
-
-  // View Escalations Shortcut
-  const btnViewEscalations = document.getElementById("btn-view-escalations");
-  if (btnViewEscalations) {
-    btnViewEscalations.addEventListener("click", () => {
-      document.querySelectorAll(".tab-btn").forEach(b => b.classList.remove("active"));
-      document.querySelectorAll(".tab-content").forEach(c => c.classList.remove("active"));
-      document.querySelector('[data-target="tab-escalate"]').classList.add("active");
-      document.getElementById("tab-escalate").classList.add("active");
-      document.getElementById("esc-tracking-id").value = receiptTrackingId.innerText;
-    });
-  }
-
-  // ----------------------------------------------------------------
-  // TAB 2: Check Scheme Claim
-  // ----------------------------------------------------------------
-  const checkClaimBtn = document.getElementById("check-claim-btn");
-  const claimInput = document.getElementById("claim-input");
-  const claimResult = document.getElementById("claim-result");
-  const claimVerdict = document.getElementById("claim-verdict");
-  const claimSummary = document.getElementById("claim-summary");
-  const claimQuote = document.getElementById("claim-quote");
-  const claimLink = document.getElementById("claim-link");
-
-  checkClaimBtn.addEventListener("click", () => {
-    const claim = claimInput.value.trim();
-    if (!claim) return;
-
-    checkClaimBtn.disabled = true;
-    checkClaimBtn.innerText = "Verifying...";
-
-    fetch("http://localhost:8000/api/v1/fact-check", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ claim: claim })
-    })
-      .then(res => res.json())
-      .then(data => {
-        checkClaimBtn.disabled = false;
-        checkClaimBtn.innerText = "Verify Against Official Schemes";
-
-        claimVerdict.innerText = data.verdict.toUpperCase();
-        claimSummary.innerText = data.summary;
-        claimQuote.innerText = `"${data.exact_source_text}"`;
-        claimLink.href = data.official_source_url;
-
-        claimResult.classList.remove("hidden");
-        speak(`Verification result: ${data.verdict}. ${data.summary}`);
-      })
-      .catch(() => {
-        checkClaimBtn.disabled = false;
-        checkClaimBtn.innerText = "Verify Against Official Schemes";
-        alert("Backend not reachable. Ensure FastAPI is running on port 8000.");
-      });
-  });
-
-  // ----------------------------------------------------------------
-  // TAB 3: Escalations
-  // ----------------------------------------------------------------
-  const generateEscBtn = document.getElementById("generate-esc-btn");
-  const escTrackingId = document.getElementById("esc-tracking-id");
-  const escResultContainer = document.getElementById("esc-result-container");
-  const escSubject = document.getElementById("esc-subject");
-  const escBody = document.getElementById("esc-body");
-  const copyEscBtn = document.getElementById("copy-esc-btn");
-
-  generateEscBtn.addEventListener("click", () => {
-    const trackingId = escTrackingId.value.trim();
-    if (!trackingId) return;
-
-    const escType = document.querySelector('input[name="esc-type"]:checked').value;
-    generateEscBtn.disabled = true;
-    generateEscBtn.innerText = "Drafting Statutory Document...";
-
-    fetch("http://localhost:8000/api/v1/escalate", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        tracking_id: trackingId,
-        escalation_type: escType,
-        days_elapsed: 16
-      })
-    })
-      .then(res => res.json())
-      .then(data => {
-        generateEscBtn.disabled = false;
-        generateEscBtn.innerText = "Generate Statutory Draft";
-
-        escSubject.innerText = data.subject_line;
-        escBody.value = data.letter_body;
-        escResultContainer.classList.remove("hidden");
-        speak("Statutory escalation draft ready. You can copy it to clipboard.");
-      })
-      .catch(() => {
-        generateEscBtn.disabled = false;
-        generateEscBtn.innerText = "Generate Statutory Draft";
-        alert("Failed to draft escalation. Check if tracking ID exists.");
-      });
-  });
-
-  copyEscBtn.addEventListener("click", () => {
-    navigator.clipboard.writeText(escBody.value);
-    copyEscBtn.innerText = "Copied to Clipboard!";
-    setTimeout(() => copyEscBtn.innerText = "📋 Copy Escalation to Clipboard", 2000);
   });
 });

@@ -34,7 +34,7 @@ async def analyze_civic_grievance(
         try:
             import asyncio
             prompt = f"""
-            You are JanSetu AI, an expert digital governance assistant.
+            You are Nagarik AI, an expert digital governance assistant empowering every citizen.
             Analyze the following citizen complaint:
             Input: "{sanitized_input}"
             Language: "{language}"
