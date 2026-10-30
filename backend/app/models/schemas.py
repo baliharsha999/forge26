@@ -14,6 +14,7 @@ class GrievanceAnalysisRequest(BaseModel):
     language: Optional[str] = Field("en", description="Detected or selected language (en, hi, te)")
     image_base64: Optional[str] = Field(None, description="Optional photo proof")
     location: Optional[str] = Field(None, description="Extracted or GPS location string")
+    portal_context: Optional[str] = Field(None, description="Active portal name e.g. CPGRAMS")
 
 class ConfidenceScore(BaseModel):
     category: float = Field(0.95, ge=0.0, le=1.0)
@@ -118,3 +119,26 @@ class EligibilityCheckRequest(BaseModel):
 class EligibilityCheckResult(BaseModel):
     likely_eligible_schemes: List[Dict[str, Any]]
     disclaimer: str = "Non-definitive evaluation based on user-provided criteria. Always confirm at official portal."
+
+class PortalChip(BaseModel):
+    label: str
+    text: str
+
+class PageStudyRequest(BaseModel):
+    url: str
+    title: Optional[str] = ""
+    headings: Optional[Any] = ""
+    page_text: Optional[str] = ""
+
+class PageStudyResult(BaseModel):
+    portal_name: str
+    authority_name: str
+    portal_type: str
+    welcome_greeting: str
+    placeholder_text: str
+    chips: List[PortalChip]
+    location_question: str
+    authority_label: str
+    has_form: bool
+    is_landing_page: bool
+

@@ -34,26 +34,26 @@ document.addEventListener("DOMContentLoaded", () => {
   const DIALOGS = {
     en: {
       q1: "What problem are you facing? Tell me what happened in simple words.",
-      q1_confirm: (dept) => `Got it. I have classified this under ${dept} with high urgency and filled it directly into the portal.`,
-      q2: "Where did this problem happen? Tell me your street name, colony, or tap the GPS button.",
-      q3: "What is your full name? The municipal department requires your name for the official file.",
+      q1_confirm: (dept) => `Got it. I have classified this under ${dept} with high urgency.`,
+      q2: "Where did this problem happen? Tell me your city, station, branch, or tap GPS.",
+      q3: "What is your full name? Official records require your legal name for the petition.",
       q4: "What is your 10-digit mobile number for official SMS updates?",
-      q5: "Do you have a photo of the damage? You can choose a photo or skip.",
-      q6: "All done! Every detail has been filled on the municipal portal page. Please look at the screen and click the blue Submit Grievance button to finish.",
-      location_saved: "Location recorded and updated on portal.",
-      name_saved: (name) => `Thank you, ${name}. Filled on portal.`,
-      phone_saved: "Phone number saved and filled on portal.",
-      photo_saved: "Photo evidence attached to portal.",
-      step_labels: ["The Problem", "The Location", "Your Name", "Phone Number", "Photo Proof", "Review & Submit"]
+      q5: "Do you have a supporting photo or document? You can choose a file or skip.",
+      q6: "All done! Every detail has been processed. Please verify and click Submit on the webpage to finish.",
+      location_saved: "Location recorded and updated.",
+      name_saved: (name) => `Thank you, ${name}. Saved for your petition.`,
+      phone_saved: "Phone number saved for official SMS updates.",
+      photo_saved: "Evidence attached to petition.",
+      step_labels: ["The Problem", "Location / Ref", "Your Name", "Phone Number", "Photo Proof", "Review & Submit"]
     },
     hi: {
       q1: "नमस्ते! आपको क्या समस्या आ रही है? कृपया सरल शब्दों में बताइए।",
-      q1_confirm: (dept) => `समझ गया। मैंने इसे ${dept} के अंतर्गत दर्ज कर के पोर्टल पर भर दिया है।`,
-      q2: "यह समस्या कहाँ हुई है? अपनी कॉलोनी या गली का नाम बताइए या जीपीएस बटन दबाएं।",
-      q3: "आपका पूरा नाम क्या है?",
+      q1_confirm: (dept) => `समझ गया। मैंने इसे ${dept} के अंतर्गत वर्गीकृत कर दिया है।`,
+      q2: "यह समस्या कहाँ हुई है? अपना शहर, स्टेशन, या शाखा का नाम बताइए या जीपीएस बटन दबाएं।",
+      q3: "आपका पूरा कानूनी नाम क्या है?",
       q4: "स्टेटस अपडेट के लिए आपका 10 अंकों का मोबाइल नंबर क्या है?",
-      q5: "क्या आपके पास समस्या की तस्वीर है? आप फोटो चुन सकते हैं या छोड़ सकते हैं।",
-      q6: "बहुत बढ़िया! सारे विवरण पोर्टल पर भर दिए गए हैं। कृपया स्क्रीन पर सबमिट बटन दबाएं।",
+      q5: "क्या आपके पास कोई फोटो या दस्तावेज प्रमाण है? आप चुन सकते हैं या छोड़ सकते हैं।",
+      q6: "बहुत बढ़िया! सारे विवरण तैयार कर दिए गए हैं। कृपया स्क्रीन पर सबमिट बटन दबाएं।",
       location_saved: "स्थान दर्ज हो गया है।",
       name_saved: (name) => `धन्यवाद, ${name} जी।`,
       phone_saved: "मोबाइल नंबर दर्ज हो गया है।",
@@ -62,12 +62,12 @@ document.addEventListener("DOMContentLoaded", () => {
     },
     te: {
       q1: "నమస్కారం! మీకు ఎలాంటి సమస్య ఎదురవుతోంది? వివరంగా చెప్పండి.",
-      q1_confirm: (dept) => `అర్థమైంది. దీనిని ${dept} విభాగానికి జోడించి పోర్టల్‌లో నింపాను.`,
-      q2: "ఈ సమస్య ఎక్కడ జరిగింది? మీ వీధి లేదా ప్రాంతం పేరు చెప్పండి.",
+      q1_confirm: (dept) => `అర్థమైంది. దీనిని ${dept} విభాగానికి వర్గీకరించాను.`,
+      q2: "ఈ సమస్య ఎక్కడ జరిగింది? మీ నగరం, స్టేషన్, లేదా ప్రాంతం చెప్పండి.",
       q3: "మీ పూర్తి పేరు ఏమిటి?",
       q4: "ఎస్ఎమ్ఎస్ అప్‌డేట్‌ల కోసం మీ 10 అంకెల మొబైల్ నంబర్ చెప్పండి.",
-      q5: "సమస్యకు సంబంధించిన ఫోటో ఉందా? మీరు ఫోటోను ఎంచుకోవచ్చు లేదా దాటవేయవచ్చు.",
-      q6: "అన్ని వివరాలు మున్సిపల్ పోర్టల్‌లో నింపబడ్డాయి. దయచేసి స్క్రీన్‌పై ఉన్న సబ్మిట్ బటన్ నొక్కండి.",
+      q5: "సమస్యకు సంబంధించిన ఫోటో లేదా పత్రం ఉందా? మీరు ఎంచుకోవచ్చు లేదా దాటవేయవచ్చు.",
+      q6: "అన్ని వివరాలు సిద్ధం చేయబడ్డాయి. దయచేసి స్క్రీన్‌పై ఉన్న సబ్మిట్ బటన్ నొక్కండి.",
       location_saved: "లొకేషన్ నమోదు చేయబడింది.",
       name_saved: (name) => `ధన్యవాదాలు, ${name} గారు.`,
       phone_saved: "ఫోన్ నంబర్ నమోదు చేయబడింది.",
@@ -80,22 +80,22 @@ document.addEventListener("DOMContentLoaded", () => {
   const REASONING_STEPS = {
     en: [
       "🧠 Nagarik AI is understanding your grievance...",
-      "🏛️ Identifying municipal jurisdiction & department...",
-      "⚖️ Mapping applicable Municipal Corporation acts...",
+      "🏛️ Identifying responsible ministry & authority...",
+      "⚖️ Mapping applicable citizen charters & statutory rules...",
       "⚡ Assessing urgency priority & immediate remedy...",
       "📝 Generating formal legal petition wording...",
-      "🤖 Preparing live browser DOM form injection..."
+      "🤖 Preparing live portal form injection..."
     ],
     hi: [
       "🧠 नागरिक एआई आपकी शिकायत का विश्लेषण कर रहा है...",
-      "🏛️ संबंधित नगर निगम विभाग की पहचान की जा रही है...",
-      "⚖️ लागू नियमों और अधिनियमों का मिलान हो रहा है...",
+      "🏛️ संबंधित मंत्रालय एवं विभाग की पहचान की जा रही है...",
+      "⚖️ लागू नागरिक चार्टर और नियमों का मिलान हो रहा है...",
       "⚡ तात्कालिकता और समाधान तैयार किया जा रहा है...",
       "🤖 पोर्टल फॉर्म में लाइव ऑटो-फिल की तैयारी हो रही है..."
     ],
     te: [
       "🧠 నాగరిక్ AI మీ సమస్యను విశ్లేషిస్తోంది...",
-      "🏛️ సంబంధిత మున్సిపల్ విభాగాన్ని గుర్తిస్తోంది...",
+      "🏛️ సంబంధిత శాఖను గుర్తిస్తోంది...",
       "⚖️ చట్టపరమైన నిబంధనలను పరిశీలిస్తోంది...",
       "⚡ అత్యవసర స్థాయిని అంచనా వేస్తోంది...",
       "🤖 పోర్టల్ ఫారమ్‌లో లైవ్ ఆటో-ఫిల్ చేస్తోంది..."
@@ -439,71 +439,82 @@ document.addEventListener("DOMContentLoaded", () => {
       tabStatusBadge.style.color = "var(--text-on-orange)";
     }
 
-    chrome.runtime.sendMessage({ action: "TRIGGER_INSPECT_PAGE" }, (res) => {
-      if (res && res.supported) {
-        activePortalName = res.portalName || "Public Service Portal";
-        activePageHasForm = !!res.hasForm;
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      const activeTab = (tabs && tabs.length > 0) ? tabs[0] : null;
+      const targetUrl = activeTab ? activeTab.url : window.location.href;
+      const targetTitle = activeTab ? activeTab.title : document.title;
 
-        if (res.hasForm) {
-          const fieldsCount = (res.fields && res.fields.length) ? res.fields.length : (res.totalRequired || 0);
+      // Ask backend to dynamically study the page
+      fetch("http://localhost:8000/api/v1/agent/study-page", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          url: targetUrl,
+          title: targetTitle
+        })
+      })
+      .then(r => r.json())
+      .then(study => {
+        if (study) {
+          activePortalName = study.portal_name;
+          activePageHasForm = !!study.has_form;
+
           if (tabStatusText) {
-            tabStatusText.innerHTML = `🏛️ <strong>${activePortalName}</strong> <span style="color: var(--muted-on-slate); font-size: 10px;">(${fieldsCount} fields ready)</span>`;
+            tabStatusText.innerHTML = `🏛️ <strong>${study.portal_name}</strong>`;
           }
           if (tabStatusBadge) {
-            tabStatusBadge.innerText = "● FORM READY";
-            tabStatusBadge.style.background = "#059669";
-            tabStatusBadge.style.color = "#ffffff";
-            tabStatusBadge.style.borderColor = "#047857";
-          }
-          if (q1Sub) {
-            q1Sub.innerText = `Grievance form detected on this page. Tell me what happened in simple everyday words or tap the mic.`;
+            tabStatusBadge.innerText = study.has_form ? "● FORM READY" : "⚠️ SIGN-IN TO LODGE";
+            tabStatusBadge.style.background = study.has_form ? "#059669" : "#d97706";
+            tabStatusBadge.style.color = study.has_form ? "#ffffff" : "#0B0C1E";
+            tabStatusBadge.style.borderColor = study.has_form ? "#047857" : "#b45309";
           }
 
-          const welcomeMsg = currentLang === "hi" 
-            ? `नमस्ते! मैं नागरिक एआई हूँ। पोर्टल पर शिकायत फॉर्म मिल गया है। आपकी क्या समस्या है?`
-            : (currentLang === "te" 
-                ? `నమస్కారం! నేను నాగరిక్ AI. పోర్టల్‌లో ఫిర్యాదు ఫారమ్ గుర్తించబడింది. మీ సమస్య ఏమిటి?`
-                : `Namaste! I am Nagarik AI. I found the active grievance form on this page. What problem are you facing?`);
-          setTimeout(() => speak(welcomeMsg), 400);
-
-        } else {
-          // Landing page or Sign-in page (e.g. pgportal.gov.in homepage)
-          const isCPGRAMS = activePortalName.toLowerCase().includes("cpgrams") || (res.url && res.url.includes("pgportal"));
-          if (tabStatusText) {
-            tabStatusText.innerHTML = `🏛️ <strong>${activePortalName}</strong> <span style="color: #f59e0b; font-size: 10px;">(Home / Landing Page)</span>`;
-          }
-          if (tabStatusBadge) {
-            tabStatusBadge.innerText = "⚠️ SIGN-IN TO LODGE";
-            tabStatusBadge.style.background = "#d97706";
-            tabStatusBadge.style.color = "#0B0C1E";
-            tabStatusBadge.style.borderColor = "#b45309";
-          }
-          if (q1Sub) {
-            q1Sub.innerText = isCPGRAMS 
-              ? `You are on the CPGRAMS Home Page. You can speak your grievance now — I will draft your petition and auto-fill it once you sign in.`
-              : `Grievance form not yet open. Tell me what happened and I will prepare your draft.`;
+          if (inputProblem && study.placeholder_text) {
+            inputProblem.placeholder = study.placeholder_text;
           }
 
-          const welcomeMsg = currentLang === "hi" 
-            ? `नमस्ते! आप सीपीग्राम्स होमपेज पर हैं। सरकारी नियमों के अनुसार शिकायत दर्ज करने के लिए साइन इन करना आवश्यक है। आप अपनी समस्या बताइए, मैं मसौदा तैयार कर लूँगा।`
-            : (currentLang === "te" 
-                ? `నమస్కారం! మీరు CPGRAMS హోమ్‌పేజీలో ఉన్నారు. దయచేసి సైన్ ఇన్ చేయండి. మీ సమస్య చెప్పండి, నేను సిద్ధం చేస్తాను.`
-                : `Namaste! You are on the CPGRAMS home page. Official grievance filing requires signing in. Tell me your problem, and I will prepare your petition in memory.`);
-          setTimeout(() => speak(welcomeMsg), 400);
+          if (q1Sub && study.welcome_greeting) {
+            q1Sub.innerText = study.welcome_greeting;
+          }
+
+          if (q2Sub && study.location_question) {
+            q2Sub.innerText = study.location_question;
+          }
+
+          // Dynamically populate Quick Chips for this portal!
+          const chipsContainer = document.getElementById("chips-container");
+          if (chipsContainer && study.chips && study.chips.length > 0) {
+            chipsContainer.innerHTML = "";
+            study.chips.forEach(chip => {
+              const chipBtn = document.createElement("button");
+              chipBtn.className = "chip";
+              chipBtn.innerText = chip.label;
+              chipBtn.dataset.text = chip.text;
+              chipBtn.addEventListener("click", () => {
+                inputProblem.value = chip.text;
+                inputProblem.focus();
+              });
+              chipsContainer.appendChild(chipBtn);
+            });
+          }
+
+          // Announce welcome aloud
+          setTimeout(() => speak(study.welcome_greeting), 350);
         }
-      } else {
-        activePageHasForm = false;
-        if (tabStatusText) {
-          tabStatusText.innerText = "🌐 Open CPGRAMS (pgportal.gov.in) or Municipal Portal";
-        }
-        if (tabStatusBadge) {
-          tabStatusBadge.innerText = "STANDBY";
-          tabStatusBadge.style.background = "var(--slate-hover)";
-          tabStatusBadge.style.color = "var(--text-on-slate)";
-          tabStatusBadge.style.borderColor = "var(--glass-border-subtle)";
-        }
-        setTimeout(() => speak(DIALOGS[currentLang].q1), 400);
-      }
+      })
+      .catch(err => {
+        console.warn("Study page backend note:", err);
+        // Fallback local inspection
+        chrome.runtime.sendMessage({ action: "TRIGGER_INSPECT_PAGE" }, (res) => {
+          if (res && res.supported) {
+            activePortalName = res.portalName || "Public Service Portal";
+            activePageHasForm = !!res.hasForm;
+            if (tabStatusText) tabStatusText.innerHTML = `🏛️ <strong>${activePortalName}</strong>`;
+            if (tabStatusBadge) tabStatusBadge.innerText = res.hasForm ? "● READY" : "STANDBY";
+            setTimeout(() => speak(DIALOGS[currentLang].q1), 400);
+          }
+        });
+      });
     });
   }
 
@@ -548,7 +559,9 @@ document.addEventListener("DOMContentLoaded", () => {
       action: "CALL_BACKEND_ANALYZE",
       payload: {
         raw_input: text,
-        language: currentLang
+        language: currentLang,
+        location: inputLocation ? inputLocation.value : "",
+        portal_context: activePortalName
       }
     }, (res) => {
       if (reasoningInterval) clearInterval(reasoningInterval);
@@ -569,21 +582,25 @@ document.addEventListener("DOMContentLoaded", () => {
           inputLocation.value = d.location_text;
         }
 
-        // Live progressive auto-fill onto the open portal tab
-        chrome.runtime.sendMessage({
-          action: "TRIGGER_FILL_FIELDS",
-          fields: {
-            department: d.department,
-            category: d.category,
-            urgency_level: d.urgency_level,
-            description: d.description
-          }
-        });
+        // Live progressive auto-fill onto the open portal tab if form is open
+        if (activePageHasForm) {
+          chrome.runtime.sendMessage({
+            action: "TRIGGER_FILL_FIELDS",
+            fields: {
+              department: d.department,
+              category: d.category,
+              urgency_level: d.urgency_level,
+              description: d.description
+            }
+          });
+          reasoningTicker.innerHTML = `<span style="color: #34d399;">Injected ${d.department} into portal</span>`;
+        } else {
+          reasoningTicker.innerHTML = `<span style="color: var(--orange-hover);">Classified: ${d.department} • Saved in Memory</span>`;
+        }
 
         // Beautiful animation completion state
         mandalaSpinner.classList.add("complete");
         analyzingTitle.innerText = "✅ Analysis Complete!";
-        reasoningTicker.innerHTML = `<span style="color: #166534;">Injected ${d.department} into portal</span>`;
 
         speak(DIALOGS[currentLang].q1_confirm(d.department));
 

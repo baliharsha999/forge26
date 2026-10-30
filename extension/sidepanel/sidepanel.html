@@ -101,7 +101,7 @@
     </div>
 
     <div class="input-wrapper">
-      <textarea id="input-problem" class="big-textarea" rows="3" placeholder="Speak or type: 'my house wall is broken due to muncipal water leakage'"></textarea>
+      <textarea id="input-problem" class="big-textarea" rows="3" placeholder="Speak or type what happened in simple words..."></textarea>
       <div class="mic-control-bar">
         <button id="mic-btn-step1" class="mic-toggle-btn" title="Click to speak">
           <span>🎙️</span>
@@ -110,11 +110,9 @@
       </div>
     </div>
 
-    <!-- Quick Samples -->
-    <div class="chips-container">
-      <button class="chip" data-text="my house wall is broken due to muncipal cos water leakage">🚰 Wall Broken / Water Leak</button>
-      <button class="chip" data-text="Deep crater pothole near Main Road junction, two-wheelers skidding">🚧 Dangerous Road Pothole</button>
-      <button class="chip" data-text="High voltage transformer sparking near residential houses">⚡ Transformer Sparking Hazard</button>
+    <!-- Dynamic Quick Samples (Tailored to active website) -->
+    <div id="chips-container" class="chips-container">
+      <!-- Dynamically populated by AI based on whether browsing CPGRAMS or Municipal portal -->
     </div>
 
     <div class="wizard-nav">
@@ -132,7 +130,7 @@
     <div class="question-box">
       <div class="question-icon">📍</div>
       <h2 id="q2-title" class="step-title">Where did this happen?</h2>
-      <p id="q2-sub" class="step-subtitle">Tell me the street name, colony, or tap the button to use GPS.</p>
+      <p id="q2-sub" class="step-subtitle">Tell me the city, station, branch, or tap the button to use GPS.</p>
     </div>
 
     <div class="assist-row">
@@ -143,7 +141,7 @@
     </div>
 
     <div class="input-wrapper">
-      <input type="text" id="input-location" class="big-input" placeholder="e.g. Door 14, Ward 7, Near Water Tank, Kukatpally">
+      <input type="text" id="input-location" class="big-input" placeholder="e.g. Hyderabad / New Delhi / Near Station">
       <div class="mic-control-bar">
         <button id="mic-btn-step2" class="mic-toggle-btn">
           <span>🎙️</span>
@@ -167,7 +165,7 @@
     <div class="question-box">
       <div class="question-icon">👤</div>
       <h2 id="q3-title" class="step-title">What is your full name?</h2>
-      <p id="q3-sub" class="step-subtitle">The municipal department requires your legal name for the grievance file.</p>
+      <p id="q3-sub" class="step-subtitle">Official records require your full legal name for the grievance petition.</p>
     </div>
 
     <!-- Quick profile chip if saved -->
@@ -266,34 +264,34 @@
     <div class="question-box">
       <div id="step6-icon" class="question-icon">🎉</div>
       <h2 id="step6-title" class="step-title" style="color: #34d399;">All Fields Populated on Portal!</h2>
-      <p id="step6-subtitle" class="step-subtitle">Nagarik AI has injected every required field directly into the active municipal portal on your screen.</p>
+      <p id="step6-subtitle" class="step-subtitle">Nagarik AI has injected every required field directly into the active portal on your screen.</p>
     </div>
 
     <!-- Review Card -->
     <div class="review-card">
       <div class="review-item">
-        <span class="review-key">🏢 Department</span>
-        <span id="rev-dept" class="review-val">Water Supply Board</span>
+        <span class="review-key">🏢 Authority / Dept</span>
+        <span id="rev-dept" class="review-val">—</span>
       </div>
       <div class="review-item">
         <span class="review-key">🏷️ Category</span>
-        <span id="rev-cat" class="review-val">Water Pipeline Leak</span>
+        <span id="rev-cat" class="review-val">—</span>
       </div>
       <div class="review-item">
         <span class="review-key">⚡ Urgency</span>
-        <span id="rev-urgency" class="review-val" style="color: var(--orange-hover);">HIGH (Safety Risk)</span>
+        <span id="rev-urgency" class="review-val" style="color: var(--orange-hover);">—</span>
       </div>
       <div class="review-item">
-        <span class="review-key">📍 Location</span>
-        <span id="rev-loc" class="review-val">Ward 7</span>
+        <span class="review-key">📍 Location / Ref</span>
+        <span id="rev-loc" class="review-val">—</span>
       </div>
       <div class="review-item">
-        <span class="review-key">👤 Citizen</span>
-        <span id="rev-name" class="review-val">Ramesh</span>
+        <span class="review-key">👤 Citizen Name</span>
+        <span id="rev-name" class="review-val">—</span>
       </div>
       <div class="review-item">
-        <span class="review-key">📞 Mobile</span>
-        <span id="rev-phone" class="review-val">9876543210</span>
+        <span class="review-key">📞 Contact Mobile</span>
+        <span id="rev-phone" class="review-val">—</span>
       </div>
     </div>
 

@@ -7,9 +7,10 @@ from app.models.schemas import (
     FactCheckRequest, FactCheckResult,
     NormalizedScheme,
     EscalationRequest, EscalationResponse,
-    EligibilityCheckRequest, EligibilityCheckResult
+    EligibilityCheckRequest, EligibilityCheckResult,
+    PageStudyRequest, PageStudyResult
 )
-from app.services.gemini_service import analyze_civic_grievance
+from app.services.gemini_service import analyze_civic_grievance, study_website_page
 from app.services.escalation_service import generate_statutory_escalation
 from app.services.live_data_service import reverse_geocode_osm
 from app.agent.browser_agent import execute_deterministic_playwright_filing
@@ -17,6 +18,16 @@ from app.providers.factory import get_scheme_provider
 from app.db.database import get_grievance_by_tracking_id, list_all_grievances
 
 router = APIRouter(prefix="/api/v1")
+
+@router.post("/agent/study-page", response_model=PageStudyResult)
+async def api_study_page(req: PageStudyRequest):
+    """
+    Website Page Study Endpoint:
+    Inspects URL, title, and headings to generate dynamic, portal-tailored
+    prompts, chips, and questions without hardcoded assumptions.
+    """
+    return study_website_page(req.url, req.title or "", req.headings or "", req.page_text or "")
+
 
 @router.post("/grievance/analyze", response_model=GrievanceAnalysisResult)
 async def api_analyze_grievance(req: GrievanceAnalysisRequest):
@@ -30,7 +41,8 @@ async def api_analyze_grievance(req: GrievanceAnalysisRequest):
             raw_input=req.raw_input,
             language=req.language or "en",
             image_base64=req.image_base64,
-            location=req.location
+            location=req.location,
+            portal_context=req.portal_context
         )
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Analysis error: {str(e)}")
