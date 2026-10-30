@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>JanSetu Lite Side Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="stylesheet" href="sidepanel.css">
+</head>
+<body>
+  
+  <!-- Header -->
+  <header class="header">
+    <div class="header-brand">
+      <div class="logo">🏛️</div>
+      <div>
+        <h1>JanSetu Lite</h1>
+        <p class="subtitle">Civic Complaint & Governance Copilot</p>
+      </div>
+    </div>
+    <!-- Language Selector -->
+    <div class="lang-selector">
+      <button class="lang-btn active" data-lang="en">EN</button>
+      <button class="lang-btn" data-lang="hi">HI</button>
+      <button class="lang-btn" data-lang="te">TE</button>
+    </div>
+  </header>
+
+  <!-- Navigation Tabs -->
+  <nav class="nav-tabs">
+    <button class="tab-btn active" data-target="tab-complaint">1. Complaint</button>
+    <button class="tab-btn" data-target="tab-schemes">2. Schemes</button>
+    <button class="tab-btn" data-target="tab-escalate">3. Escalations</button>
+  </nav>
+
+  <!-- TAB 1: COMPLAINT INTAKE & FILLING -->
+  <section id="tab-complaint" class="tab-content active">
+    
+    <!-- Privacy Advisory -->
+    <div id="privacy-banner" class="alert-banner warning hidden">
+      <span>⚠️ Aadhaar detected and masked. We never store government identity numbers.</span>
+    </div>
+
+    <!-- Active Tab Support Status -->
+    <div id="tab-status-banner" class="alert-banner info">
+      <span id="tab-status-text">Checking active tab portal compatibility...</span>
+    </div>
+
+    <!-- Intake Area -->
+    <div class="card">
+      <label class="label">Describe Your Civic Issue:</label>
+      <div class="textarea-wrapper">
+        <textarea id="raw-input" rows="3" placeholder="Speak or type: 'Dangerous pothole on main road near metro pillar 42...'"></textarea>
+        <button id="mic-btn" class="icon-btn" title="Click to speak">🎤</button>
+      </div>
+
+      <!-- Quick Test Chips -->
+      <div class="chips-container">
+        <span class="chips-label">Quick samples:</span>
+        <button class="chip" data-text="Dangerous large crater pothole near Pillar 42 Kukatpally, two wheelers skidding">🚧 Road Pothole</button>
+        <button class="chip" data-text="Contaminated drinking water with brown sewage smell in Bhavanipuram Ward 12">🚰 Water Leak</button>
+        <button class="chip" data-text="High voltage transformer sparking near junction, fire hazard">⚡ Transformer</button>
+      </div>
+
+      <!-- Photo Attachment -->
+      <div class="photo-upload-container">
+        <label class="label">Attach Photo Proof (Optional):</label>
+        <input type="file" id="photo-input" accept="image/*">
+        <div id="photo-preview" class="photo-preview hidden">
+          <img id="photo-img" src="" alt="Proof Preview">
+          <button id="remove-photo" class="text-btn">Remove</button>
+        </div>
+      </div>
+
+      <button id="analyze-btn" class="primary-btn">
+        <span class="btn-text">Synthesize Complaint</span>
+        <span class="spinner hidden"></span>
+      </button>
+    </div>
+
+    <!-- Confirmation & Form Auto-Fill Card -->
+    <div id="confirmation-card" class="card hidden">
+      <div class="card-header">
+        <span class="tag" id="conf-urgency">HIGH URGENCY</span>
+        <h3 id="conf-category">Damaged Roadway & Pothole</h3>
+      </div>
+
+      <div class="form-group">
+        <label class="label">Target Department:</label>
+        <input type="text" id="edit-department" class="input">
+      </div>
+
+      <div class="form-group">
+        <label class="label">Incident Location:</label>
+        <input type="text" id="edit-location" class="input">
+      </div>
+
+      <div class="form-group">
+        <label class="label">Formal Petition Wording:</label>
+        <textarea id="edit-description" rows="3" class="input"></textarea>
+      </div>
+
+      <div class="form-group">
+        <label class="label">Citizen Name (Optional):</label>
+        <input type="text" id="citizen-name" class="input" value="Ananya Rao">
+      </div>
+
+      <div class="action-box">
+        <p class="notice">🔒 <strong>Safety Rule:</strong> Click below to let JanSetu fill the active portal tab. You review and click Submit.</p>
+        <button id="fill-portal-btn" class="action-btn">
+          <span>🤖 Auto-Fill Form in Active Tab</span>
+          <span class="spinner hidden"></span>
+        </button>
+      </div>
+    </div>
+
+    <!-- Guided Handoff Screen (Fallback when layout changes or site unsupported) -->
+    <div id="handoff-card" class="card warning hidden">
+      <h3>📋 Guided Manual Handoff</h3>
+      <p class="subtitle">The active website layout is not auto-fillable. Use these one-click copy buttons:</p>
+      
+      <div class="handoff-field">
+        <span>Department: <strong id="hf-dept"></strong></span>
+        <button class="copy-btn" data-target="hf-dept">Copy</button>
+      </div>
+      <div class="handoff-field">
+        <span>Location: <strong id="hf-loc"></strong></span>
+        <button class="copy-btn" data-target="hf-loc">Copy</button>
+      </div>
+      <div class="handoff-field">
+        <span>Petition Text:</span>
+        <button class="copy-btn" data-target="hf-desc">Copy</button>
+      </div>
+      <p id="hf-desc" class="handoff-text"></p>
+    </div>
+
+    <!-- Official Receipt -->
+    <div id="receipt-card" class="card success hidden">
+      <div class="receipt-header">✅ Grievance Confirmed!</div>
+      <p class="receipt-id" id="receipt-tracking-id">CP-2026-00000</p>
+      <p class="subtitle">Tracking reference captured from portal. Saved to public transparency ledger.</p>
+    </div>
+
+  </section>
+
+  <!-- TAB 2: SCHEME CLAIM CHECKER -->
+  <section id="tab-schemes" class="tab-content">
+    <div class="card">
+      <label class="label">Check Viral Government Scheme Forward:</label>
+      <textarea id="claim-input" rows="2" placeholder="Paste claim: 'PM-KISAN gives farmers Rs 6,000 per year...'"></textarea>
+      <button id="check-claim-btn" class="primary-btn mt-2">Verify Against Official Schemes</button>
+      
+      <div id="claim-result" class="result-box hidden">
+        <div class="result-verdict" id="claim-verdict">MATCHES OFFICIAL SOURCE</div>
+        <p id="claim-summary" class="result-summary"></p>
+        <div class="quote-box">
+          <small>Exact Quoted Source Text:</small>
+          <blockquote id="claim-quote"></blockquote>
+        </div>
+        <a id="claim-link" href="#" target="_blank" class="link">View Official Scheme on myScheme ➔</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- TAB 3: ESCALATIONS -->
+  <section id="tab-escalate" class="tab-content">
+    <div class="card">
+      <label class="label">Enter Grievance Reference ID:</label>
+      <input type="text" id="esc-tracking-id" class="input" value="CP-2026-98124">
+      
+      <label class="label mt-2">Choose Statutory Escalation Type:</label>
+      <div class="radio-group">
+        <label><input type="radio" name="esc-type" value="reminder" checked> Urgent Reminder</label>
+        <label><input type="radio" name="esc-type" value="appeal"> 1st Appeal (RPSA)</label>
+        <label><input type="radio" name="esc-type" value="rti"> Section 6(1) RTI</label>
+      </div>
+
+      <button id="generate-esc-btn" class="primary-btn mt-3">Generate Statutory Draft</button>
+
+      <div id="esc-result-container" class="mt-3 hidden">
+        <h4 id="esc-subject" class="font-bold text-xs mb-1"></h4>
+        <textarea id="esc-body" rows="8" class="input font-mono text-[11px]"></textarea>
+        <button id="copy-esc-btn" class="secondary-btn mt-2">Copy Escalation to Clipboard</button>
+      </div>
+    </div>
+  </section>
+
+  <script src="sidepanel.js"></script>
+</body>
+</html>

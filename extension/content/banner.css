@@ -1,0 +1,44 @@
+/* Floating Banner for JanSetu Lite in Active Portal */
+#jansetu-form-filling-banner {
+  position: fixed;
+  top: 16px;
+  right: 16px;
+  z-index: 9999999;
+  background: #0f172a;
+  color: #ffffff;
+  padding: 12px 18px;
+  border-radius: 12px;
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.4), 0 8px 10px -6px rgba(0, 0, 0, 0.2);
+  border: 1px solid #f59e0b;
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-size: 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  animation: jansetuSlideDown 0.3s ease-out;
+}
+
+#jansetu-form-filling-banner .jansetu-spinner {
+  width: 16px;
+  height: 16px;
+  border: 2px solid #f59e0b;
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: jansetuSpin 0.8s linear infinite;
+}
+
+@keyframes jansetuSpin {
+  to { transform: rotate(360deg); }
+}
+
+@keyframes jansetuSlideDown {
+  from { opacity: 0; transform: translateY(-10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+/* Pulsing outline for filled fields */
+.jansetu-highlight {
+  outline: 2px solid #10b981 !important;
+  background-color: #ecfdf5 !important;
+  transition: all 0.3s ease;
+}
