@@ -26,23 +26,31 @@ def route_after_input_guardrail(state: RAGState) -> str:
 
 def route_after_document_availability_check(state: RAGState) -> str:
     """
-    Evaluates document availability and determines whether to proceed directly
-    to hybrid retrieval, ingest from local HTML, or trigger web scraping.
-
-    - CASE 1: Documents exist in DB and are indexed in FAISS:
-        Directly proceed to 'hybrid_retrieval_entry'
-    - CASE 2: Documents exist in DB but are not indexed in FAISS:
-        Proceed to 'html_retrieval' (no scraping)
-    - CASE 3: Documents do not exist in DB:
-        Proceed to 'web_search' (conditional scraping)
+    Evaluates document availability and routes to hybrid retrieval,
+    local HTML indexing, or external web search.
+    Prefers local hybrid retrieval to prevent Cloudflare/Render 30s timeouts.
     """
-    if state.scraping_required or bool(state.missing_documents):
-        return "web_search"
+    from app.ingestion.database import GovernmentDatabase
+    db = GovernmentDatabase()
+
+    # Case 2: In DB but not indexed -> local indexing pipeline (fast, no scraping)
     if bool(state.unindexed_document_ids):
         return "html_retrieval"
+
+    # Case 1: Indexed documents available -> hybrid retrieval
     if bool(state.existing_documents) or bool(state.indexed_document_ids):
         return "hybrid_retrieval_entry"
-    return "web_search"
+
+    # If the database or vector store has indexed documents, always use hybrid retrieval
+    # instead of blocking on external web scraping
+    if db.count_documents() > 0:
+        return "hybrid_retrieval_entry"
+
+    # Case 3: Empty database -> conditional web search
+    if state.scraping_required or bool(state.missing_documents):
+        return "web_search"
+
+    return "hybrid_retrieval_entry"
 
 
 def route_after_retrieval_evaluation(state: RAGState) -> str:
@@ -68,11 +76,12 @@ def route_after_knowledge_refinement(state: RAGState) -> str:
     """
     Determines whether another retrieval iteration should occur.
     Routes to:
-      - 'query_rewriting' if refinement attempts < 2 and targeted queries were generated.
+      - 'query_rewriting' if refinement attempts < 1 (fast single retry).
       - 'controlled_fallback' if refinement attempts are exhausted.
+    Prevents timeout cascades on Render free tier.
     """
-    # Max refinement attempts allowed: 2
-    if state.refinement_attempts < 2 and bool(state.knowledge_refinement_queries):
+    # Cap refinement attempts to 1 to guarantee response within Render 30s budget
+    if state.refinement_attempts < 1 and bool(state.knowledge_refinement_queries):
         return "query_rewriting"
     return "controlled_fallback"
 
@@ -82,17 +91,19 @@ def route_after_answerability(state: RAGState) -> str:
     Evaluates question answerability from the verified, compressed context.
     Routes to:
       - 'answer_generation' if answerable.
-      - 'knowledge_refinement' if not answerable and refinement attempts < 2.
+      - 'knowledge_refinement' if not answerable and refinement attempts < 1.
       - 'controlled_fallback' if not answerable and refinement exhausted.
     """
     ans_result = state.answerability_result or {}
     is_answerable = ans_result.get("is_answerable", False)
-    score = ans_result.get("answerability_score", 0.0)
+    score = ans_result.get("answerability_score")
+    if score is None:
+        score = ans_result.get("confidence", 0.0)
 
-    if is_answerable and score >= 0.70:
+    if is_answerable and float(score) >= 0.70:
         return "answer_generation"
 
-    if state.refinement_attempts < 2:
+    if state.refinement_attempts < 1:
         return "knowledge_refinement"
     return "controlled_fallback"
 

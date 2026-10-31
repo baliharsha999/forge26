@@ -74,11 +74,14 @@ class FAISSHNSWIndex:
         vecs = np.ascontiguousarray(embeddings, dtype=np.float32)
         faiss.normalize_L2(vecs)
 
+        new_docs = []
+        new_vecs = []
         assigned_ids = []
+
         for i, doc in enumerate(documents):
             chunk_id = doc.metadata.get("chunk_id", f"chunk_{self.next_id}")
 
-            # If chunk already indexed, replace or ignore
+            # If chunk already indexed, update content in doc_store without duplicating vector
             if chunk_id in self.chunk_id_to_int_id:
                 existing_int_id = self.chunk_id_to_int_id[chunk_id]
                 self.doc_store[existing_int_id] = {
@@ -96,8 +99,13 @@ class FAISSHNSWIndex:
             self.chunk_id_to_int_id[chunk_id] = current_id
             assigned_ids.append(current_id)
             self.next_id += 1
+            new_docs.append(doc)
+            new_vecs.append(vecs[i])
 
-        self.index.add(vecs)
+        if new_vecs:
+            vecs_to_add = np.ascontiguousarray(new_vecs, dtype=np.float32)
+            self.index.add(vecs_to_add)
+
         return assigned_ids
 
     def similarity_search_with_score(

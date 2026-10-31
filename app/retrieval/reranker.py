@@ -48,27 +48,36 @@ class GovernmentReranker:
         candidates: List[Dict[str, Any]],
         translated_query: Optional[str] = None
     ) -> List[Dict[str, Any]]:
-        """Fallback scoring using multilingual embedding cosine similarity."""
+        """Fast, memory-efficient fallback scoring using batch embedding alignment and RRF scores."""
+        if not candidates:
+            return []
         try:
             from app.ingestion.embeddings import EmbeddingService
             service = EmbeddingService.get_instance()
+
             q_emb = service.embed_query(query, normalize=True)
             t_emb = service.embed_query(translated_query, normalize=True) if translated_query else None
 
-            for item in candidates:
-                content = item.get("page_content", "")
-                c_emb = service.embed_query(content[:500], normalize=True)
-                sim_orig = float(np.dot(q_emb, c_emb.T)[0, 0])
-                sim_trans = float(np.dot(t_emb, c_emb.T)[0, 0]) if t_emb is not None else -1.0
+            snippet_texts = [item.get("page_content", "")[:350] for item in candidates]
+            candidate_embs = service.embed_texts(snippet_texts, batch_size=max(1, len(snippet_texts)), normalize=True)
+
+            sims_orig = np.dot(candidate_embs, q_emb.T).flatten()
+            sims_trans = np.dot(candidate_embs, t_emb.T).flatten() if t_emb is not None else np.zeros_like(sims_orig)
+
+            for idx, item in enumerate(candidates):
+                sim_orig = float(sims_orig[idx])
+                sim_trans = float(sims_trans[idx]) if t_emb is not None else -1.0
                 best_sim = max(sim_orig, sim_trans)
-                item["rerank_score"] = best_sim
+                rrf_score = item.get("score", 0.0)
+                combined = 0.7 * best_sim + 0.3 * min(1.0, rrf_score * 30.0)
+                item["rerank_score"] = float(combined)
                 item["rerank_probability"] = float(1.0 / (1.0 + np.exp(-best_sim * 2.0)))
         except Exception as e:
             logger.warning(f"Fallback embedding rerank failed: {e}")
             for item in candidates:
-                item["rerank_score"] = item.get("rrf_score", 0.0)
+                item["rerank_score"] = item.get("score", item.get("rrf_score", 0.0))
                 item["rerank_probability"] = 0.5
-        return candidates
+        return sorted(candidates, key=lambda x: x.get("rerank_score", 0.0), reverse=True)
 
     def rerank(
         self,

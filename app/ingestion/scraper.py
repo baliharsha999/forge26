@@ -189,7 +189,7 @@ class GovernmentWebScraper:
 
         try:
             req = urllib.request.Request(url, headers=self.headers)
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=4) as resp:
                 content_type = resp.headers.get("Content-Type", "")
                 raw_bytes = resp.read()
                 raw_html = raw_bytes.decode("utf-8", errors="replace")
@@ -248,7 +248,7 @@ class GovernmentWebScraper:
 
         try:
             req = urllib.request.Request(url, headers=request_headers)
-            with urllib.request.urlopen(req, timeout=15) as resp:
+            with urllib.request.urlopen(req, timeout=4) as resp:
                 resp_etag = resp.headers.get("ETag")
                 resp_lm = resp.headers.get("Last-Modified")
                 raw_bytes = resp.read()

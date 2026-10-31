@@ -38,7 +38,10 @@ class EmbeddingService:
             from sentence_transformers import SentenceTransformer
             torch.set_num_threads(1)
             self._model = SentenceTransformer(self.model_name, device="cpu")
-            self.dimension = self._model.get_sentence_embedding_dimension()
+            if hasattr(self._model, "get_embedding_dimension"):
+                self.dimension = self._model.get_embedding_dimension()
+            else:
+                self.dimension = self._model.get_sentence_embedding_dimension()
         return self._model
 
     @classmethod
