@@ -433,18 +433,70 @@ def document_availability_check_node(state: RAGState) -> Dict[str, Any]:
     A. Database availability: Does the relevant HTML document exist in SQLite?
     B. Vector store availability: Is the document processed, embedded, and present in FAISS?
     Determines whether scraping or ingestion is necessary.
+    Uses exact official catalog matching for unstored schemes and distinctive keyword verification.
     """
     db = get_db()
     hnsw = get_hnsw_index()
 
+    # 1. Exact catalog match check: does the query ask about an official scheme?
+    try:
+        from scraper import MySchemeScraper
+        ms_scraper = MySchemeScraper(db_path=db.db_path)
+        candidate_schemes = ms_scraper.search_schemes(state.original_query, top_k=2)
+        if candidate_schemes:
+            top_candidate = candidate_schemes[0]
+            top_slug = top_candidate.get("slug")
+            if top_slug:
+                in_db = db.get_document_by_id(top_slug) is not None
+                in_faiss = hnsw.has_document_chunks(top_slug) if in_db else False
+                if not in_db or not in_faiss:
+                    print(f"[DocAvailability] Identified unstored scheme '{top_slug}'. Triggering scraping...")
+                    return {
+                        "document_search_results": [{"document_id": top_slug, "status": "missing_from_store"}],
+                        "existing_documents": [],
+                        "missing_documents": [state.original_query],
+                        "indexed_document_ids": [],
+                        "unindexed_document_ids": [top_slug] if in_db else [],
+                        "scraping_required": True,
+                        "document_ids": [top_slug]
+                    }
+    except Exception as e:
+        print(f"[DocAvailability] Catalog check error: {e}")
+
+    ALL_STOPWORDS = {
+        # English stopwords
+        "the", "a", "an", "and", "or", "but", "if", "then", "else", "when", "at",
+        "from", "by", "for", "with", "about", "against", "between", "into", "through",
+        "during", "before", "after", "above", "below", "to", "of", "up", "down", "in",
+        "out", "on", "off", "over", "under", "again", "further", "once", "here", "there",
+        "all", "any", "both", "each", "few", "more", "most", "other", "some", "such",
+        "no", "nor", "not", "only", "own", "same", "so", "than", "too", "very", "s",
+        "t", "can", "will", "just", "don", "should", "now", "are", "is", "was", "were",
+        "be", "been", "being", "have", "has", "had", "having", "do", "does", "did",
+        "doing", "what", "which", "who", "whom", "this", "that", "these", "those",
+        "am", "i", "we", "you", "they", "he", "she", "it", "my", "your", "his", "her",
+        "their", "our", "me", "him", "them", "us",
+        # Government stopwords
+        "scheme", "schemes", "yojana", "yojna", "government", "india", "details",
+        "benefit", "benefits", "eligibility", "eligible", "apply", "application",
+        "process", "criteria", "guidelines", "portal", "website", "online",
+        "document", "documents", "required", "status", "provide", "assistance",
+        "tell", "give", "know", "information", "info", "present", "available"
+    }
+
     # Collect search keywords from query analysis and rewritten queries
-    keywords: List[str] = []
+    distinctive_keywords: List[str] = []
     dept: Optional[str] = None
     if state.query_analysis:
-        keywords.extend(state.query_analysis.keywords or [])
-        keywords.extend(state.query_analysis.entities or [])
+        for kw in (state.query_analysis.keywords or []) + (state.query_analysis.entities or []):
+            clean = kw.strip("?,.:;\"'()[]{}").lower()
+            if len(clean) > 2 and clean not in ALL_STOPWORDS:
+                distinctive_keywords.append(clean)
         if state.query_analysis.topic:
-            keywords.append(state.query_analysis.topic)
+            for t in state.query_analysis.topic.split():
+                clean = t.strip("?,.:;\"'()[]{}").lower()
+                if len(clean) > 2 and clean not in ALL_STOPWORDS:
+                    distinctive_keywords.append(clean)
         dept = state.query_analysis.department
 
     query_sources = [state.original_query]
@@ -456,20 +508,31 @@ def document_availability_check_node(state: RAGState) -> Dict[str, Any]:
     for q in query_sources:
         for term in q.split():
             clean_term = term.strip("?,.:;\"'()[]{}").lower()
-            if len(clean_term) > 3 and clean_term not in {"what", "when", "where", "which", "about", "government", "india", "scheme", "schemes", "under"}:
-                keywords.append(clean_term)
+            if len(clean_term) > 2 and clean_term not in ALL_STOPWORDS:
+                distinctive_keywords.append(clean_term)
 
-    keywords = list(dict.fromkeys(keywords))
+    distinctive_keywords = list(dict.fromkeys(distinctive_keywords))
 
-    # Search existing database
-    matched_docs = db.search_documents(keywords=keywords, department=dept, limit=5)
+    # Search existing database using distinctive keywords
+    matched_docs = db.search_documents(keywords=distinctive_keywords, department=dept, limit=5)
+
+    # Filter matched_docs: A document is truly relevant only if at least one distinctive keyword
+    # matches its title, document_id, or category (or if there are no distinctive keywords, e.g. broad query)
+    truly_matched_docs: List[Dict[str, Any]] = []
+    for doc in matched_docs:
+        if not distinctive_keywords:
+            truly_matched_docs.append(doc)
+            continue
+        title_id = f"{(doc.get('title') or '')} {(doc.get('document_id') or '')} {(doc.get('category') or '')}".lower()
+        if any(dk in title_id for dk in distinctive_keywords):
+            truly_matched_docs.append(doc)
 
     existing_docs: List[Dict[str, Any]] = []
     indexed_doc_ids: List[str] = []
     unindexed_doc_ids: List[str] = []
     search_summaries: List[Dict[str, Any]] = []
 
-    for doc in matched_docs:
+    for doc in truly_matched_docs:
         doc_id = doc["document_id"]
         existing_docs.append(doc)
         has_vectors = hnsw.has_document_chunks(doc_id)
@@ -498,17 +561,12 @@ def document_availability_check_node(state: RAGState) -> Dict[str, Any]:
     missing_docs: List[str] = []
     scraping_required = False
 
-    total_db_docs = db.count_documents()
-    total_faiss_chunks = getattr(hnsw, "total_vectors", 0)
-
-    if not existing_docs:
-        # Latency optimization: If database or FAISS has indexed knowledge,
-        # prefer semantic hybrid retrieval over blocking external web scraping.
-        if total_db_docs > 0 or total_faiss_chunks > 0:
-            scraping_required = False
-        else:
-            scraping_required = True
-            missing_docs.append(state.original_query)
+    if not existing_docs or not indexed_doc_ids:
+        # Missing from SQLite or FAISS -> Trigger live web scraping & ingestion
+        scraping_required = True
+        missing_docs.append(state.original_query)
+        if state.translated_query and state.translated_query != state.original_query:
+            missing_docs.append(state.translated_query)
     elif state.knowledge_refinement_queries and state.refinement_attempts > 0:
         # Never trigger blocking web scrape during refinement loops
         scraping_required = False
@@ -557,17 +615,41 @@ def url_validation_node(state: RAGState) -> Dict[str, Any]:
 
 def web_scraping_node(state: RAGState) -> Dict[str, Any]:
     """
-    Fetches official HTML with concurrency locking and HTTP 304 conditional validation.
+    Fetches official government HTML via MyScheme AST generation and live webpage extraction.
+    Ensures that queries for non-stored schemes are dynamically acquired, converted to total HTML,
+    and prepared for SQLite ingestion and vector indexing.
     """
+    import re
     agent = get_scraping_agent()
     db = get_db()
     urls_to_scrape = state.validated_urls or state.discovered_urls
+    query_text = state.translated_query or state.normalized_query or state.original_query
 
     scraped_html_list: List[Dict[str, Any]] = []
     doc_hashes: Dict[str, str] = dict(state.document_hashes)
     scraping_results: List[Dict[str, Any]] = []
 
-    for url in (urls_to_scrape or [])[:1]:
+    # Strategy A: Check discovered or validated URLs
+    for url in (urls_to_scrape or [])[:2]:
+        slug_match = re.search(r"myscheme\.gov\.in/schemes/([a-zA-Z0-9_\-]+)", url)
+        if slug_match:
+            slug = slug_match.group(1).lower()
+            try:
+                from scraper import MySchemeScraper
+                legacy_scraper = MySchemeScraper(db_path=db.db_path)
+                rec = legacy_scraper.scrape_and_save(slug)
+                if rec:
+                    db._sync_legacy_schemes_if_any()
+                    doc = db.get_document_by_id(slug)
+                    if doc:
+                        scraped_html_list.append(doc)
+                        doc_hashes[slug] = doc.get("content_hash", "")
+                        scraping_results.append({"status": "success", "document_id": slug, "url": url})
+                        continue
+            except Exception as e:
+                print(f"[WebScraperNode] MyScheme API scrape failed for slug '{slug}': {e}")
+
+        # Fallback to direct HTTP scraping for general .gov.in URLs
         existing_doc = db.get_document_by_url(url)
         etag = existing_doc.get("etag") if existing_doc else None
         last_mod = existing_doc.get("http_last_modified") if existing_doc else None
@@ -581,6 +663,18 @@ def web_scraping_node(state: RAGState) -> Dict[str, Any]:
         elif res.get("status") == "not_modified":
             if existing_doc:
                 db.update_document_verification(existing_doc["document_id"])
+
+    # Strategy B: If nothing scraped yet, search through the 5,200+ government schemes catalog by query terms
+    if not scraped_html_list:
+        try:
+            print(f"[WebScraperNode] Searching 5,200+ schemes catalog for non-stored query: '{query_text}'...")
+            found_docs = agent.scraper.search_and_scrape_schemes(query_text, limit=2)
+            for d in found_docs:
+                scraped_html_list.append(d)
+                doc_hashes[d["document_id"]] = d.get("content_hash", "")
+                scraping_results.append({"status": "success", "document_id": d["document_id"], "url": d.get("url")})
+        except Exception as e:
+            print(f"[WebScraperNode] Direct scheme search and scrape failed: {e}")
 
     return {
         "scraped_html": scraped_html_list,
@@ -621,6 +715,9 @@ def database_storage_node(state: RAGState) -> Dict[str, Any]:
 
         dup_check = db.check_document_duplicate(can_url, content_hash)
 
+        hnsw = get_hnsw_index()
+        has_vectors = hnsw.has_document_chunks(doc_id)
+
         if dup_check["exists"] and not dup_check["content_changed"]:
             db.update_document_verification(doc_id)
             storage_results.append({
@@ -628,7 +725,7 @@ def database_storage_node(state: RAGState) -> Dict[str, Any]:
                 "status": "unchanged_duplicate",
                 "reindex_required": False
             })
-            if not dup_check["is_indexed"] and doc_id not in unindexed:
+            if (not dup_check["is_indexed"] or not has_vectors) and doc_id not in unindexed:
                 unindexed.append(doc_id)
         else:
             db.save_document(

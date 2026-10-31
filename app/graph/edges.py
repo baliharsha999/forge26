@@ -27,30 +27,21 @@ def route_after_input_guardrail(state: RAGState) -> str:
 def route_after_document_availability_check(state: RAGState) -> str:
     """
     Evaluates document availability and routes to hybrid retrieval,
-    local HTML indexing, or external web search.
-    Prefers local hybrid retrieval to prevent Cloudflare/Render 30s timeouts.
+    local HTML indexing, or external web search & scraping.
     """
-    from app.ingestion.database import GovernmentDatabase
-    db = GovernmentDatabase()
-
-    # Case 2: In DB but not indexed -> local indexing pipeline (fast, no scraping)
+    # Case 2: In DB but not indexed -> local indexing pipeline (fast)
     if bool(state.unindexed_document_ids):
         return "html_retrieval"
 
-    # Case 1: Indexed documents available -> hybrid retrieval
+    # Case 3: Missing from DB or web scraping required -> web search & scraping
+    if getattr(state, "scraping_required", False) or bool(state.missing_documents) or not bool(state.existing_documents):
+        return "web_search"
+
+    # Case 1: Indexed documents available in DB & FAISS -> hybrid retrieval
     if bool(state.existing_documents) or bool(state.indexed_document_ids):
         return "hybrid_retrieval_entry"
 
-    # If the database or vector store has indexed documents, always use hybrid retrieval
-    # instead of blocking on external web scraping
-    if db.count_documents() > 0:
-        return "hybrid_retrieval_entry"
-
-    # Case 3: Empty database -> conditional web search
-    if state.scraping_required or bool(state.missing_documents):
-        return "web_search"
-
-    return "hybrid_retrieval_entry"
+    return "web_search"
 
 
 def route_after_retrieval_evaluation(state: RAGState) -> str:

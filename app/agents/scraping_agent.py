@@ -29,27 +29,52 @@ class ScrapingAgent:
     ) -> List[str]:
         """
         Discovers official government URLs for a query/topic by searching
-        local schemes index or constructing verified official URLs.
+        official schemes index or constructing verified official URLs.
         """
         discovered: List[str] = []
-        search_terms = [t.lower().strip() for t in (keywords or query.split()) if len(t.strip()) > 2]
 
-        # 1. Search schemes index
-        for item in self.scraper.schemes_index:
-            name = item.get("en", {}).get("basicDetails", {}).get("schemeName", "").lower()
-            slug = item.get("slug", "")
-            match_score = sum(1 for term in search_terms if term in name)
-            if match_score > 0 and slug:
+        # 1. High precision catalog ranking via MySchemeScraper
+        try:
+            from scraper import MySchemeScraper
+            ms_scraper = MySchemeScraper(db_path=self.db.db_path)
+            ranked = ms_scraper.search_schemes(query, top_k=max_results)
+            for item in ranked:
+                slug = item.get("slug")
+                if slug:
+                    url = f"https://www.myscheme.gov.in/schemes/{slug}"
+                    if url not in discovered:
+                        discovered.append(url)
+        except Exception as e:
+            print(f"[ScrapingAgent] MySchemeScraper search failed: {e}")
+
+        # 2. If nothing discovered, try distinctive keyword search across schemes_index
+        if not discovered:
+            STOPWORDS = {
+                "what", "when", "where", "which", "who", "whom", "whose", "why", "how",
+                "about", "government", "india", "scheme", "schemes", "yojana", "under",
+                "benefits", "benefit", "eligibility", "eligible", "apply", "application",
+                "process", "details", "features", "documents", "required", "status",
+                "criteria", "guidelines", "portal", "website", "online", "national",
+                "central", "state", "ministry", "department", "tell", "give", "know",
+                "information", "info", "present", "available", "there", "have", "with",
+                "from", "that", "this", "these", "those", "does", "provide", "assistance"
+            }
+            terms = [t.lower().strip("?,.:;\"'()[]{}") for t in (keywords or query.split())]
+            search_terms = [t for t in terms if len(t) > 2 and t not in STOPWORDS]
+
+            scored_items = []
+            for item in self.scraper.schemes_index:
+                name = item.get("en", {}).get("basicDetails", {}).get("schemeName", "").lower()
+                slug = item.get("slug", "").lower()
+                score = sum(1 for term in search_terms if term in name or term in slug)
+                if score > 0:
+                    scored_items.append((score, slug))
+
+            scored_items.sort(key=lambda x: x[0], reverse=True)
+            for _, slug in scored_items[:max_results]:
                 url = f"https://www.myscheme.gov.in/schemes/{slug}"
                 if url not in discovered:
                     discovered.append(url)
-            if len(discovered) >= max_results:
-                break
-
-        # 2. If nothing discovered from index, generate canonical search URL on official portal
-        if not discovered and search_terms:
-            main_term = "-".join(search_terms[:3])
-            discovered.append(f"https://www.myscheme.gov.in/schemes/{main_term}")
 
         return discovered[:max_results]
 

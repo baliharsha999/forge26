@@ -292,29 +292,20 @@ class GovernmentWebScraper:
     def search_and_scrape_schemes(self, query: str, limit: int = 2) -> List[Dict[str, Any]]:
         """
         Searches myscheme index for matching schemes and scrapes details.
+        Uses high-precision alias resolution, substring scoring, and AST compilation.
         """
-        query_terms = [t.lower() for t in query.split() if len(t) > 2]
-        matches = []
-
-        for item in self.schemes_index:
-            name = item.get("en", {}).get("basicDetails", {}).get("schemeName", "").lower()
-            slug = item.get("slug", "")
-            score = sum(1 for term in query_terms if term in name)
-            if score > 0:
-                matches.append((score, slug, name))
-
-        matches.sort(key=lambda x: x[0], reverse=True)
-        results = []
-
-        # Scrape top matching slugs
         from scraper import MySchemeScraper
         legacy_scraper = MySchemeScraper(db_path=self.db.db_path)
+        ranked = legacy_scraper.search_schemes(query, top_k=limit)
 
-        for _, slug, _ in matches[:limit]:
+        results = []
+        for item in ranked:
+            slug = item.get("slug")
+            if not slug:
+                continue
             try:
                 rec = legacy_scraper.scrape_and_save(slug)
                 if rec:
-                    # Sync to government_documents
                     self.db._sync_legacy_schemes_if_any()
                     doc = self.db.get_document_by_id(slug)
                     if doc:

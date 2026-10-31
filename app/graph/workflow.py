@@ -218,7 +218,7 @@ def build_query_retrieval_graph():
     workflow.add_edge("url_validation", "web_scraping")
     workflow.add_edge("web_scraping", "html_extraction")
     workflow.add_edge("html_extraction", "database_storage")
-    workflow.add_edge("database_storage", "document_loading")
+    workflow.add_edge("database_storage", "html_retrieval")
 
     # Both ingestion paths converge to hybrid_retrieval_entry
     workflow.add_edge("faiss_indexing", "hybrid_retrieval_entry")

@@ -307,7 +307,17 @@ class GovernmentDatabase:
             all_rows = conn.execute("SELECT * FROM government_documents").fetchall()
 
             scored_docs: List[Tuple[float, Dict[str, Any]]] = []
-            clean_keywords = [k.lower().strip() for k in keywords if len(k.strip()) > 2]
+            COMMON_STOPWORDS = {
+                "the", "a", "an", "and", "or", "but", "if", "for", "with", "about",
+                "from", "into", "over", "under", "after", "before", "between",
+                "scheme", "schemes", "yojana", "yojna", "government", "india", "details",
+                "benefit", "benefits", "eligibility", "eligible", "apply", "application",
+                "what", "when", "where", "which", "how", "who", "whom", "whose"
+            }
+            clean_keywords = [
+                k.lower().strip() for k in keywords
+                if len(k.strip()) > 2 and k.lower().strip() not in COMMON_STOPWORDS
+            ] or [k.lower().strip() for k in keywords if len(k.strip()) > 2]
 
             for row in all_rows:
                 doc = dict(row)
