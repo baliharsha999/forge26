@@ -146,6 +146,21 @@ PROCEDURAL_KNOWLEDGE_GRAPH = {
 
 
 # -----------------------------------------------------------------------------
+# 1.5. Civic Semantic Thesaurus & Cross-Lingual Concept Expansion (HyDE / Semantic RAG)
+# -----------------------------------------------------------------------------
+CIVIC_SEMANTIC_THEMES: Dict[str, List[str]] = {
+    "farmer": ["kisan", "farmer", "agriculture", "rythu", "fasal", "crop", "land", "రైతు", "వ్యవసాయం", "పంట", "किसान", "खेती", "कृषि", "సబ్సిడీ", "ఖాతా"],
+    "health": ["health", "medical", "treatment", "hospital", "ayushman", "pmjay", "pm-jay", "cashless", "aarogyasri", "ఆరోగ్యం", "చికిత్స", "ఆసుపత్రి", "स्वास्थ्य", "इलाज", "अस्पताल", "बीमारी"],
+    "loan": ["loan", "loans", "credit", "mudra", "stand up", "standup", "business", "entrepreneur", "startup", "collateral", "pmegp", "vishwakarma", "लोन", "ऋण", "व्यापार", "రుణం", "వ్యాపారం", "ముద్ర", "సబ్సిడీ"],
+    "women": ["women", "woman", "girl", "female", "mahila", "swarnima", "sukanya", "pmmvy", "nari", "mother", "మహిళ", "మహిళలు", "ఆడపిల్ల", "महिला", "बेटी", "स्त्री"],
+    "student": ["student", "scholarship", "education", "study", "college", "school", "matric", "fellowship", "vidya", "nsp", "విద్యార్థి", "చదువు", "స్కాలర్‌షిప్", "छात्र", "शिक्षा", "छात्रवृत्ति"],
+    "pension": ["pension", "elderly", "senior", "old age", "vaya vandana", "nsap", "ignops", "widow", "పెన్షన్", "వృద్ధాప్య", "పించను", "पेंशन", "बुजुर्ग", "वृद्धावस्था"],
+    "housing": ["housing", "house", "pmay", "awas", "flat", "shelter", "homeless", "ఇల్లు", "గృహ", "आवास", "मकान", "घर"],
+    "lpg": ["lpg", "gas", "cylinder", "ujjwala", "pmuy", "गैस", "उज्ज्वला", "గ్యాస్", "ఉజ్వల"]
+}
+
+
+# -----------------------------------------------------------------------------
 # 2. Pure-Python Language-Aware Tokenizer & Indexer
 # -----------------------------------------------------------------------------
 def tokenize_civic_text(text: str) -> List[str]:
@@ -298,8 +313,17 @@ class STAIRCivicAgent:
                 "data": PROCEDURAL_KNOWLEDGE_GRAPH["agnipath"]
             }
 
-        # Route C: Direct Scheme Matching against 5,210 Catalog
+        # Route C: Direct Scheme Matching against 5,210 Catalog with Semantic HyDE Expansion
         tokens = tokenize_civic_text(q)
+        active_themes: Set[str] = set()
+        expanded_keywords: Set[str] = set(tokens)
+
+        # Detect active themes from query tokens
+        for theme, kw_list in CIVIC_SEMANTIC_THEMES.items():
+            if any(k in q for k in kw_list) or any(t in kw_list for t in tokens):
+                active_themes.add(theme)
+                expanded_keywords.update(kw_list)
+
         matched_catalog_item = None
         for item in self.schemes_catalog:
             item_name_lower = item["name"].lower()
@@ -307,18 +331,43 @@ class STAIRCivicAgent:
                 matched_catalog_item = item
                 break
 
-        # Check Detailed Schemes (PM-Kisan, Ayushman, Mudra, PMAY, etc.)
-        matched_detailed = []
+        # Check Detailed Schemes with Weighted Relevance Scoring
+        scored_detailed = []
         for s in self.detailed_schemes:
             s_name = s.get("name", "").lower()
             s_benefit = s.get("benefit", "").lower()
-            if any(t in s_name or t in s_benefit for t in tokens if len(t) > 3):
-                matched_detailed.append(s)
+            s_category = s.get("category", "").lower()
+            s_eligibility = " ".join(s.get("eligibility_criteria", [])).lower()
+            score = 0
+
+            # Direct title match
+            if any(t in s_name for t in tokens if len(t) > 2):
+                score += 35
+            # Category match with active theme
+            if any(theme in s_category for theme in active_themes):
+                score += 30
+            # Semantic keyword matches in benefit
+            for kw in expanded_keywords:
+                if len(kw) > 3:
+                    if kw in s_name:
+                        score += 15
+                    if kw in s_benefit:
+                        score += 10
+                    if kw in s_eligibility:
+                        score += 5
+
+            if score > 0:
+                scored_detailed.append((score, s))
+
+        # Sort detailed schemes by score descending
+        scored_detailed.sort(key=lambda x: x[0], reverse=True)
+        matched_detailed = [item[1] for item in scored_detailed[:4]]
 
         return {
             "route": "WELFARE_SCHEME",
             "matched_catalog": matched_catalog_item,
-            "matched_detailed": matched_detailed[:3]
+            "matched_detailed": matched_detailed,
+            "active_themes": list(active_themes)
         }
 
     # -------------------------------------------------------------------------
@@ -456,9 +505,13 @@ class STAIRCivicAgent:
 
         system_prompt = (
             "You are Nagarik AI (नागरिक AI), India's Sovereign Civic & Public Schemes Assistant.\n"
-            "Provide accurate, strictly grounded citizen guidance regarding the requested welfare scheme.\n"
-            "Include key financial benefits, eligibility criteria, required documents, and official application portals.\n"
-            f"LANGUAGE: Respond in {target_lang}. Never hallucinate numbers or dates."
+            "Provide authoritative, strictly grounded citizen guidance regarding the requested welfare schemes.\n\n"
+            "STRICT GROUNDING & QUALITY STANDARDS:\n"
+            "1. Present the key facts in clean Markdown tables (e.g. | Scheme / Parameter | Details |).\n"
+            "2. State exact financial figures, installment breakdowns, and subsidies strictly from the verified context.\n"
+            "3. Clearly separate 'Key Benefits', 'Eligibility Criteria', 'Required Documents', and 'Official Application Portals'.\n"
+            "4. Never hallucinate unsupported claims, dates, or non-existent subsidies.\n"
+            f"LANGUAGE: Respond entirely and naturally in {target_lang}. Preserve official scheme acronyms and rupee figures."
         )
 
         user_prompt = f"Citizen Query: {query}\n\nVerified Schemes Context:\n{context_str}\n\nPlease generate the official citizen guidance in {target_lang}."
