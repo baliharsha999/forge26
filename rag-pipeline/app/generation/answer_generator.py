@@ -125,7 +125,9 @@ class AnswerGenerator:
             feedback_instruction = (
                 f"\nCRITICAL EVALUATOR FEEDBACK FROM PREVIOUS ATTEMPT:\n"
                 f"{evaluator_feedback}\n"
-                f"You MUST eliminate all unsupported claims and strictly ground every single fact in the context provided below.\n"
+                f"You MUST completely omit all unsupported claims and terms mentioned above. "
+                f"Do NOT mention, repeat, or refute them in your answer. "
+                f"Simply provide the factual answer strictly and exclusively from the context provided below.\n"
             )
 
         language_instruction = ""

@@ -269,5 +269,30 @@
     "official_url": "https://www.apprenticeshipindia.gov.in",
     "source_text": "NAPS-2 promotes apprenticeship training in establishments by reimbursing stipends directly into the bank accounts of apprentices using Aadhaar-enabled Direct Benefit Transfer, enhancing youth employability.",
     "last_verified_date": "2026-10-30"
+  },
+  {
+    "id": "SCHEME-016",
+    "name": "Thalliki Vandanam (Talliki Vandanam / తల్లికి వందనం)",
+    "level": "state",
+    "state": "Andhra Pradesh",
+    "category": "women, student, education",
+    "benefit": "Financial assistance of ₹15,000 per year transferred directly via DBT into the Aadhaar-seeded bank account of the mother for every school-going child.",
+    "eligibility_criteria": [
+      "Mothers or recognized legal guardians residing in Andhra Pradesh whose children are studying in Classes 1 to 12 in recognized Government, Aided, or Private schools",
+      "Student must maintain minimum 75% school attendance throughout the academic year",
+      "Family must belong to BPL category with active White Ration Card / Rice Card",
+      "Aadhaar-seeded bank account with active NPCI mapping required for Direct Benefit Transfer"
+    ],
+    "documents_required": [
+      "Mother's Aadhaar Card",
+      "Child's Aadhaar Card & Student Information System (Child Info) ID",
+      "White Ration Card / Rice Card (Civil Supplies AP)",
+      "Aadhaar-Seeded Bank Passbook / Account details",
+      "School Bonafide Certificate / School Admission Proof"
+    ],
+    "how_to_apply": "Applications are submitted through the Grama / Ward Sachivalayam (Village / Ward Secretariat) or the official School Education Portal (cse.ap.gov.in / myscheme.gov.in/schemes/tv). Verification is conducted via the Headmaster and Social Audit.",
+    "official_url": "https://www.myscheme.gov.in/schemes/tv",
+    "source_text": "Under the Thalliki Vandanam scheme of the Andhra Pradesh Government (successor to Amma Vodi), financial assistance of Rs 15,000/- per year is deposited directly into the bank account of eligible mothers for sending their children to school from Class 1 to Class 12, to curb school dropout rates and promote universal education.",
+    "last_verified_date": "2026-10-31"
   }
 ]

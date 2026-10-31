@@ -163,6 +163,24 @@ CIVIC_SEMANTIC_THEMES: Dict[str, List[str]] = {
 # -----------------------------------------------------------------------------
 # 2. Pure-Python Language-Aware Tokenizer & Indexer
 # -----------------------------------------------------------------------------
+INDIAN_STATES: List[str] = [
+    "Andhra Pradesh", "Arunachal Pradesh", "Assam", "Bihar", "Chhattisgarh",
+    "Goa", "Gujarat", "Haryana", "Himachal Pradesh", "Jharkhand", "Karnataka",
+    "Kerala", "Madhya Pradesh", "Maharashtra", "Manipur", "Meghalaya", "Mizoram",
+    "Nagaland", "Odisha", "Punjab", "Rajasthan", "Sikkim", "Tamil Nadu",
+    "Telangana", "Tripura", "Uttar Pradesh", "Uttarakhand", "West Bengal",
+    "Delhi", "Jammu and Kashmir", "Ladakh", "Puducherry"
+]
+
+def normalize_phonetic(s: str) -> str:
+    """Normalizes transliterated differences: th->t, dh->d, bh->b, kh->k, gh->g, ph->f, ee->i, oo->u."""
+    if not s:
+        return ""
+    s = s.lower().strip()
+    s = s.replace("th", "t").replace("dh", "d").replace("bh", "b").replace("kh", "k").replace("gh", "g").replace("ph", "f")
+    s = s.replace("ee", "i").replace("oo", "u")
+    return re.sub(r'[^a-z0-9\s]', ' ', s).strip()
+
 def tokenize_civic_text(text: str) -> List[str]:
     """Tokenizes English and Indic (Telugu, Hindi) text, preserving compound scheme names."""
     if not text:
@@ -324,31 +342,66 @@ class STAIRCivicAgent:
                 active_themes.add(theme)
                 expanded_keywords.update(kw_list)
 
-        matched_catalog_item = None
-        for item in self.schemes_catalog:
-            item_name_lower = item["name"].lower()
-            if q in item_name_lower or item["short_title"].lower() in tokens:
-                matched_catalog_item = item
+        # Detect Indian State (if mentioned in query)
+        detected_state: Optional[str] = None
+        for st in INDIAN_STATES:
+            if re.search(r'\b' + re.escape(st) + r'\b', q, re.IGNORECASE):
+                detected_state = st
                 break
 
-        # Check Detailed Schemes with Weighted Relevance Scoring
+        # Strip state name and generic stop words to isolate specific scheme terms
+        q_isolated = q
+        if detected_state:
+            q_isolated = re.sub(r'\b(in|for|of|state)?\s*' + re.escape(detected_state.lower()) + r'\b', ' ', q_isolated)
+        q_isolated_cleaned = re.sub(r'\b(scheme|schemes|yojana|yojanas|pathakam|pathakalu|in|for|of|the|details|apply|status|help|list|all|government|govt)\b', ' ', q_isolated).strip()
+        isolated_tokens = [w.strip() for w in q_isolated_cleaned.split() if len(w.strip()) > 1]
+        q_phone = normalize_phonetic(q_isolated_cleaned)
+
+        # Generic stopwords to exclude from scoring
+        STOPWORDS = {
+            "scheme", "schemes", "yojana", "yojanas", "pathakam", "pathakalu",
+            "in", "for", "of", "the", "details", "apply", "status", "help",
+            "list", "all", "government", "govt", "state", "tell", "me", "about"
+        }
+        meaningful_tokens = [t for t in tokens if len(t) > 2 and t not in STOPWORDS]
+
+        # 1. Match Detailed Schemes (PM-Kisan, Thalliki Vandanam, Ayushman, Mudra, etc.)
         scored_detailed = []
         for s in self.detailed_schemes:
             s_name = s.get("name", "").lower()
+            s_name_phone = normalize_phonetic(s_name)
             s_benefit = s.get("benefit", "").lower()
             s_category = s.get("category", "").lower()
             s_eligibility = " ".join(s.get("eligibility_criteria", [])).lower()
+            s_state = s.get("state", "All-India")
             score = 0
 
-            # Direct title match
-            if any(t in s_name for t in tokens if len(t) > 2):
+            # State alignment
+            if detected_state:
+                if s_state.lower() == detected_state.lower():
+                    score += 60  # Strong boost for matching state
+                # Do NOT give All-India bonus when user specifically requested a state
+            else:
+                if s_state == "All-India":
+                    score += 15
+
+            # Direct phonetic title match (e.g. "talliki vandanam" -> "thalliki vandanam")
+            if q_phone and q_phone in s_name_phone:
+                score += 100
+            elif isolated_tokens and all(normalize_phonetic(t) in s_name_phone for t in isolated_tokens if len(t) > 2):
+                score += 85
+            elif any(normalize_phonetic(t) in s_name_phone for t in isolated_tokens if len(t) > 2):
+                score += 45
+
+            # Meaningful title token match (never generic stopwords)
+            if any(t in s_name for t in meaningful_tokens):
                 score += 35
             # Category match with active theme
             if any(theme in s_category for theme in active_themes):
                 score += 30
             # Semantic keyword matches in benefit
             for kw in expanded_keywords:
-                if len(kw) > 3:
+                if len(kw) > 3 and kw not in STOPWORDS:
                     if kw in s_name:
                         score += 15
                     if kw in s_benefit:
@@ -356,17 +409,44 @@ class STAIRCivicAgent:
                     if kw in s_eligibility:
                         score += 5
 
-            if score > 0:
+            if score >= 35:
                 scored_detailed.append((score, s))
 
         # Sort detailed schemes by score descending
         scored_detailed.sort(key=lambda x: x[0], reverse=True)
         matched_detailed = [item[1] for item in scored_detailed[:4]]
 
+        # 2. Match 5,210 Scheme Catalog
+        matched_catalog_items: List[Dict[str, Any]] = []
+
+        # Priority 2A: Specific scheme name/phonetic match in 5,210 catalog
+        if q_phone and len(q_phone) > 3:
+            for item in self.schemes_catalog:
+                name_phone = normalize_phonetic(item["name"])
+                short_phone = normalize_phonetic(item["short_title"])
+                slug_phone = normalize_phonetic(item["slug"])
+                if q_phone in name_phone or (short_phone and short_phone == q_phone) or slug_phone == q_phone:
+                    matched_catalog_items.append(item)
+                elif isolated_tokens and all(normalize_phonetic(t) in name_phone for t in isolated_tokens if len(t) > 2):
+                    matched_catalog_items.append(item)
+
+        # Priority 2B: If user asked for a state (e.g. "Meghalaya schemes"), find state-specific catalog schemes
+        if detected_state:
+            st_lower = detected_state.lower()
+            for item in self.schemes_catalog:
+                item_name_lower = item["name"].lower()
+                item_slug_lower = item.get("slug", "").lower()
+                if (st_lower in item_name_lower or st_lower in item_slug_lower) and item not in matched_catalog_items:
+                    matched_catalog_items.append(item)
+                if len(matched_catalog_items) >= 6:
+                    break
+
         return {
             "route": "WELFARE_SCHEME",
-            "matched_catalog": matched_catalog_item,
+            "detected_state": detected_state,
             "matched_detailed": matched_detailed,
+            "matched_catalog": matched_catalog_items[0] if matched_catalog_items else None,
+            "matched_catalog_items": matched_catalog_items[:5],
             "active_themes": list(active_themes)
         }
 
@@ -450,14 +530,30 @@ class STAIRCivicAgent:
         # Case C: General Welfare Scheme Query (5,210 Schemes Catalog & Gazettes)
         # ---------------------------------------------------------------------
         matched_detailed = route_info.get("matched_detailed", [])
+        matched_catalog_items = route_info.get("matched_catalog_items", [])
         matched_catalog = route_info.get("matched_catalog")
+        detected_state = route_info.get("detected_state")
 
         # Compile citations
-        if matched_detailed:
-            for s in matched_detailed:
+        # State-aware ranking: If a state was detected, prioritize schemes of that state
+        target_schemes_detailed = []
+        if detected_state:
+            state_specific = [s for s in matched_detailed if s.get("state", "").lower() == detected_state.lower()]
+            if state_specific:
+                target_schemes_detailed = state_specific
+            elif matched_catalog_items:
+                # Prioritize state catalog items over unrelated national schemes
+                target_schemes_detailed = []
+            else:
+                target_schemes_detailed = matched_detailed
+        else:
+            target_schemes_detailed = matched_detailed
+
+        if target_schemes_detailed:
+            for s in target_schemes_detailed:
                 citations.append(SchemeCitation(
                     id=s.get("id", "SCHEME-001"),
-                    name=s.get("name", "Central Welfare Scheme"),
+                    name=s.get("name", "Welfare Scheme"),
                     department=s.get("department", "Government of India"),
                     level=s.get("level", "central"),
                     state=s.get("state", "All-India"),
@@ -468,13 +564,28 @@ class STAIRCivicAgent:
                     last_verified_date=s.get("last_verified_date", "2026-10-31"),
                     confidence_score=0.96
                 ))
+        elif matched_catalog_items:
+            for item in matched_catalog_items:
+                citations.append(SchemeCitation(
+                    id=item["id"],
+                    name=item["name"],
+                    department=f"Government of {detected_state}" if detected_state else "Government of India / State Government",
+                    level="state" if detected_state else "central",
+                    state=detected_state or "All-India",
+                    benefit=f"Official Welfare Entitlements under {item['name']}",
+                    eligibility_summary=f"Eligibility criteria and benefits published on official Government of {detected_state or 'India'} portal ({item['official_url']})",
+                    official_url=item["official_url"],
+                    source_text=f"Government welfare scheme indexed in National Scheme Portal ({item['name']}).",
+                    last_verified_date="2026-10-31",
+                    confidence_score=0.95
+                ))
         elif matched_catalog:
             citations.append(SchemeCitation(
                 id=matched_catalog["id"],
                 name=matched_catalog["name"],
-                department="Government of India / Relevant Ministry",
-                level="central",
-                state="All-India",
+                department=f"Government of {detected_state}" if detected_state else "Government of India / Relevant Ministry",
+                level="state" if detected_state else "central",
+                state=detected_state or "All-India",
                 benefit=f"Official Welfare Entitlements under {matched_catalog['name']}",
                 eligibility_summary="Eligibility as per official gazette notification on myScheme portal",
                 official_url=matched_catalog["official_url"],
@@ -483,42 +594,50 @@ class STAIRCivicAgent:
                 confidence_score=0.95
             ))
         else:
-            # Fallback to top national schemes
-            for s in self.detailed_schemes[:3]:
-                citations.append(SchemeCitation(
-                    id=s.get("id", "SCHEME"),
-                    name=s.get("name"),
-                    department=s.get("department", "Government of India"),
-                    level="central",
-                    state="All-India",
-                    benefit=s.get("benefit", ""),
-                    eligibility_summary="; ".join(s.get("eligibility_criteria", [])[:2]),
-                    official_url=s.get("official_url", "https://myscheme.gov.in"),
-                    last_verified_date="2026-10-31",
-                    confidence_score=0.90
-                ))
+            # Genuinely no matching scheme found in database
+            state_text = f" in {detected_state}" if detected_state else ""
+            answer = (
+                f"### 🏛️ Nagarik AI Advisory — Scheme Verification\n\n"
+                f"I could not locate a verified official record matching **\"{query}\"**{state_text} in the current 5,210 Central & State Schemes catalog.\n\n"
+                f"**Recommended Steps:**\n"
+                f"1. **Check Title / Acronym**: Verify if the scheme is officially listed under an alternative title on the national portal.\n"
+                f"2. **Official Portal**: Search directly at [myscheme.gov.in](https://www.myscheme.gov.in) or your state government's official welfare department.\n"
+                f"3. **District Collectorate / CSC**: Consult your local MeeSeva / Common Service Centre for recent regional Government Orders (G.O.s)."
+            )
+            return answer, [], [
+                "Search schemes on myScheme portal",
+                "How to apply for state welfare schemes at MeeSeva / CSC?",
+                "What documents are generally needed for government welfare?"
+            ]
 
         # Context string for LLM
         context_str = ""
         for c in citations:
-            context_str += f"### {c.name}\n- Department: {c.department}\n- Benefit: {c.benefit}\n- Eligibility: {c.eligibility_summary}\n- Portal: {c.official_url}\n\n"
+            context_str += f"### {c.name}\n- Department: {c.department}\n- State: {c.state}\n- Benefit: {c.benefit}\n- Eligibility: {c.eligibility_summary}\n- Portal: {c.official_url}\n\n"
 
         system_prompt = (
             "You are Nagarik AI (नागरिक AI), India's Sovereign Civic & Public Schemes Assistant.\n"
-            "Provide authoritative, strictly grounded citizen guidance regarding the requested welfare schemes.\n\n"
+            f"The citizen has inquired about schemes regarding '{detected_state or query}'.\n"
+            "Provide authoritative, strictly grounded citizen guidance regarding ONLY the requested welfare schemes provided in the verified context.\n\n"
             "STRICT GROUNDING & QUALITY STANDARDS:\n"
-            "1. Present the key facts in clean Markdown tables (e.g. | Scheme / Parameter | Details |).\n"
+            "1. Present the key facts in clean Markdown tables (e.g. | Scheme / Parameter | Details | Official Portal |).\n"
             "2. State exact financial figures, installment breakdowns, and subsidies strictly from the verified context.\n"
             "3. Clearly separate 'Key Benefits', 'Eligibility Criteria', 'Required Documents', and 'Official Application Portals'.\n"
-            "4. Never hallucinate unsupported claims, dates, or non-existent subsidies.\n"
+            "4. Do NOT mention unrelated schemes (e.g. do NOT mention PM-KISAN, PM-JAY, or Mudra unless the user specifically asked for them).\n"
             f"LANGUAGE: Respond entirely and naturally in {target_lang}. Preserve official scheme acronyms and rupee figures."
         )
 
         user_prompt = f"Citizen Query: {query}\n\nVerified Schemes Context:\n{context_str}\n\nPlease generate the official citizen guidance in {target_lang}."
         answer = await self._call_llm(system_prompt, user_prompt)
         if not answer:
-            lead = citations[0]
-            answer = f"### 🏛️ {lead.name} - Verified Guidelines\n\n**Key Benefit**: {lead.benefit}\n\n**Eligibility**: {lead.eligibility_summary}\n\n**Official Portal**: [{lead.official_url}]({lead.official_url})"
+            table_rows = "\n".join([f"| **{c.name}** | {c.benefit} | [{c.official_url}]({c.official_url}) |" for c in citations])
+            answer = (
+                f"### 🏛️ Verified Government Welfare Schemes ({detected_state or 'India'})\n\n"
+                f"| Scheme | Entitlements & Overview | Official Portal |\n"
+                f"| :--- | :--- | :--- |\n"
+                f"{table_rows}\n\n"
+                f"For full eligibility criteria, required documents, and online application, visit the official portal links above."
+            )
 
         followups = [
             f"What documents are required to apply for {citations[0].name}?",
