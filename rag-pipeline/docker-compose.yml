@@ -1,0 +1,26 @@
+services:
+  government-rag-api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: government-rag-api
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    env_file:
+      - .env
+    environment:
+      - HOST=0.0.0.0
+      - PORT=8000
+    volumes:
+      # Mount database and vector index directories for host persistence
+      - ./schemes.db:/app/schemes.db
+      - ./data/faiss_index:/app/data/faiss_index
+      - ./data/raw:/app/data/raw
+      - ./data/processed:/app/data/processed
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s

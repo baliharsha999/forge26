@@ -1,0 +1,41 @@
+# ==============================================================================
+# Render Blueprint Configuration for Government Information RAG Application
+# Optimized for Render Free Tier (512 MB RAM, Python 3.11)
+# ==============================================================================
+
+services:
+  - type: web
+    name: government-rag-api
+    runtime: python
+    plan: free
+    region: oregon # or ohio, frankfurt, singapore
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    healthCheckPath: /health
+    autoDeploy: true
+
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.9
+      - key: HOST
+        value: 0.0.0.0
+      - key: LOW_MEMORY_MODE
+        value: "true" # Enables 512MB RAM optimization (avoids Cross-Encoder memory spikes)
+      - key: VECTOR_DB_TYPE
+        value: "faiss" # 'faiss' (recommended for <512MB RAM) or 'chroma'
+      - key: GROQ_MODEL
+        value: qwen/qwen3.8-27b
+      - key: FALLBACK_MODEL
+        value: openai/gpt-oss-120b
+      - key: GROQ_API_KEY
+        sync: false # Set securely in Render dashboard
+      - key: LANGCHAIN_TRACING_V2
+        value: "true"
+      - key: LANGCHAIN_PROJECT
+        value: government-scheme-assistant
+      - key: LANGCHAIN_ENDPOINT
+        value: https://api.smith.langchain.com
+      - key: LANGCHAIN_API_KEY
+        sync: false # Set securely in Render dashboard
+      - key: LANGSMITH_API_KEY
+        sync: false # Set securely in Render dashboard

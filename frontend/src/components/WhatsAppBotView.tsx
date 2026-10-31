@@ -76,7 +76,7 @@ export const WhatsAppBotView: React.FC<WhatsAppBotViewProps> = ({
 
   const [inputText, setInputText] = useState('');
   const [isLoading, setIsLoading] = useState(false);
-  const [phoneNumber, setPhoneNumber] = useState('+91 98765 43210');
+  const [phoneNumber, setPhoneNumber] = useState('+91 95539 48740');
   const [activeTabInspector, setActiveTabInspector] = useState<'citations' | 'twiml' | 'meta' | 'webhook'>('citations');
   const [copiedCode, setCopiedCode] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
@@ -123,7 +123,7 @@ export const WhatsAppBotView: React.FC<WhatsAppBotViewProps> = ({
     try {
       const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
       const response = await axios.post(`${API_BASE}/whatsapp/simulate`, {
-        from_number: cleanPhone || '+919876543210',
+        from_number: cleanPhone || '+919553948740',
         message: rawText || (mediaType === 'audio' ? 'Check Aadhaar DBT bank account seeding status' : 'Civic grievance water leakage issue'),
         language: currentLanguage,
         media_type: mediaType === 'audio' ? 'audio/ogg' : (mediaType === 'image' ? 'image/jpeg' : undefined)
@@ -505,8 +505,17 @@ export const WhatsAppBotView: React.FC<WhatsAppBotViewProps> = ({
                   value={phoneNumber}
                   onChange={(e) => setPhoneNumber(e.target.value)}
                   className="bg-[#101322] border border-[rgba(255,255,255,0.1)] rounded px-2 py-0.5 text-xs text-[#E8E9F2] font-mono w-36"
-                  placeholder="+91 9876543210"
+                  placeholder="+91 95539 48740"
                 />
+                <a
+                  href={`https://wa.me/919553948740?text=Hi%20Nagarik%20AI,%20I%20want%20to%20check%20Aadhaar%20DBT%20and%20welfare%20schemes`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded text-xs font-bold bg-[#25D366]/20 text-[#25D366] border border-[#25D366]/40 hover:bg-[#25D366] hover:text-[#0B0C1E] transition-all"
+                  title="Open real chat with 9553948740 on WhatsApp"
+                >
+                  <ExternalLink className="w-3 h-3" /> wa.me
+                </a>
               </div>
 
               <div className="flex items-center gap-1.5">

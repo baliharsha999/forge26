@@ -1,0 +1,28 @@
+# Environment variables & secrets
+.env
+.env.local
+.agents/mcp_config.json
+
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+
+# Caches
+.pytest_cache/
+.deepeval/
+evals/reports/*.json
+
+# Logs & temporary files
+*.log
+scratch/
+tmp/
+.DS_Store
+data/chroma_db/
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
