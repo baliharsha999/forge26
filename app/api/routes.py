@@ -54,6 +54,8 @@ class ChatResponse(BaseModel):
     detected_script: Optional[str] = "Latin"
     response_language: Optional[str] = "English"
     translated_query: Optional[str] = None
+    is_blocked: Optional[bool] = False
+    guardrail_result: Optional[Dict[str, Any]] = None
 
 
 class IngestUrlRequest(BaseModel):
@@ -114,7 +116,9 @@ async def chat_endpoint(request: ChatRequest):
         language_code=final_state.get("language_code", "en"),
         detected_script=final_state.get("detected_script", "Latin"),
         response_language=final_state.get("response_language", "English"),
-        translated_query=final_state.get("translated_query")
+        translated_query=final_state.get("translated_query"),
+        is_blocked=final_state.get("is_blocked", False),
+        guardrail_result=final_state.get("guardrail_result")
     )
 
 

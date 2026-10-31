@@ -12,6 +12,18 @@ from app.graph.state import RAGState
 from app.config.settings import get_settings
 
 
+def route_after_input_guardrail(state: RAGState) -> str:
+    """
+    Evaluates whether the query passed security guardrails.
+    Routes to:
+      - 'final_response' if blocked (prompt injection, jailbreak, out of domain).
+      - 'language_detection' if approved.
+    """
+    if getattr(state, "is_blocked", False):
+        return "final_response"
+    return "language_detection"
+
+
 def route_after_document_availability_check(state: RAGState) -> str:
     """
     Evaluates document availability and determines whether to proceed directly

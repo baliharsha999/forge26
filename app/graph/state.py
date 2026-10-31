@@ -88,7 +88,9 @@ class RAGState(BaseModel):
     faithfulness_result: Optional[Dict[str, Any]] = Field(default=None, description="Claim verification against retrieved context")
     citation_validation_result: Optional[Dict[str, Any]] = Field(default=None, description="Verification that all citations are genuine")
 
-    # 7. Final Outputs
+    # 7. Final Outputs & Guardrails
+    guardrail_result: Optional[Dict[str, Any]] = Field(default=None, description="Security and safety guardrail evaluation")
+    is_blocked: bool = Field(default=False, description="True if query was blocked by input safety guardrails")
     final_answer: str = Field(default="", description="Verified answer or controlled failure statement")
     citations: List[Dict[str, Any]] = Field(default_factory=list, description="Official source citations with URLs and departments")
     error: Optional[str] = Field(default=None, description="Error message if any step failed")

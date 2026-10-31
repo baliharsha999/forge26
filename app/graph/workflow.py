@@ -19,6 +19,7 @@ from langgraph.graph import StateGraph, START, END
 
 from app.graph.state import RAGState
 from app.graph.nodes import (
+    input_guardrail_node,
     language_detection_node,
     query_normalization_node,
     multilingual_query_expansion_node,
@@ -57,6 +58,7 @@ from app.graph.nodes import (
     source_discovery_node,
 )
 from app.graph.edges import (
+    route_after_input_guardrail,
     route_after_document_availability_check,
     route_after_retrieval_evaluation,
     route_after_knowledge_refinement,
@@ -120,6 +122,9 @@ def build_query_retrieval_graph():
     """
     workflow = StateGraph(RAGState)
 
+    # 00. Security guardrail node
+    workflow.add_node("input_guardrail", input_guardrail_node)
+
     # 0. Multilingual understanding & translation nodes
     workflow.add_node("language_detection", language_detection_node)
     workflow.add_node("query_normalization", query_normalization_node)
@@ -171,8 +176,18 @@ def build_query_retrieval_graph():
 
     # --- Edge Connections ---
 
+    # Security Guardrail Entry
+    workflow.add_edge(START, "input_guardrail")
+    workflow.add_conditional_edges(
+        "input_guardrail",
+        route_after_input_guardrail,
+        {
+            "final_response": "final_response",
+            "language_detection": "language_detection"
+        }
+    )
+
     # Multilingual Query Flow
-    workflow.add_edge(START, "language_detection")
     workflow.add_edge("language_detection", "query_normalization")
     workflow.add_edge("query_normalization", "multilingual_query_expansion")
     workflow.add_edge("multilingual_query_expansion", "query_translation")

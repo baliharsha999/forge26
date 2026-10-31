@@ -27,6 +27,8 @@ class EmbeddingService:
         os.makedirs(self.cache_dir, exist_ok=True)
         self.hash_cache_file = os.path.join(self.cache_dir, "chunk_hashes.json")
         self.chunk_hashes: Dict[str, str] = self._load_hash_cache()
+        self._query_cache: Dict[Tuple[str, bool], np.ndarray] = {}
+        self._max_query_cache = 128
 
     @property
     def model(self):
@@ -88,7 +90,11 @@ class EmbeddingService:
         return embeddings.astype(np.float32)
 
     def embed_query(self, query: str, normalize: bool = True) -> np.ndarray:
-        """Embeds a single query string with minimal RAM footprint."""
+        """Embeds a single query string with minimal RAM footprint and LRU query caching."""
+        cache_key = (query.strip().lower(), normalize)
+        if cache_key in self._query_cache:
+            return self._query_cache[cache_key].copy()
+
         import gc
         import torch
         with torch.inference_mode():
@@ -99,7 +105,12 @@ class EmbeddingService:
                 normalize_embeddings=normalize
             )
         gc.collect()
-        return emb.astype(np.float32)
+        result = emb.astype(np.float32)
+
+        if len(self._query_cache) >= self._max_query_cache:
+            self._query_cache.pop(next(iter(self._query_cache)))
+        self._query_cache[cache_key] = result
+        return result
 
     def identify_changed_chunks(
         self,

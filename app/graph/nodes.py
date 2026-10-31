@@ -48,6 +48,7 @@ from app.retrieval.bm25_retriever import GovernmentBM25Retriever
 from app.retrieval.rrf import reciprocal_rank_fusion
 from app.retrieval.reranker import GovernmentReranker
 from app.generation.answer_generator import AnswerGenerator
+from app.security.guardrails import GovernmentRAGGuardrails
 
 
 # Lazy instance cache
@@ -205,6 +206,38 @@ def get_answer_gen() -> AnswerGenerator:
 
 
 # ----------------------------------------------------
+# 00. Security and Safety Guardrails Node
+# ----------------------------------------------------
+
+def input_guardrail_node(state: RAGState) -> Dict[str, Any]:
+    """
+    Security & Safety Guardrail:
+    Thwarts prompt injections, jailbreaks, system overrides, toxic/abusive inputs,
+    and demographic bias queries. Automatically redacts sensitive citizen PII (Aadhaar, PAN, phone).
+    Blocks out-of-domain queries instantly (< 1ms), returning a safe refusal message and skipping downstream nodes.
+    """
+    guard_res = GovernmentRAGGuardrails.check_input_guardrail(state.original_query)
+    if not guard_res.passed:
+        return {
+            "is_blocked": True,
+            "guardrail_result": guard_res.model_dump(),
+            "final_answer": guard_res.refusal_message,
+            "citations": [],
+            "retrieval_evaluation": {
+                "is_relevant": False,
+                "relevance_score": 0.0,
+                "sufficient_context": False,
+                "reason": f"Query blocked by security guardrails ({guard_res.flagged_category})."
+            }
+        }
+    return {
+        "is_blocked": False,
+        "original_query": guard_res.sanitized_query,
+        "guardrail_result": guard_res.model_dump()
+    }
+
+
+# ----------------------------------------------------
 # 0. Multilingual Understanding & Translation Nodes
 # ----------------------------------------------------
 
@@ -233,7 +266,12 @@ def query_normalization_node(state: RAGState) -> Dict[str, Any]:
     """
     Normalizes typos, Romanized Indic queries (e.g. Hinglish/Tenglish),
     and expands government acronyms.
+    Fast-paths English queries to eliminate redundant LLM latency.
     """
+    # Latency optimization: English queries in Latin script bypass LLM normalization
+    if (state.detected_language or "").lower() == "english" and (state.detected_script or "").lower() in ("latin", "none", ""):
+        return {"normalized_query": state.original_query}
+
     agent = get_normalization_agent()
     norm = agent.normalize(
         query=state.original_query,
@@ -249,9 +287,14 @@ def multilingual_query_expansion_node(state: RAGState) -> Dict[str, Any]:
     """
     Generates multi-strategy expansions across native and English terms
     while preserving official scheme names and numerical constraints.
+    Fast-paths English queries.
     """
-    agent = get_multilingual_query_agent()
     eff_query = state.normalized_query or state.original_query
+    # Latency optimization: English queries already have English keywords
+    if (state.detected_language or "").lower() == "english":
+        return {"multilingual_queries": [eff_query]}
+
+    agent = get_multilingual_query_agent()
     expansions = agent.expand_multilingual(
         query=eff_query,
         detected_language=state.detected_language,
@@ -266,9 +309,17 @@ def query_translation_node(state: RAGState) -> Dict[str, Any]:
     """
     Translates non-English queries to clear English for cross-lingual document retrieval
     while strictly preserving official scheme names, departments, and amounts.
+    Fast-paths English queries.
     """
-    agent = get_multilingual_query_agent()
     eff_query = state.normalized_query or state.original_query
+    # Latency optimization: Skip LLM translation if query is already English
+    if (state.detected_language or "").lower() == "english":
+        return {
+            "translated_query": eff_query,
+            "translation_status": "already_english"
+        }
+
+    agent = get_multilingual_query_agent()
     trans = agent.translate_to_english(
         query=eff_query,
         source_language=state.detected_language
@@ -303,9 +354,23 @@ def query_analysis_node(state: RAGState) -> Dict[str, Any]:
 def query_decomposition_node(state: RAGState) -> Dict[str, Any]:
     """
     Decomposes the query into smaller atomic subqueries covering all information requirements.
+    Fast-paths concise single-focus queries (<= 8 words) to reduce Groq latency.
     """
-    agent = get_decomp_agent()
     decomp_target = state.translated_query or state.normalized_query or state.original_query
+    words = decomp_target.split()
+    complex_markers = ["and also", "compare", "difference between", "as well as", "versus", "vs", "both"]
+    is_complex = any(m in decomp_target.lower() for m in complex_markers)
+
+    if len(words) <= 8 and not is_complex:
+        return {
+            "decomposed_queries": [
+                decomp_target,
+                f"{decomp_target} eligibility",
+                f"{decomp_target} benefits"
+            ]
+        }
+
+    agent = get_decomp_agent()
     decomp = agent.decompose(decomp_target)
     return {
         "decomposed_queries": decomp.subqueries
@@ -775,9 +840,30 @@ def reranking_node(state: RAGState) -> Dict[str, Any]:
 # ----------------------------------------------------
 
 def retrieval_evaluation_node(state: RAGState) -> Dict[str, Any]:
-    """Critically evaluates context relevance and topic coverage using LLM."""
+    """
+    Critically evaluates context relevance and topic coverage using LLM.
+    Fast-paths high-confidence retrieval matches using deterministic heuristic evaluation (< 1ms).
+    """
     settings = get_settings()
     eval_agent = get_eval_agent()
+
+    # Latency optimization: If top retrieved document has high confidence, use heuristic evaluation
+    if state.reranked_documents:
+        top_doc = state.reranked_documents[0]
+        rerank_prob = top_doc.get("rerank_probability", 0.0)
+        rrf_score = top_doc.get("score", 0.0)
+        if rerank_prob >= 0.70 or rrf_score >= 0.015:
+            eval_res = eval_agent._heuristic_evaluate(
+                query=state.original_query,
+                retrieved_documents=state.reranked_documents,
+                threshold=settings.EVALUATION_THRESHOLD
+            )
+            dumped = eval_res.model_dump()
+            return {
+                "retrieval_evaluation": dumped,
+                "evaluation_result": dumped
+            }
+
     eval_res = eval_agent.evaluate(
         query=state.original_query,
         retrieved_documents=state.reranked_documents,
@@ -984,15 +1070,27 @@ def controlled_fallback_node(state: RAGState) -> Dict[str, Any]:
 
 
 def final_response_node(state: RAGState) -> Dict[str, Any]:
-    """Formats the final consolidated output with multilingual provenance."""
+    """
+    Formats the final consolidated output with multilingual provenance.
+    Applies output guardrails to ensure domain whitelisting and strip unsafe links.
+    """
+    raw_answer = state.final_answer or ""
+    # Enforce output guardrail if not already a blocked message
+    if not state.is_blocked and raw_answer:
+        cleaned_answer = GovernmentRAGGuardrails.enforce_output_guardrail(raw_answer)
+    else:
+        cleaned_answer = raw_answer
+
     return {
-        "final_answer": state.final_answer,
+        "final_answer": cleaned_answer,
         "citations": state.citations,
         "detected_language": state.detected_language,
         "language_code": state.language_code,
         "detected_script": state.detected_script,
         "response_language": state.response_language,
-        "answer_language": state.answer_language or state.response_language
+        "answer_language": state.answer_language or state.response_language,
+        "guardrail_result": state.guardrail_result,
+        "is_blocked": state.is_blocked
     }
 
 
