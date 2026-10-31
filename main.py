@@ -10,6 +10,11 @@ from dotenv import load_dotenv
 # Load environment configuration (.env)
 load_dotenv()
 
+# Prevent OpenMP / Tokenizer allocator deadlocks across Windows and Linux
+os.environ["KMP_DUPLICATE_LIB_OK"] = "TRUE"
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["TOKENIZERS_PARALLELISM"] = "false"
+
 import uvicorn
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
@@ -46,7 +51,7 @@ app.include_router(api_router)
 
 @app.on_event("startup")
 def startup_event():
-    """Generate architecture diagrams and ensure database / index readiness on startup."""
+    """Generate architecture diagrams, warm up embedding model, and ensure database / index readiness on startup."""
     print("[Main] Initializing Government Information RAG System...")
     
     # LangSmith Tracing Verification
@@ -56,6 +61,15 @@ def startup_event():
         print(f"[Main] LangSmith Tracing Enabled -> Project: '{ls_project}'")
     else:
         print("[Main] LangSmith Tracing: Inactive (Set LANGCHAIN_API_KEY in .env)")
+
+    # Pre-warm embedding model to eliminate 30s cold start latency on first user query
+    try:
+        from app.ingestion.embeddings import EmbeddingService
+        print("[Main] Pre-warming multilingual embedding model...")
+        EmbeddingService.get_instance().model
+        print("[Main] Multilingual embedding model ready in RAM!")
+    except Exception as e:
+        print(f"[Main] Embedding model pre-warm note: {e}")
 
     try:
         if os.getenv("EXPORT_GRAPHS", "false").lower() == "true":

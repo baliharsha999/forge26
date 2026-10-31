@@ -36,7 +36,8 @@ class EmbeddingService:
         if self._model is None:
             import torch
             from sentence_transformers import SentenceTransformer
-            torch.set_num_threads(1)
+            n_threads = max(1, min(4, os.cpu_count() or 1))
+            torch.set_num_threads(n_threads)
             self._model = SentenceTransformer(self.model_name, device="cpu")
             if hasattr(self._model, "get_embedding_dimension"):
                 self.dimension = self._model.get_embedding_dimension()

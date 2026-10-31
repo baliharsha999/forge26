@@ -172,7 +172,7 @@ class AnswerGenerator:
             f"Please generate the verified government information response in {target_lang}."
         )
 
-        models_to_try = [self.settings.GROQ_MODEL, self.settings.FALLBACK_MODEL]
+        models_to_try = [m for m in [self.settings.GROQ_MODEL, self.settings.FALLBACK_MODEL] if "20b" not in m.lower()]
         for model in models_to_try:
             try:
                 response = self.client.chat.completions.create(
@@ -182,7 +182,8 @@ class AnswerGenerator:
                         {"role": "user", "content": user_prompt}
                     ],
                     temperature=0.1,
-                    max_tokens=1500
+                    max_tokens=1500,
+                    timeout=12.0
                 )
                 answer_text = response.choices[0].message.content or ""
                 if answer_text.strip():

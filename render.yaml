@@ -24,7 +24,7 @@ services:
       - key: VECTOR_DB_TYPE
         value: "faiss" # 'faiss' (recommended for <512MB RAM) or 'chroma'
       - key: GROQ_MODEL
-        value: openai/gpt-oss-20b
+        value: qwen/qwen3.8-27b
       - key: FALLBACK_MODEL
         value: openai/gpt-oss-120b
       - key: GROQ_API_KEY

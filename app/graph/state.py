@@ -78,6 +78,7 @@ class RAGState(BaseModel):
 
     # 5. Multi-Stage Evaluation & Refinement Loops
     retrieval_evaluation: Optional[Dict[str, Any]] = Field(default=None, description="Relevance evaluation of retrieved documents")
+    evaluation_result: Optional[Dict[str, Any]] = Field(default=None, description="Alias for retrieval_evaluation")
     knowledge_refinement_queries: List[str] = Field(default_factory=list, description="Targeted queries generated for missing aspects")
     refinement_attempts: int = Field(default=0, description="Counter for iterative knowledge refinement loops (max 2)")
     answerability_result: Optional[Dict[str, Any]] = Field(default=None, description="Assessment of whether context is sufficient to answer")

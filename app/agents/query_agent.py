@@ -99,7 +99,7 @@ class QueryAnalysisAgent:
 
         user_prompt = f"User query: \"{query}\""
 
-        models_to_try = [self.settings.GROQ_MODEL, self.settings.FALLBACK_MODEL]
+        models_to_try = [m for m in [self.settings.GROQ_MODEL, self.settings.FALLBACK_MODEL] if "20b" not in m.lower()]
         for model in models_to_try:
             try:
                 response = self.client.chat.completions.create(
@@ -110,7 +110,8 @@ class QueryAnalysisAgent:
                     ],
                     temperature=0.1,
                     max_tokens=600,
-                    response_format={"type": "json_object"} if "qwen" in model else None
+                    response_format={"type": "json_object"} if "qwen" in model else None,
+                    timeout=8.0
                 )
                 content = response.choices[0].message.content or ""
                 clean_json_str = self._extract_json(content)
@@ -169,7 +170,7 @@ class QueryAnalysisAgent:
             f"Missing Information Aspects: {missing_str}"
         )
 
-        models_to_try = [self.settings.GROQ_MODEL, self.settings.FALLBACK_MODEL]
+        models_to_try = [m for m in [self.settings.GROQ_MODEL, self.settings.FALLBACK_MODEL] if "20b" not in m.lower()]
         for model in models_to_try:
             try:
                 response = self.client.chat.completions.create(
@@ -180,7 +181,8 @@ class QueryAnalysisAgent:
                     ],
                     temperature=0.1,
                     max_tokens=650,
-                    response_format={"type": "json_object"} if "qwen" in model else None
+                    response_format={"type": "json_object"} if "qwen" in model else None,
+                    timeout=8.0
                 )
                 content = response.choices[0].message.content or ""
                 clean_json_str = self._extract_json(content)

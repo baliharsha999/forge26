@@ -3,7 +3,7 @@
   "m": 32,
   "ef_construction": 64,
   "ef_search": 32,
-  "next_id": 135,
+  "next_id": 136,
   "doc_store": {
     "0": {
       "page_content": "# Pradhan Mantri Kisan Samman Nidhi\n**Department**: Department of Agriculture and Cooperation",
@@ -2839,6 +2839,27 @@
         "chunk_index": 2,
         "total_chunks": 3
       }
+    },
+    "135": {
+      "page_content": "# Pradhan Mantri Kaushal Vikas Yojana (PMKVY)\n**Department**: Ministry of Skill Development and Entrepreneurship\n\nPradhan Mantri Kaushal Vikas Yojana (PMKVY)\n# Pradhan Mantri Kaushal Vikas Yojana (PMKVY 4.0)\nMinistry: Ministry of Skill Development and Entrepreneurship (MSDE)\nEligibility: Indian nationals aged between 15 and 45 years who are school/college dropouts or unemployed youth.\nBenefits: Free industry-relevant skill training, National Skill Qualification Framework (NSQF) certification, and post-placement support. Assessment and training fees are 100% sponsored by the Government of India.\nApplication Process: Eligible candidates can register online at skillindia.gov.in or visit the nearest Pradhan Mantri Kaushal Kendra (PMKK).",
+      "metadata": {
+        "document_id": "pmkvy-kaushal-vikas",
+        "title": "Pradhan Mantri Kaushal Vikas Yojana (PMKVY)",
+        "source_url": "https://www.msde.gov.in/schemes/pmkvy",
+        "department": "Ministry of Skill Development and Entrepreneurship",
+        "category": "General",
+        "publication_date": "2024-01-15",
+        "last_updated": "2026-10-31T12:56:15.768923",
+        "source_website": "msde.gov.in",
+        "language": "English",
+        "language_code": "en",
+        "script": "Latin",
+        "is_multilingual": false,
+        "source_language": "English",
+        "chunk_id": "pmkvy-kaushal-vikas_chunk_0",
+        "chunk_index": 0,
+        "total_chunks": 1
+      }
     }
   },
   "chunk_id_to_int_id": {
@@ -2976,6 +2997,7 @@
     "pmrf-right-to-fellowship_chunk_0": 131,
     "student-scholarship-schemes_chunk_0": 132,
     "student-scholarship-schemes_chunk_1": 133,
-    "student-scholarship-schemes_chunk_2": 134
+    "student-scholarship-schemes_chunk_2": 134,
+    "pmkvy-kaushal-vikas_chunk_0": 135
   }
 }

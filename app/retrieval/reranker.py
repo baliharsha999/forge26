@@ -31,7 +31,8 @@ class GovernmentReranker:
         if self._model is None:
             import torch
             from sentence_transformers import CrossEncoder
-            torch.set_num_threads(1)
+            n_threads = max(1, min(4, os.cpu_count() or 1))
+            torch.set_num_threads(n_threads)
             self._model = CrossEncoder(self.model_name, device="cpu")
         return self._model
 
@@ -102,7 +103,7 @@ class GovernmentReranker:
         top_candidates = candidates[:k_in]
 
         # Memory optimization for Render Free 512MB Tier
-        if settings.LOW_MEMORY_MODE:
+        if settings.LOW_MEMORY_MODE or os.getenv("RENDER"):
             logger.info("[Reranker] LOW_MEMORY_MODE enabled: Preserving 512MB RAM by utilizing embedding similarity alignment.")
             return self._fallback_embedding_rerank(query, top_candidates[:k_out], translated_query)
 

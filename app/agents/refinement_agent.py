@@ -109,7 +109,7 @@ class KnowledgeRefinementAgent:
             f"Refinement Attempt: {current_attempt + 1} of {self.MAX_REFINEMENT_ATTEMPTS}"
         )
 
-        models_to_try = [self.settings.GROQ_MODEL, self.settings.FALLBACK_MODEL]
+        models_to_try = [m for m in [self.settings.GROQ_MODEL, self.settings.FALLBACK_MODEL] if "20b" not in m.lower()]
         for model in models_to_try:
             try:
                 response = self.client.chat.completions.create(
@@ -120,7 +120,8 @@ class KnowledgeRefinementAgent:
                     ],
                     temperature=0.1,
                     max_tokens=500,
-                    response_format={"type": "json_object"} if "qwen" in model else None
+                    response_format={"type": "json_object"} if "qwen" in model else None,
+                    timeout=8.0
                 )
                 content = response.choices[0].message.content or ""
                 clean_json = self._extract_json(content)

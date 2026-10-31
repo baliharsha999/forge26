@@ -499,7 +499,7 @@ def document_availability_check_node(state: RAGState) -> Dict[str, Any]:
     scraping_required = False
 
     total_db_docs = db.count_documents()
-    total_faiss_chunks = getattr(hnsw, "total_chunks", 0)
+    total_faiss_chunks = getattr(hnsw, "total_vectors", 0)
 
     if not existing_docs:
         # Latency optimization: If database or FAISS has indexed knowledge,
