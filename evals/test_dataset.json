@@ -1,0 +1,72 @@
+[
+  {
+    "id": "q1",
+    "query": "What benefits can I get from the government if I am starting a small business?",
+    "category": "MSME & Entrepreneurship",
+    "expected_document_ids": ["pmegp", "pmmy"],
+    "ground_truth_answer": "Entrepreneurs starting a small business in India can avail collateral-free loans under Pradhan Mantri MUDRA Yojana (PMMY) up to 10-20 Lakhs across Shishu, Kishore, and Tarun categories, and capital subsidies up to 25%-35% for new manufacturing or service units under Prime Minister's Employment Generation Programme (PMEGP).",
+    "expected_department": "Ministry of Micro, Small and Medium Enterprises",
+    "expected_url_substr": "myscheme.gov.in/schemes/pm",
+    "is_in_domain": true
+  },
+  {
+    "id": "q2",
+    "query": "How much financial support is provided annually under PM Kisan Samman Nidhi to farmers?",
+    "category": "Agriculture",
+    "expected_document_ids": ["pm-kisan"],
+    "ground_truth_answer": "Under PM-KISAN, eligible landholding farmer families receive an income support of Rs. 6,000 per year, disbursed in three equal four-monthly installments of Rs. 2,000 each directly into their bank accounts via DBT.",
+    "expected_department": "Department of Agriculture and Cooperation",
+    "expected_url_substr": "pm-kisan",
+    "is_in_domain": true
+  },
+  {
+    "id": "q3",
+    "query": "What subsidy is available for installing rooftop solar under PM Surya Ghar Muft Bijli Yojana?",
+    "category": "Renewable Energy",
+    "expected_document_ids": ["pmsgmb"],
+    "ground_truth_answer": "PM Surya Ghar: Muft Bijli Yojana provides financial assistance and central subsidies for installing residential rooftop solar systems, offering up to 300 units of free electricity per month for households.",
+    "expected_department": "Ministry of New and Renewable Energy",
+    "expected_url_substr": "pmsgmb",
+    "is_in_domain": true
+  },
+  {
+    "id": "q4",
+    "query": "What are the loan limits and interest subsidies for street vendors under PM SVANidhi?",
+    "category": "Urban Livelihoods",
+    "expected_document_ids": ["pm-svanidhi"],
+    "ground_truth_answer": "PM SVANidhi provides working capital collateral-free credit to street vendors starting with a first tranche of up to Rs. 10,000, followed by Rs. 20,000 and Rs. 50,000 upon timely repayment, along with a 7% interest subsidy.",
+    "expected_department": "Ministry Of Housing & Urban Affairs",
+    "expected_url_substr": "pm-svanidhi",
+    "is_in_domain": true
+  },
+  {
+    "id": "q5",
+    "query": "What is the monthly pension amount and age criteria under Atal Pension Yojana?",
+    "category": "Social Security",
+    "expected_document_ids": ["apy"],
+    "ground_truth_answer": "Atal Pension Yojana offers a guaranteed monthly pension ranging from Rs. 1,000 to Rs. 5,000 per month starting after attaining 60 years of age, open to Indian citizens aged between 18 and 40 years.",
+    "expected_department": "Ministry of Finance",
+    "expected_url_substr": "apy",
+    "is_in_domain": true
+  },
+  {
+    "id": "q6_negative",
+    "query": "How to bake a chocolate chip sponge cake with vanilla frosting at home?",
+    "category": "Out of Domain",
+    "expected_document_ids": [],
+    "ground_truth_answer": "I don't have sufficient verified information in the available government documents to answer this question.",
+    "expected_department": null,
+    "expected_url_substr": null,
+    "is_in_domain": false
+  },
+  {
+    "id": "q7_negative",
+    "query": "What are the secret cheat codes for Grand Theft Auto 5 on PlayStation?",
+    "category": "Out of Domain",
+    "expected_document_ids": [],
+    "ground_truth_answer": "I don't have sufficient verified information in the available government documents to answer this question.",
+    "expected_department": null,
+    "expected_url_substr": null,
+    "is_in_domain": false
+  }
+]
