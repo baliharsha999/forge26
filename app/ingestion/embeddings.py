@@ -74,23 +74,31 @@ class EmbeddingService:
         if not texts:
             return np.empty((0, self.dimension), dtype=np.float32)
 
-        embeddings = self.model.encode(
-            texts,
-            batch_size=batch_size,
-            show_progress_bar=False,
-            convert_to_numpy=True,
-            normalize_embeddings=normalize
-        )
+        import gc
+        import torch
+        with torch.inference_mode():
+            embeddings = self.model.encode(
+                texts,
+                batch_size=batch_size,
+                show_progress_bar=False,
+                convert_to_numpy=True,
+                normalize_embeddings=normalize
+            )
+        gc.collect()
         return embeddings.astype(np.float32)
 
     def embed_query(self, query: str, normalize: bool = True) -> np.ndarray:
-        """Embeds a single query string."""
-        emb = self.model.encode(
-            [query],
-            show_progress_bar=False,
-            convert_to_numpy=True,
-            normalize_embeddings=normalize
-        )
+        """Embeds a single query string with minimal RAM footprint."""
+        import gc
+        import torch
+        with torch.inference_mode():
+            emb = self.model.encode(
+                [query],
+                show_progress_bar=False,
+                convert_to_numpy=True,
+                normalize_embeddings=normalize
+            )
+        gc.collect()
         return emb.astype(np.float32)
 
     def identify_changed_chunks(
