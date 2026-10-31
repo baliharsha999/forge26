@@ -58,7 +58,8 @@ def startup_event():
         print("[Main] LangSmith Tracing: Inactive (Set LANGCHAIN_API_KEY in .env)")
 
     try:
-        export_graph_visualizations()
+        if os.getenv("EXPORT_GRAPHS", "false").lower() == "true":
+            export_graph_visualizations()
     except Exception as e:
         print(f"[Main] Visualization export warning: {e}")
     print("[Main] Startup sequence complete. Ready to receive requests.")

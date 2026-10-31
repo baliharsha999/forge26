@@ -86,10 +86,16 @@ class GovernmentReranker:
         if not candidates:
             return []
 
+        settings = get_settings()
         k_in = input_top_k or self.default_input_k
         k_out = final_top_k or self.default_final_k
 
         top_candidates = candidates[:k_in]
+
+        # Memory optimization for Render Free 512MB Tier
+        if settings.LOW_MEMORY_MODE:
+            logger.info("[Reranker] LOW_MEMORY_MODE enabled: Preserving 512MB RAM by utilizing embedding similarity alignment.")
+            return self._fallback_embedding_rerank(query, top_candidates[:k_out], translated_query)
 
         try:
             pairs = []

@@ -52,7 +52,10 @@ class Settings(BaseSettings):
     LANGSMITH_PROJECT: str = Field(default="government-scheme-assistant", description="LangSmith project name")
     LANGCHAIN_ENDPOINT: str = Field(default="https://api.smith.langchain.com", description="LangSmith endpoint")
 
-    # Storage Paths
+    # Storage Paths & Engine Selection
+    VECTOR_DB_TYPE: str = Field(default="faiss", description="Vector database engine: 'faiss' or 'chroma'")
+    CHROMA_PERSIST_DIR: str = Field(default="data/chroma_db", description="ChromaDB persistence directory")
+    LOW_MEMORY_MODE: bool = Field(default=False, description="Optimize memory for 512MB RAM on Render Free Tier")
     DB_PATH: str = Field(default="schemes.db", description="SQLite database path")
     FAISS_INDEX_DIR: str = Field(default="data/faiss_index", description="Directory to persist FAISS HNSW index")
     RAW_DATA_DIR: str = Field(default="data/raw", description="Directory for raw HTML dumps")

@@ -190,21 +190,53 @@ async def get_graph_mermaid():
     }
 
 
+_cached_stats = {}
+
+
 @router.get("/health")
 async def health_check():
-    """Returns system status, model information, and index counts."""
+    """
+    Lightweight health check endpoint optimized for Render Free Tier.
+    Returns 200 OK without re-reading index files or initializing heavy models into RAM.
+    """
     from app.config.settings import get_settings
     settings = get_settings()
-    hnsw = FAISSHNSWIndex()
-    hnsw.load()
-    bm25 = GovernmentBM25Retriever()
+
+    global _cached_stats
+    if not _cached_stats:
+        try:
+            if settings.VECTOR_DB_TYPE.lower() in ("chroma", "chromadb"):
+                from app.retrieval.chroma_store import ChromaVectorStore
+                vec_count = ChromaVectorStore.get_instance().total_vectors
+                engine = "ChromaDB"
+            else:
+                hnsw = FAISSHNSWIndex()
+                hnsw.load()
+                vec_count = hnsw.total_vectors
+                engine = "FAISS HNSW"
+            bm25 = GovernmentBM25Retriever()
+            _cached_stats = {
+                "vector_engine": engine,
+                "vectors": vec_count,
+                "bm25_count": len(bm25.documents)
+            }
+        except Exception:
+            _cached_stats = {
+                "vector_engine": settings.VECTOR_DB_TYPE,
+                "vectors": 0,
+                "bm25_count": 0
+            }
 
     return {
         "status": "healthy",
+        "service": "Government Information Multilingual RAG",
+        "hosting": "Render Free Tier",
+        "vector_engine": _cached_stats.get("vector_engine", settings.VECTOR_DB_TYPE),
         "total_documents_in_db": db.count_documents(),
-        "faiss_hnsw_vectors": hnsw.total_vectors,
-        "bm25_documents_indexed": len(bm25.documents),
+        "indexed_vectors": _cached_stats.get("vectors", 0),
+        "bm25_documents_indexed": _cached_stats.get("bm25_count", 0),
         "embedding_model": settings.EMBEDDING_MODEL_NAME,
-        "reranker_model": settings.RERANKING_MODEL_NAME,
+        "reranker_model": settings.RERANKING_MODEL_NAME if not settings.LOW_MEMORY_MODE else "RRF-Cosine-Fallback (Low Memory Mode)",
+        "low_memory_mode": settings.LOW_MEMORY_MODE,
         "supported_languages": settings.SUPPORTED_LANGUAGES
     }

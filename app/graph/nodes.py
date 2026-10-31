@@ -156,7 +156,14 @@ def get_embedding_service() -> EmbeddingService:
     return _instances["embedding_service"]
 
 
-def get_hnsw_index() -> FAISSHNSWIndex:
+def get_hnsw_index() -> Any:
+    settings = get_settings()
+    if settings.VECTOR_DB_TYPE.lower() in ("chroma", "chromadb"):
+        if "chroma_store" not in _instances:
+            from app.retrieval.chroma_store import ChromaVectorStore
+            _instances["chroma_store"] = ChromaVectorStore.get_instance()
+        return _instances["chroma_store"]
+
     if "hnsw_index" not in _instances:
         idx = FAISSHNSWIndex(dimension=get_embedding_service().dimension)
         idx.load()
