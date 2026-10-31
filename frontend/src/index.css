@@ -242,3 +242,78 @@ body {
   0% { transform: scaleY(0.3); }
   100% { transform: scaleY(1.2); }
 }
+
+/* Typography Extensions */
+.brand-serif {
+  font-family: 'Playfair Display', Georgia, serif;
+}
+
+.font-mono-accent {
+  font-family: 'Space Grotesk', monospace;
+}
+
+/* Shimmering Glowing Progress Bar */
+@keyframes shimmerMove {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.shimmer-progress-bar {
+  background: linear-gradient(
+    90deg,
+    rgba(240, 106, 37, 0.2) 0%,
+    rgba(242, 202, 80, 0.95) 50%,
+    rgba(240, 106, 37, 0.2) 100%
+  );
+  background-size: 200% 100%;
+  animation: shimmerMove 1.8s ease-in-out infinite;
+  box-shadow: 0 0 16px rgba(240, 106, 37, 0.6);
+}
+
+/* Pulsating Step Indicators */
+@keyframes stepPulse {
+  0% { transform: scale(1); box-shadow: 0 0 0 0 rgba(240, 106, 37, 0.6); }
+  50% { transform: scale(1.08); box-shadow: 0 0 14px 4px rgba(240, 106, 37, 0.4); }
+  100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(240, 106, 37, 0); }
+}
+
+.pulse-step-active {
+  animation: stepPulse 1.6s ease-in-out infinite;
+}
+
+/* Fade in with subtle slide */
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fadeInUp 0.4s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+}
+
+/* Hover-Pop Transitions from Sovereign Design */
+.hover-pop-card {
+  transition: all 0.22s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hover-pop-card:hover {
+  transform: translateY(-2px);
+  border-color: rgba(240, 106, 37, 0.6) !important;
+  box-shadow: 0 10px 24px -4px rgba(0, 0, 0, 0.6), 0 0 16px rgba(240, 106, 37, 0.25);
+}
+
+.hover-pop-btn {
+  transition: all 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+.hover-pop-btn:hover {
+  transform: translateY(-1.5px) scale(1.02);
+}
+.hover-pop-btn:active {
+  transform: scale(0.98);
+}
+

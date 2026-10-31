@@ -198,3 +198,83 @@ class IdLocatorResult(BaseModel):
     voice_speech: str
     allow_doc_upload: bool = True
 
+
+class SchemeCitation(BaseModel):
+    id: str
+    name: str
+    department: str = ""
+    level: str = "central"
+    state: str = "All-India"
+    benefit: str = ""
+    eligibility_summary: str = ""
+    official_url: str = ""
+    source_text: str = ""
+    last_verified_date: str = "2026-10-30"
+    confidence_score: float = 0.95
+
+
+class RagReasoningStep(BaseModel):
+    step_number: int
+    title: str
+    detail: str
+    status: str = "completed"
+
+
+class SchemesChatRequest(BaseModel):
+    message: Optional[str] = Field(None, description="User question in English, Hindi, or Telugu")
+    query: Optional[str] = Field(None, description="Alternative field for user query")
+    language: Optional[str] = Field("en", description="Citizen language (en, hi, te)")
+    history: Optional[List[Dict[str, str]]] = Field(default_factory=list)
+    state: Optional[str] = "All-India"
+    category: Optional[str] = "all"
+
+    def get_query_text(self) -> str:
+        return (self.message or self.query or "").strip()
+
+
+class SchemesChatResponse(BaseModel):
+    answer: str
+    language: str
+    citations: List[SchemeCitation]
+    reasoning_steps: List[RagReasoningStep]
+    grounded_score: float = 0.95
+    retrieval_badge: str = "✅ Verified Official Source (Score: 0.95)"
+    suggested_actions: List[str] = Field(default_factory=list)
+    suggested_followups: List[str] = Field(default_factory=list)
+
+
+# -----------------------------------------------------------------------------
+# RAG Pipeline Standard Schemas (origin/rag-pipeline compatible)
+# -----------------------------------------------------------------------------
+class ChatRequest(BaseModel):
+    query: str = Field(..., description="Citizen question in English, Hindi, or Telugu")
+    response_language: Optional[str] = Field("auto", description="Preferred response language")
+
+
+class SourceItem(BaseModel):
+    title: str
+    department: str
+    url: str
+    publication_date: str
+
+
+class RetrievalEvaluationSummary(BaseModel):
+    is_relevant: bool = True
+    relevance_score: float = 0.92
+    sufficient_context: Optional[bool] = True
+    reason: Optional[str] = "Matched verified Central and State scheme databases"
+
+
+class ChatResponse(BaseModel):
+    query: str
+    answer: str
+    sources: List[SourceItem] = Field(default_factory=list)
+    retrieval_evaluation: RetrievalEvaluationSummary = Field(default_factory=RetrievalEvaluationSummary)
+    detected_language: Optional[str] = "English"
+    language_code: Optional[str] = "en"
+    detected_script: Optional[str] = "Latin"
+    response_language: Optional[str] = "English"
+    translated_query: Optional[str] = None
+    is_blocked: Optional[bool] = False
+
+
