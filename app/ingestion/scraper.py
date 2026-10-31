@@ -198,6 +198,65 @@ class GovernmentWebScraper:
             cleaned_html = self.clean_html(raw_html)
 
             # Generate stable document ID from URL slug or path
+            # Extract plain text for hashing
+            soup = BeautifulSoup(raw_html, "html.parser")
+            text_content = soup.get_text(separator=" ")
+            from app.ingestion.utils import hash_content
+            content_hash = hash_content(text_content)
+
+            # Check if document already exists and whether content has changed
+            duplicate_info = self.db.check_document_duplicate(canonical_url, content_hash)
+            if duplicate_info["exists"] and not duplicate_info["content_changed"]:
+                # Content unchanged – update last_checked timestamp and skip re‑indexing
+                self.db.update_last_checked(canonical_url)
+                print(f"[Scraper] Document unchanged for {canonical_url}; skipping ingestion.")
+                return None
+
+            # Content changed – if existing, bump version
+            if duplicate_info["exists"]:
+                new_version = self.db.increment_version(duplicate_info["document"]["document_id"])
+                print(f"[Scraper] Content changed for {canonical_url}; new version {new_version}.")
+            else:
+                new_version = 1
+                print(f"[Scraper] New document detected for {canonical_url}.")
+
+            # Store document (will insert or update) with new hash and version info
+            meta = self.extract_metadata(raw_html, url)
+            self.db.save_document(
+                document_id=meta.get("title").replace(" ", "-").lower(),
+                title=meta["title"],
+                url=url,
+                source_website=meta["source_website"],
+                html_content=cleaned_html,
+                department=meta.get("department"),
+                publication_date=meta.get("publication_date"),
+                last_updated=meta.get("publication_date"),
+                category=meta.get("category"),
+                scraped_at=datetime.utcnow().isoformat(),
+                etag=None,
+                http_last_modified=None,
+                is_indexed=False,
+                language="English",
+                language_code="en",
+                script="Latin",
+                is_multilingual=False,
+                source_language="English",
+                # New metadata fields
+                document_version=new_version,
+                last_checked=datetime.utcnow().isoformat(),
+                last_indexed=None,
+                status="active",
+                vector_store_status="pending",
+                needs_reindexing=1,
+            )
+            # Return metadata for further ingestion steps
+            return {
+                "document_id": meta.get("title").replace(" ", "-").lower(),
+                "canonical_url": canonical_url,
+                "content_hash": content_hash,
+                "new_version": new_version,
+            }
+
             doc_id = urllib.parse.urlparse(url).path.strip("/").replace("/", "_") or "home"
 
             self.db.save_document(

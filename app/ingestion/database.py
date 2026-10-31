@@ -137,6 +137,13 @@ class GovernmentDatabase:
                 "script": "TEXT DEFAULT 'Latin'",
                 "is_multilingual": "BOOLEAN DEFAULT 0",
                 "source_language": "TEXT DEFAULT 'English'",
+                "document_version": "INTEGER DEFAULT 1",
+                "last_checked": "TEXT",
+                "last_indexed": "TEXT",
+                "status": "TEXT DEFAULT 'active'",
+                "vector_store_status": "TEXT DEFAULT 'indexed'",
+                "needs_reindexing": "BOOLEAN DEFAULT 0",
+                "change_summary": "TEXT"
             }
             for col_name, col_def in column_definitions.items():
                 if col_name not in existing_cols:
@@ -227,7 +234,43 @@ class GovernmentDatabase:
         with self._class_lock:
             self._in_progress_urls.discard(canonical_url)
 
-    def check_document_duplicate(self, canonical_url: str, content_hash: Optional[str] = None) -> Dict[str, Any]:
+    def increment_version(self, document_id: str) -> int:
+        """Increment the version number for a document and return the new version."""
+        with self.get_connection() as conn:
+            cur = conn.cursor()
+            cur.execute("SELECT document_version FROM government_documents WHERE document_id = ?", (document_id,))
+            row = cur.fetchone()
+            current = row["document_version"] if row else 1
+            new_version = current + 1
+            cur.execute("UPDATE government_documents SET document_version = ?, needs_reindexing = 1 WHERE document_id = ?", (new_version, document_id))
+            conn.commit()
+            return new_version
+
+    def update_last_checked(self, canonical_url: str) -> None:
+        """Update the last_checked timestamp for a document identified by its canonical URL."""
+        now = datetime.utcnow().isoformat()
+        with self.get_connection() as conn:
+            conn.execute("UPDATE government_documents SET last_checked = ?, last_verified_at = ? WHERE canonical_url = ? OR url = ?", (now, now, canonical_url, canonical_url))
+            conn.commit()
+
+    def store_change_summary(self, document_id: str, version: int, summary: str) -> None:
+        """Store a textual summary of what changed for a given document version."""
+        with self.get_connection() as conn:
+            conn.execute(
+                "UPDATE government_documents SET change_summary = ?, document_version = ?, last_indexed_at = ?, last_checked = ? WHERE document_id = ?",
+                (summary, version, datetime.utcnow().isoformat(), datetime.utcnow().isoformat(), document_id),
+            )
+            conn.commit()
+
+    def get_historical_versions(self, document_id: str) -> List[Dict[str, Any]]:
+        """Return all versions of a document with their metadata (excluding large HTML)."""
+        with self.get_connection() as conn:
+            rows = conn.execute(
+                "SELECT document_version, status, last_indexed_at, change_summary FROM government_documents WHERE document_id = ? ORDER BY document_version DESC",
+                (document_id,),
+            ).fetchall()
+            return [dict(r) for r in rows]
+
         """
         Checks whether document exists by canonical URL and whether its content has changed.
         Returns:
