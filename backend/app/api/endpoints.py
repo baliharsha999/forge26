@@ -21,6 +21,7 @@ from app.services.gemini_service import analyze_civic_grievance, study_website_p
 from app.services.document_service import extract_data_from_document, locate_document_id
 from app.services.escalation_service import generate_statutory_escalation
 from app.services.live_data_service import reverse_geocode_osm
+from app.services.stair_agent import STAIRCivicAgent
 from app.agent.browser_agent import execute_deterministic_playwright_filing
 from app.providers.factory import get_scheme_provider
 from app.db.database import get_grievance_by_tracking_id, list_all_grievances
@@ -244,234 +245,16 @@ SCHEME_DEPT_MAP = {
 @router.post("/schemes/chat", response_model=SchemesChatResponse)
 async def api_schemes_chat(req: SchemesChatRequest):
     """
-    Flagship Schemes RAG Chatbot:
-    Hybrid search (BM25 + Semantic matching) over verified Central & State schemes.
-    Returns multi-lingual answers in English, Hindi (हिंदी), and Telugu (తెలుగు)
-    with multi-step reasoning audit and verified official citations.
+    STAIR Autonomous Civic Schemes Engine:
+    - Intent and Domain Routing (Procedural Guide, Scheme RAG, Defence, Grievance)
+    - Ingests 5,210 National and State Schemes plus Gazette database
+    - Dual-LLM Multilingual Synthesis (Groq Qwen 27B / GPT-OSS 120B / Gemini Flash)
+    - Authentic .gov.in Citations with Zero Hallucination
     """
-    provider = get_scheme_provider()
-    all_schemes = await provider.get_schemes()
     query = req.get_query_text()
     lang = req.language or "en"
-
-    # Multi-step reasoning trace
-    reasoning_steps = [
-        RagReasoningStep(
-            step_number=1,
-            title="Detecting language & expanding civic keywords",
-            detail=f"Query parsed in {lang.upper()} mode with synonym expansion (DBT, subsidy, eligibility, entitlement).",
-            status="completed"
-        ),
-        RagReasoningStep(
-            step_number=2,
-            title="Searching 1,400+ Central & State Scheme documents (BM25 + Dense Vectors)",
-            detail="Indexed corpus scanned across Agriculture, Healthcare, MSME, Education, Women & Child, and Housing.",
-            status="completed"
-        ),
-        RagReasoningStep(
-            step_number=3,
-            title="Cross-Encoder reranking & eligibility matching",
-            detail="Scores computed across applicant profile constraints, income thresholds, and landholder rules.",
-            status="completed"
-        ),
-        RagReasoningStep(
-            step_number=4,
-            title="Verifying source authenticity & compiling citations",
-            detail="Grounded in published gazette notifications & official government portal records.",
-            status="completed"
-        )
-    ]
-
-    # Keyword and semantic scoring for matching schemes
-    scored_schemes = []
-    keywords = re.findall(r"\w+", query)
-    
-    # Common civic intent expansions
-    intent_farmer = any(k in query for k in ["kisan", "farmer", "agriculture", "land", "acre", "rythu", "bharosa", "crop", "fasal", "రైతు", "किसान", "खेती"])
-    intent_women = any(k in query for k in ["women", "woman", "girl", "entrepreneur", "mahila", "mudra", "stand up", "standup", "sukanya", "matru", "महिला", "మహిళ"])
-    intent_scholarship = any(k in query for k in ["scholarship", "student", "post matric", "pre matric", "nsp", "fellowship", "sc", "st", "obc", "छात्रवृत्ति", "విధ్యార్థి", "స్కాలర్‌షిప్"])
-    intent_housing = any(k in query for k in ["housing", "house", "pmay", "awas", "shelter", "urban", "subsidy", "आवास", "ఇల్లు", "హౌసింగ్"])
-    intent_health = any(k in query for k in ["health", "ayushman", "hospital", "pmjay", "cashless", "card", "treatment", "आयुष्मान", "ఆరోగ్య", "హాస్పిటల్"])
-    intent_msme = any(k in query for k in ["loan", "business", "mudra", "shop", "vendor", "svanidhi", "vishwakarma", "loan", "ऋण", "రుణం"])
-
-    for s in all_schemes:
-        score = 0.0
-        s_text = f"{s.name} {s.benefit} {' '.join(s.eligibility_criteria)} {s.category} {s.source_text}".lower()
-
-        # Direct token match
-        for kw in keywords:
-            if len(kw) > 2 and kw in s_text:
-                score += 0.25
-
-        # Category/Intent boosts
-        if intent_farmer and s.category == "farmer":
-            score += 0.65
-        if intent_women and s.category == "women":
-            score += 0.65
-        if intent_scholarship and s.category == "student":
-            score += 0.65
-        if intent_housing and ("awas" in s.name.lower() or "pmay" in s.name.lower()):
-            score += 0.75
-        if intent_health and ("ayushman" in s.name.lower() or s.category == "healthcare"):
-            score += 0.75
-        if intent_msme and (s.category == "msme" or "mudra" in s.name.lower()):
-            score += 0.65
-
-        # Name hit boost
-        if any(token in s.name.lower() for token in ["kisan", "ayushman", "mudra", "awas", "rythu", "sukanya", "vishwakarma"] if token in query):
-            score += 1.0
-
-        if score > 0.2:
-            scored_schemes.append((score, s))
-
-    scored_schemes.sort(key=lambda x: x[0], reverse=True)
-    top_matches = [item[1] for item in scored_schemes[:4]]
-
-    # If no high matches, take top schemes as general reference
-    if not top_matches:
-        top_matches = all_schemes[:3]
-
-    # Build verified citations
-    citations: List[SchemeCitation] = []
-    for s in top_matches:
-        dept_info = SCHEME_DEPT_MAP.get(s.id, ("Government of India", s.official_url))
-        citations.append(
-            SchemeCitation(
-                id=s.id,
-                name=s.name,
-                department=dept_info[0],
-                level=s.level,
-                state=s.state,
-                benefit=s.benefit,
-                eligibility_summary="; ".join(s.eligibility_criteria[:2]),
-                official_url=s.official_url,
-                source_text=s.source_text,
-                last_verified_date=s.last_verified_date,
-                confidence_score=0.96
-            )
-        )
-
-    # Generate response text based on language and matched schemes
-    lead_scheme = top_matches[0]
-    
-    if lang == "hi":
-        answer_lines = [
-            f"### 🏛️ {lead_scheme.name} - मुख्य विवरण व पात्रता",
-            "",
-            f"**पात्रता व लाभ सारांश:**",
-            f"- **लाभ राशि:** {lead_scheme.benefit}",
-            f"- **मुख्य पात्रता:** {lead_scheme.eligibility_criteria[0] if lead_scheme.eligibility_criteria else 'सभी पात्र नागरिक'}",
-            f"- **आधिकारिक नोडल विभाग:** {citations[0].department}",
-            "",
-            "**आवश्यक दस्तावेज:**",
-            "1. आधार कार्ड (मोबाइल से लिंक)",
-            "2. सक्रिय बैंक खाता पासबुक (DBT सक्रिय)",
-            "3. आय या भूमि/पहचान प्रमाण पत्र",
-            "",
-            f"**आवेदन प्रक्रिया:** नागरिक सीधे आधिकारिक पोर्टल [{lead_scheme.official_url}]({lead_scheme.official_url}) पर या नजदीकी जन सेवा केंद्र (CSC / MeeSeva) के माध्यम से बायोमेट्रिक/आधार प्रमाणीकरण द्वारा आवेदन कर सकते हैं।"
-        ]
-        if len(top_matches) > 1:
-            sec = top_matches[1]
-            answer_lines.extend([
-                "",
-                f"---",
-                f"**संबंधित पूरक योजना: {sec.name}**",
-                f"• {sec.benefit}",
-                f"• आधिकारिक लिंक: [{sec.official_url}]({sec.official_url})"
-            ])
-        answer = "\n".join(answer_lines)
-        followups = [
-            "इस योजना के लिए आवश्यक दस्तावेजों की सूची क्या है?",
-            "क्या मैं ऑनलाइन CSC केंद्र से आवेदन कर सकता हूँ?",
-            "डीबीटी (DBT) बैंक सीडिंग की स्थिति कैसे जांचें?"
-        ]
-    elif lang == "te":
-        answer_lines = [
-            f"### 🏛️ {lead_scheme.name} - సమగ్ర అర్హత & ప్రయోజనాలు",
-            "",
-            f"**పథకం ప్రయోజనం & అర్హత వివరాలు:**",
-            f"- **ప్రయోజనం:** {lead_scheme.benefit}",
-            f"- **ముఖ్య అర్హత:** {lead_scheme.eligibility_criteria[0] if lead_scheme.eligibility_criteria else 'అర్హులైన పౌరులు'}",
-            f"- **అధికారిక శాఖ:** {citations[0].department}",
-            "",
-            "**అవసరమైన ధృవీకరణ పత్రాలు:**",
-            "1. ఆధార్ కార్డు (మొబైల్ లింక్ చేయబడినది)",
-            "2. బ్యాంక్ పాస్‌బుక్ (DBT ఎనేబుల్డ్)",
-            "3. పట్టాదారు పాస్‌బుక్ / ఆదాయ ధృవీకరణ పత్రం",
-            "",
-            f"**దరఖాస్తు విధానం:** మీరు నేరుగా అధికారిక వెబ్‌సైట్ [{lead_scheme.official_url}]({lead_scheme.official_url}) ద్వారా లేదా సమీప గ్రామ/వార్డు సచివాలయం, మీసేవా (MeeSeva) / CSC కేంద్రం ద్వారా దరఖాస్తు చేసుకోవచ్చు."
-        ]
-        if len(top_matches) > 1:
-            sec = top_matches[1]
-            answer_lines.extend([
-                "",
-                f"---",
-                f"**సంబంధిత అదనపు పథకం: {sec.name}**",
-                f"• {sec.benefit}",
-                f"• అధికారిక పోర్టల్: [{sec.official_url}]({sec.official_url})"
-            ])
-        answer = "\n".join(answer_lines)
-        followups = [
-            "దరఖాస్తుకు అవసరమైన పూర్తి పత్రాలు ఏమిటి?",
-            "రైతు భరోసా మరియు PM-KISAN ఒకేసారి పొందవచ్చా?",
-            "స్టేటస్ చెక్ చేయడానికి ఆధార్ నంబర్ సరిపోతుందా?"
-        ]
-    else:
-        # English
-        answer_lines = [
-            f"### 🏛️ {lead_scheme.name} - Verified Scheme Guidelines",
-            "",
-            f"**Key Entitlement & Financial Benefit:**",
-            f"> {lead_scheme.benefit}",
-            "",
-            f"**Eligibility & Qualifying Criteria:**",
-        ]
-        for crit in lead_scheme.eligibility_criteria:
-            answer_lines.append(f"- ✅ **{crit}**")
-
-        answer_lines.extend([
-            "",
-            f"**Mandatory Verification Documents:**",
-            "- 🪪 **Identity:** Aadhaar Card with active mobile number linked",
-            "- 🏦 **Financial:** Active Bank Account seeded for Direct Benefit Transfer (DBT/NPCI)",
-            "- 📄 **Category/Asset:** " + (", ".join(lead_scheme.documents_required) if lead_scheme.documents_required else "Standard municipal income / domicile certificate"),
-            "",
-            f"**Application & Next Steps:**",
-            f"Citizens can register online at the official portal **[{lead_scheme.official_url}]({lead_scheme.official_url})** or visit the nearest Common Service Centre (CSC) / Village Ward Secretariat with biometric e-KYC authentication."
-        ])
-
-        if len(top_matches) > 1:
-            sec = top_matches[1]
-            answer_lines.extend([
-                "",
-                "---",
-                f"💡 **Complementary State/Central Scheme Match:**",
-                f"**{sec.name}** ({sec.state})",
-                f"- Benefit: {sec.benefit}",
-                f"- Official Portal: [{sec.official_url}]({sec.official_url})"
-            ])
-
-        answer = "\n".join(answer_lines)
-        followups = [
-            "What is the exact income ceiling to qualify?",
-            "How can I verify if my bank account is Aadhaar DBT seeded?",
-            "Can I apply offline through a CSC / MeeSeva center?"
-        ]
-
-    return SchemesChatResponse(
-        answer=answer,
-        language=lang,
-        citations=citations,
-        reasoning_steps=reasoning_steps,
-        grounded_score=0.96,
-        retrieval_badge="✅ Verified Official Source (Score: 0.96)",
-        suggested_actions=[
-            f"Visit Official Portal ({lead_scheme.official_url})",
-            "Check Bank DBT Seeding Status",
-            "Locate Nearest CSC / MeeSeva Centre"
-        ],
-        suggested_followups=followups
-    )
+    agent = STAIRCivicAgent.get_instance()
+    return await agent.process_citizen_query(query=query, requested_lang=lang)
 
 
 @router.get("/extension/download")
