@@ -21,12 +21,23 @@ class ConfidenceScore(BaseModel):
     department: float = Field(0.92, ge=0.0, le=1.0)
     location: float = Field(0.88, ge=0.0, le=1.0)
 
+class GuideStep(BaseModel):
+    step_number: int
+    badge: str
+    title: str
+    instruction: str
+    target_text: Optional[str] = None
+    target_selector: Optional[str] = None
+    voice_speech: str
+    can_auto_click: bool = True
+
 class GrievanceAnalysisResult(BaseModel):
     intent: Optional[str] = "GRIEVANCE"
     guidance_title: Optional[str] = None
     guidance_message: Optional[str] = None
     action_type: Optional[str] = None
     action_label: Optional[str] = None
+    steps: Optional[List[GuideStep]] = None
     category: str
     department: str
     urgency_level: Literal["LOW", "MEDIUM", "HIGH"]

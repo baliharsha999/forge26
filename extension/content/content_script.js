@@ -36,37 +36,80 @@
   }
 
   function findTargetElement(target) {
-    target = (target || "").toUpperCase();
-    const allLinks = Array.from(document.querySelectorAll("a, button, input[type='submit'], input[type='button']"));
+    if (!target) return null;
+    const raw = String(target).trim();
+    const targetUpper = raw.toUpperCase();
+    const targetLower = raw.toLowerCase();
 
-    if (target === "SIGN_IN" || target === "LOGIN") {
-      return allLinks.find(el => {
-        const txt = (el.innerText || el.value || "").toLowerCase();
-        const href = (el.getAttribute("href") || "").toLowerCase();
-        return (txt.includes("sign in") || txt.includes("signin") || txt.includes("login") || href.includes("signin") || href.includes("login")) && !txt.includes("officer");
-      });
+    // 1. First attempt exact CSS selector if formatted like one
+    if (raw.startsWith(".") || raw.startsWith("#") || raw.startsWith("[") || (raw.includes("[") && raw.includes("]"))) {
+      try {
+        const found = document.querySelector(raw);
+        if (found) return found;
+      } catch (e) {}
     }
 
-    if (target === "REGISTER" || target === "SIGN_UP") {
-      return allLinks.find(el => {
+    const allInteractive = Array.from(document.querySelectorAll("a, button, input[type='submit'], input[type='button'], [role='button'], h3 a, h4 a, li a, .btn, .button"));
+
+    // 2. Specific intent mappings
+    if (targetUpper === "SIGN_IN" || targetUpper === "LOGIN" || targetUpper === "HIGHLIGHT_SIGNIN") {
+      const found = allInteractive.find(el => {
         const txt = (el.innerText || el.value || "").toLowerCase();
         const href = (el.getAttribute("href") || "").toLowerCase();
-        return txt.includes("register") || txt.includes("sign up") || txt.includes("signup") || href.includes("registration");
+        const cls = (el.className || "").toLowerCase();
+        return (txt.includes("sign in") || txt.includes("signin") || txt.includes("login") || href.includes("signin") || href.includes("login") || cls.includes("signin")) && !txt.includes("officer");
       });
+      if (found) return found;
     }
 
-    if (target === "LODGE" || target === "GRIEVANCE") {
-      return allLinks.find(el => {
+    if (targetUpper === "REGISTER" || targetUpper === "SIGN_UP" || targetUpper === "HIGHLIGHT_REGISTER") {
+      const found = allInteractive.find(el => {
+        const txt = (el.innerText || el.value || "").toLowerCase();
+        const href = (el.getAttribute("href") || "").toLowerCase();
+        return txt.includes("register") || txt.includes("sign up") || txt.includes("signup") || href.includes("registration") || txt.includes("candidate");
+      });
+      if (found) return found;
+    }
+
+    if (targetUpper === "LODGE" || targetUpper === "GRIEVANCE") {
+      const found = allInteractive.find(el => {
         const txt = (el.innerText || el.value || "").toLowerCase();
         const href = (el.getAttribute("href") || "").toLowerCase();
         return txt.includes("lodge") || txt.includes("grievance") || href.includes("lodge");
       });
+      if (found) return found;
     }
 
-    return document.querySelector(target);
+    // 3. Substring match across all interactive elements
+    const matched = allInteractive.find(el => {
+      const txt = (el.innerText || el.value || "").toLowerCase();
+      const href = (el.getAttribute("href") || "").toLowerCase();
+      const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+      const title = (el.getAttribute("title") || "").toLowerCase();
+      return txt.includes(targetLower) || href.includes(targetLower) || aria.includes(targetLower) || title.includes(targetLower);
+    });
+    if (matched) return matched;
+
+    // 4. Token match (any significant word >= 4 letters)
+    const tokens = targetLower.split(/\s+/).filter(t => t.length >= 4 && !["step", "click", "find", "open", "here", "look"].includes(t));
+    if (tokens.length > 0) {
+      const tokenMatch = allInteractive.find(el => {
+        const txt = (el.innerText || el.value || "").toLowerCase();
+        const href = (el.getAttribute("href") || "").toLowerCase();
+        return tokens.some(t => txt.includes(t) || href.includes(t));
+      });
+      if (tokenMatch) return tokenMatch;
+    }
+
+    // 5. Try standard querySelector as fallback
+    try {
+      return document.querySelector(raw);
+    } catch (e) {
+      return null;
+    }
   }
 
-  function highlightPageElement(target) {
+  function highlightPageElement(target, label) {
     const el = findTargetElement(target);
     if (!el) return false;
 
@@ -83,7 +126,8 @@
 
     const badge = document.createElement("div");
     badge.id = "nagarik-spotlight-badge";
-    badge.innerHTML = `<span>👉 Nagarik AI: Click Here to Sign In</span>`;
+    const displayLabel = label || el.innerText?.trim() || "Click Here";
+    badge.innerHTML = `<span>👉 Nagarik AI: ${displayLabel.length > 35 ? displayLabel.substring(0, 32) + '...' : displayLabel}</span>`;
     badge.style.position = "absolute";
     badge.style.background = "#F06A25";
     badge.style.color = "#0B0C1E";
@@ -93,11 +137,12 @@
     badge.style.fontSize = "13px";
     badge.style.zIndex = "999999999";
     badge.style.boxShadow = "0 6px 20px rgba(0,0,0,0.5)";
+    badge.style.pointerEvents = "none";
     document.body.appendChild(badge);
 
     const rect = el.getBoundingClientRect();
-    badge.style.top = (window.scrollY + rect.top - 36) + "px";
-    badge.style.left = (window.scrollX + rect.left) + "px";
+    badge.style.top = Math.max(10, (window.scrollY + rect.top - 36)) + "px";
+    badge.style.left = Math.max(10, (window.scrollX + rect.left)) + "px";
 
     setTimeout(() => {
       el.style.outline = originalOutline;
@@ -140,7 +185,7 @@
   // Listen for extension messages
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     if (message.action === "HIGHLIGHT_PAGE_ELEMENT") {
-      const ok = highlightPageElement(message.target || "SIGN_IN");
+      const ok = highlightPageElement(message.target || "SIGN_IN", message.label);
       sendResponse({ success: ok });
       return true;
     }

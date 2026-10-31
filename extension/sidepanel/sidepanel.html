@@ -110,20 +110,29 @@
       </div>
     </div>
 
-    <!-- Dynamic Adaptive Portal Guidance Card -->
-    <div id="guidance-card" class="guidance-card hidden">
-      <div class="guidance-header">
-        <span class="guidance-icon">💡</span>
-        <h3 id="guidance-title" class="guidance-heading">Portal Guidance</h3>
+    <!-- Dynamic Adaptive Portal Guidance & Interactive Micro-Step Walker Card -->
+    <div id="guidance-card" class="guidance-card hidden" style="border: 1px solid var(--border-orange); background: rgba(240, 106, 37, 0.08); border-radius: 12px; padding: 14px; margin-top: 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
+        <span id="walker-badge" style="background: var(--orange-primary); color: var(--text-on-orange); font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.5px; text-transform: uppercase;">STEP 1 OF 3</span>
+        <div id="walker-dots" style="display: flex; gap: 4px;"></div>
       </div>
-      <p id="guidance-message" class="guidance-body"></p>
-      <div class="guidance-btn-group" style="display: flex; gap: 8px; margin-top: 10px;">
-        <button id="btn-guidance-highlight" class="btn-next" style="flex: 1; padding: 10px 12px; font-size: 11px; font-weight: 800;">
-          <span>✨ Highlight on Webpage</span>
+      <h3 id="guidance-title" style="font-size: 14px; font-weight: 800; color: #fff; margin: 0 0 6px 0; line-height: 1.3;">Portal Guidance</h3>
+      <p id="guidance-message" style="font-size: 12px; color: var(--text-slate); margin: 0 0 12px 0; line-height: 1.5;"></p>
+      
+      <!-- Interactive Action Buttons -->
+      <div class="guidance-btn-group" style="display: flex; gap: 8px; margin-bottom: 10px;">
+        <button id="btn-guidance-click" class="btn-next" style="flex: 1; padding: 9px 12px; font-size: 11px; font-weight: 800; background: var(--orange-primary); color: var(--text-on-orange); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <span>👉 Click It for Me</span>
         </button>
-        <button id="btn-guidance-click" class="btn-back" style="flex: 1; padding: 10px 12px; font-size: 11px; font-weight: 800; color: var(--orange-hover); border-color: var(--border-orange);">
-          <span>👉 Click for Me</span>
+        <button id="btn-guidance-highlight" class="btn-back" style="flex: 1; padding: 9px 12px; font-size: 11px; font-weight: 800; color: var(--orange-hover); border: 1px solid var(--border-orange); border-radius: 8px; background: rgba(240, 106, 37, 0.1); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+          <span>✨ Spotlight on Page</span>
         </button>
+      </div>
+
+      <!-- Step Walker Navigation -->
+      <div id="walker-nav-bar" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;">
+        <button id="btn-walker-prev" style="background: none; border: none; color: var(--text-muted); font-size: 11px; cursor: pointer; padding: 4px 8px; font-weight: 600;">⬅ Prev</button>
+        <button id="btn-walker-next" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 11px; cursor: pointer; padding: 6px 12px; border-radius: 6px; font-weight: 700;">Next Step ➔</button>
       </div>
     </div>
 

@@ -435,8 +435,41 @@ document.addEventListener("DOMContentLoaded", () => {
   // ----------------------------------------------------------------
   // Autonomous Zero-Touch Portal Inspection & Studying
   // ----------------------------------------------------------------
-  let activePortalName = "Civic Portal";
+  let activePortalName = "Public Civic & Exam Portals";
   let activePageHasForm = false;
+  let activeGuideSteps = [];
+  let currentGuideIndex = 0;
+
+  function renderChips(chips, activeTab) {
+    const chipsContainer = document.getElementById("chips-container");
+    if (!chipsContainer) return;
+    chipsContainer.innerHTML = "";
+    if (!chips || chips.length === 0) return;
+
+    chips.forEach(chip => {
+      const chipBtn = document.createElement("button");
+      chipBtn.className = "chip";
+      chipBtn.innerText = chip.label;
+      chipBtn.setAttribute("data-text", chip.text);
+
+      chipBtn.addEventListener("click", () => {
+        if (chip.text && chip.text.startsWith("OPEN_PORTAL:")) {
+          const portalUrl = chip.text.replace("OPEN_PORTAL:", "");
+          if (activeTab && activeTab.id) {
+            chrome.tabs.update(activeTab.id, { url: portalUrl });
+          } else {
+            window.open(portalUrl, "_blank");
+          }
+          speak("Opening portal. Once the page loads, I will automatically inspect it and guide you.");
+        } else {
+          inputProblem.value = chip.text;
+          inputProblem.focus();
+          btnNextStep1.click();
+        }
+      });
+      chipsContainer.appendChild(chipBtn);
+    });
+  }
 
   function autoStudyPortal() {
     if (tabStatusText) tabStatusText.innerText = "🔍 Nagarik AI is studying active page DOM...";
@@ -449,8 +482,46 @@ document.addEventListener("DOMContentLoaded", () => {
 
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       const activeTab = (tabs && tabs.length > 0) ? tabs[0] : null;
-      const targetUrl = activeTab ? activeTab.url : window.location.href;
-      const targetTitle = activeTab ? activeTab.title : document.title;
+      const targetUrl = activeTab ? (activeTab.url || "") : "";
+      const targetTitle = activeTab ? (activeTab.title || "") : "";
+
+      const urlLower = targetUrl.toLowerCase();
+      const titleLower = targetTitle.toLowerCase();
+
+      // Explicit early check for blank, browser internal, or search pages (Google, New Tab)
+      const isStandby = (
+        !targetUrl ||
+        urlLower.startsWith("chrome://") ||
+        urlLower.startsWith("chrome-extension://") ||
+        urlLower.startsWith("edge://") ||
+        urlLower.startsWith("about:") ||
+        urlLower.includes("google.com") ||
+        urlLower.includes("youtube.com") ||
+        titleLower === "new tab" ||
+        titleLower === "google"
+      );
+
+      if (isStandby) {
+        activePortalName = "Public Civic & Exam Portals";
+        activePageHasForm = false;
+        if (tabStatusText) tabStatusText.innerHTML = `🌐 <strong>No Civic Portal Active</strong>`;
+        if (tabStatusBadge) {
+          tabStatusBadge.innerText = "STANDBY";
+          tabStatusBadge.style.background = "rgba(143, 147, 181, 0.2)";
+          tabStatusBadge.style.color = "var(--text-slate)";
+          tabStatusBadge.style.borderColor = "var(--border-slate)";
+        }
+        if (q1Sub) q1Sub.innerText = "Namaste! Browse to any government or exam portal, or launch one below to start.";
+        if (inputProblem) inputProblem.placeholder = "Open pgportal.gov.in or click a portal chip below...";
+        
+        renderChips([
+          { label: "🏛️ Launch CPGRAMS (pgportal.gov.in)", text: "OPEN_PORTAL:https://pgportal.gov.in" },
+          { label: "📝 Launch JEE Main Candidate Portal", text: "OPEN_PORTAL:https://jeemain.nta.nic.in" },
+          { label: "🏢 Launch Municipal Demo Portal", text: "OPEN_PORTAL:http://localhost:8000/portal" },
+          { label: "🚆 Central Railway & IRCTC Grievance", text: "OPEN_PORTAL:https://pgportal.gov.in" }
+        ], activeTab);
+        return;
+      }
 
       // Ask backend to dynamically study the page
       fetch("http://localhost:8000/api/v1/agent/study-page", {
@@ -463,79 +534,51 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .then(r => r.json())
       .then(study => {
-        if (study && study.portal_name) {
-          activePortalName = study.portal_name;
-          activePageHasForm = !!study.has_form;
+        const safeName = (study && study.portal_name && study.portal_name !== "undefined") ? study.portal_name : "Public Service Portal";
+        activePortalName = safeName;
+        activePageHasForm = !!(study && study.has_form);
 
-          if (study.portal_type === "STANDBY") {
-            if (tabStatusText) {
-              tabStatusText.innerHTML = `🌐 <strong>No Civic Portal Active</strong>`;
-            }
-            if (tabStatusBadge) {
-              tabStatusBadge.innerText = "STANDBY";
-              tabStatusBadge.style.background = "rgba(143, 147, 181, 0.2)";
-              tabStatusBadge.style.color = "var(--text-slate)";
-              tabStatusBadge.style.borderColor = "var(--border-slate)";
-            }
-          } else {
-            if (tabStatusText) {
-              tabStatusText.innerHTML = `🏛️ <strong>${study.portal_name}</strong>`;
-            }
-            if (tabStatusBadge) {
-              tabStatusBadge.innerText = study.has_form ? "● FORM READY" : "⚠️ SIGN-IN TO LODGE";
-              tabStatusBadge.style.background = study.has_form ? "#059669" : "#d97706";
-              tabStatusBadge.style.color = study.has_form ? "#ffffff" : "#0B0C1E";
-              tabStatusBadge.style.borderColor = study.has_form ? "#047857" : "#b45309";
-            }
+        if (study && study.portal_type === "STANDBY") {
+          if (tabStatusText) tabStatusText.innerHTML = `🌐 <strong>No Civic Portal Active</strong>`;
+          if (tabStatusBadge) {
+            tabStatusBadge.innerText = "STANDBY";
+            tabStatusBadge.style.background = "rgba(143, 147, 181, 0.2)";
+            tabStatusBadge.style.color = "var(--text-slate)";
+            tabStatusBadge.style.borderColor = "var(--border-slate)";
           }
-
-          if (inputProblem && study.placeholder_text) {
-            inputProblem.placeholder = study.placeholder_text;
-          }
-
-          if (q1Sub && study.welcome_greeting) {
-            q1Sub.innerText = study.welcome_greeting;
-          }
-
-          if (q2Sub && study.location_question) {
-            q2Sub.innerText = study.location_question;
-          }
-
-          // Dynamically populate Quick Chips for this portal!
-          const chipsContainer = document.getElementById("chips-container");
-          if (chipsContainer && study.chips && study.chips.length > 0) {
-            chipsContainer.innerHTML = "";
-            study.chips.forEach(chip => {
-              const chipBtn = document.createElement("button");
-              chipBtn.className = "chip";
-              chipBtn.innerText = chip.label;
-              chipBtn.setAttribute("data-text", chip.text);
-
-              chipBtn.addEventListener("click", () => {
-                if (chip.text && chip.text.startsWith("OPEN_PORTAL:")) {
-                  const portalUrl = chip.text.replace("OPEN_PORTAL:", "");
-                  if (activeTab && activeTab.id) {
-                    chrome.tabs.update(activeTab.id, { url: portalUrl });
-                  } else {
-                    window.open(portalUrl, "_blank");
-                  }
-                  speak("Opening portal. Once the page loads, I will automatically inspect it and guide your grievance lodging.");
-                } else {
-                  inputProblem.value = chip.text;
-                  inputProblem.focus();
-                }
-              });
-              chipsContainer.appendChild(chipBtn);
-            });
-          }
-
-          // Announce welcome aloud
-          setTimeout(() => speak(study.welcome_greeting), 350);
         } else {
-          // Safe fallback
-          activePortalName = "Public Service Portal";
-          if (tabStatusText) tabStatusText.innerHTML = `🏛️ <strong>Public Service Portal</strong>`;
-          if (tabStatusBadge) tabStatusBadge.innerText = "STANDBY";
+          if (tabStatusText) tabStatusText.innerHTML = `🏛️ <strong>${safeName}</strong>`;
+          if (tabStatusBadge) {
+            const isExam = study && study.portal_type === "EXAM_ADMISSION";
+            tabStatusBadge.innerText = isExam ? "EXAM PORTAL" : (study.has_form ? "● FORM READY" : "⚠️ SIGN-IN TO LODGE");
+            tabStatusBadge.style.background = isExam ? "#2563eb" : (study.has_form ? "#059669" : "#d97706");
+            tabStatusBadge.style.color = "#ffffff";
+            tabStatusBadge.style.borderColor = isExam ? "#1d4ed8" : (study.has_form ? "#047857" : "#b45309");
+          }
+        }
+
+        if (inputProblem && study.placeholder_text) {
+          inputProblem.placeholder = study.placeholder_text;
+        }
+
+        if (q1Sub && study.welcome_greeting) {
+          q1Sub.innerText = study.welcome_greeting;
+        }
+
+        if (q2Sub && study.location_question) {
+          q2Sub.innerText = study.location_question;
+        }
+
+        renderChips(study.chips, activeTab);
+
+        // Save in session cache
+        try {
+          sessionStorage.setItem("nagarik_portal_study", JSON.stringify(study));
+        } catch (e) {}
+
+        // Announce welcome aloud
+        if (study.welcome_greeting) {
+          setTimeout(() => speak(study.welcome_greeting), 350);
         }
       })
       .catch(err => {
@@ -559,6 +602,136 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Trigger autonomous zero-touch inspection on load
   autoStudyPortal();
+
+  // ----------------------------------------------------------------
+  // Micro-Step Walker Engine (One Step At A Time + Speech + Clicks)
+  // ----------------------------------------------------------------
+  function renderGuideStep(idx) {
+    if (!activeGuideSteps || activeGuideSteps.length === 0) return;
+    if (idx < 0) idx = 0;
+    if (idx >= activeGuideSteps.length) idx = activeGuideSteps.length - 1;
+    currentGuideIndex = idx;
+
+    const step = activeGuideSteps[idx];
+    const guidanceCard = document.getElementById("guidance-card");
+    const walkerBadge = document.getElementById("walker-badge");
+    const walkerDots = document.getElementById("walker-dots");
+    const guidanceTitle = document.getElementById("guidance-title");
+    const guidanceMessage = document.getElementById("guidance-message");
+    const btnGuidanceClick = document.getElementById("btn-guidance-click");
+    const btnGuidanceHighlight = document.getElementById("btn-guidance-highlight");
+    const btnWalkerPrev = document.getElementById("btn-walker-prev");
+    const btnWalkerNext = document.getElementById("btn-walker-next");
+
+    if (guidanceCard) guidanceCard.classList.remove("hidden");
+
+    if (walkerBadge) {
+      walkerBadge.innerText = step.badge || `STEP ${idx + 1} OF ${activeGuideSteps.length}`;
+    }
+
+    if (walkerDots) {
+      walkerDots.innerHTML = "";
+      activeGuideSteps.forEach((_, i) => {
+        const dot = document.createElement("span");
+        dot.style.width = "7px";
+        dot.style.height = "7px";
+        dot.style.borderRadius = "50%";
+        dot.style.background = (i === idx) ? "var(--orange-primary)" : "rgba(255,255,255,0.2)";
+        dot.style.display = "inline-block";
+        walkerDots.appendChild(dot);
+      });
+    }
+
+    if (guidanceTitle) guidanceTitle.innerText = step.title;
+    if (guidanceMessage) guidanceMessage.innerText = step.instruction;
+
+    if (btnGuidanceClick) {
+      if (step.can_auto_click) {
+        btnGuidanceClick.style.display = "flex";
+        btnGuidanceClick.onclick = () => {
+          chrome.runtime.sendMessage({
+            action: "TRIGGER_CLICK_ELEMENT",
+            target: step.target_text || step.target_selector || "SIGN_IN"
+          }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
+          speak("Clicking for you now.");
+        };
+      } else {
+        btnGuidanceClick.style.display = "none";
+      }
+    }
+
+    if (btnGuidanceHighlight) {
+      btnGuidanceHighlight.onclick = () => {
+        chrome.runtime.sendMessage({
+          action: "TRIGGER_HIGHLIGHT_ELEMENT",
+          target: step.target_text || step.target_selector || "SIGN_IN",
+          label: step.title
+        }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
+        speak("Spotlighted on your screen.");
+      };
+    }
+
+    if (btnWalkerPrev) {
+      btnWalkerPrev.style.visibility = (idx > 0) ? "visible" : "hidden";
+      btnWalkerPrev.onclick = () => {
+        renderGuideStep(idx - 1);
+      };
+    }
+
+    if (btnWalkerNext) {
+      if (idx < activeGuideSteps.length - 1) {
+        btnWalkerNext.innerText = "Next Step ➔";
+        btnWalkerNext.onclick = () => {
+          renderGuideStep(idx + 1);
+        };
+      } else {
+        btnWalkerNext.innerText = "Done ✓";
+        btnWalkerNext.onclick = () => {
+          speak("You have completed all steps. Let me know if you need any other help!");
+          guidanceCard.classList.add("hidden");
+        };
+      }
+    }
+
+    // Update Session Cache
+    try {
+      sessionStorage.setItem("nagarik_walker_index", String(idx));
+    } catch (e) {}
+
+    // Automatically spotlight target on page
+    if (step.target_text || step.target_selector) {
+      chrome.runtime.sendMessage({
+        action: "TRIGGER_HIGHLIGHT_ELEMENT",
+        target: step.target_text || step.target_selector,
+        label: step.title
+      }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
+    }
+
+    // Voice speak this single concise sentence aloud
+    const speechText = step.voice_speech || step.instruction;
+    speak(speechText);
+  }
+
+  function startStepWalker(steps, startIdx = 0) {
+    activeGuideSteps = steps;
+    try {
+      sessionStorage.setItem("nagarik_guide_steps", JSON.stringify(steps));
+      sessionStorage.setItem("nagarik_walker_index", String(startIdx));
+    } catch (e) {}
+    renderGuideStep(startIdx);
+  }
+
+  // Restore Session Cache Memory on startup
+  try {
+    const savedSteps = sessionStorage.getItem("nagarik_guide_steps");
+    const savedIdx = sessionStorage.getItem("nagarik_walker_index");
+    if (savedSteps) {
+      activeGuideSteps = JSON.parse(savedSteps);
+      if (activeGuideSteps && activeGuideSteps.length > 0) {
+        renderGuideStep(parseInt(savedIdx || "0", 10));
+      }
+    }
+  } catch (e) {}
 
   // ----------------------------------------------------------------
   // STEP 1 -> ANIMATED REASONING -> STEP 2
@@ -609,51 +782,37 @@ document.addEventListener("DOMContentLoaded", () => {
         const d = res.data;
 
         // -------------------------------------------------------------
-        // 1. INTENT: PORTAL GUIDANCE (e.g. "help me sign in", "where is login")
+        // 1. INTENT: PORTAL GUIDANCE / STEP-BY-STEP (e.g. "how to apply", "help me sign in")
         // -------------------------------------------------------------
-        if (d.intent === "PORTAL_GUIDANCE") {
+        if (d.intent === "PORTAL_GUIDANCE" || (d.steps && d.steps.length > 0)) {
           analyzingStage.classList.add("hidden");
           step1.classList.add("active");
 
-          const guidanceCard = document.getElementById("guidance-card");
-          const guidanceTitle = document.getElementById("guidance-title");
-          const guidanceMessage = document.getElementById("guidance-message");
-          const btnGuidanceHighlight = document.getElementById("btn-guidance-highlight");
-          const btnGuidanceClick = document.getElementById("btn-guidance-click");
-
-          if (guidanceCard && guidanceTitle && guidanceMessage) {
-            guidanceTitle.innerText = d.guidance_title || "Portal Guidance";
-            guidanceMessage.innerText = d.guidance_message || "Here is what to do on this page...";
-            guidanceCard.classList.remove("hidden");
-
-            if (btnGuidanceHighlight) {
-              btnGuidanceHighlight.onclick = () => {
-                chrome.runtime.sendMessage({
-                  action: "TRIGGER_HIGHLIGHT_ELEMENT",
-                  target: d.action_type === "HIGHLIGHT_REGISTER" ? "REGISTER" : "SIGN_IN"
-                }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
-                speak("Highlighting on your webpage now.");
-              };
-            }
-
-            if (btnGuidanceClick) {
-              btnGuidanceClick.onclick = () => {
-                chrome.runtime.sendMessage({
-                  action: "TRIGGER_CLICK_ELEMENT",
-                  target: d.action_type === "HIGHLIGHT_REGISTER" ? "REGISTER" : "SIGN_IN"
-                }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
-                speak("Opening sign-in for you.");
-              };
-            }
+          let stepsList = d.steps || [];
+          if (!stepsList || stepsList.length === 0) {
+            stepsList = [
+              {
+                step_number: 1,
+                badge: "STEP 1 OF 2",
+                title: d.guidance_title || "Locate Action on Webpage",
+                instruction: d.guidance_message || "Look at the active webpage.",
+                target_text: d.action_type === "HIGHLIGHT_REGISTER" ? "REGISTER" : "SIGN_IN",
+                voice_speech: d.guidance_message || "Please check the highlighted button on your screen.",
+                can_auto_click: true
+              },
+              {
+                step_number: 2,
+                badge: "STEP 2 OF 2",
+                title: "Complete Official Form",
+                instruction: "Enter your information into the fields on screen and submit.",
+                target_text: "Submit",
+                voice_speech: "Enter your details and proceed.",
+                can_auto_click: false
+              }
+            ];
           }
 
-          // Automatically trigger highlight on the page
-          chrome.runtime.sendMessage({
-            action: "TRIGGER_HIGHLIGHT_ELEMENT",
-            target: d.action_type === "HIGHLIGHT_REGISTER" ? "REGISTER" : "SIGN_IN"
-          }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
-
-          speak(d.guidance_message || "Please check the highlighted button on your screen to sign in.");
+          startStepWalker(stepsList, 0);
           return; // STOP! Never ask location/phone when user asked for guidance!
         }
 

@@ -4,7 +4,7 @@ import re
 import urllib.request
 import urllib.error
 from typing import Dict, Any, Optional
-from app.models.schemas import GrievanceAnalysisResult, ConfidenceScore
+from app.models.schemas import GrievanceAnalysisResult, ConfidenceScore, GuideStep
 from app.services.privacy_service import inspect_and_sanitize_pii
 from app.core.config import settings
 
@@ -79,6 +79,12 @@ def _call_gemini_json(prompt: str) -> Optional[Dict[str, Any]]:
         return None
 
 
+# Global In-Memory Session Cache
+# Caches page inspection DOM models and analysis queries per session for instant 0ms retrieval
+_PAGE_STUDY_CACHE: Dict[str, Dict[str, Any]] = {}
+_GRIEVANCE_ANALYSIS_CACHE: Dict[str, Any] = {}
+
+
 async def analyze_civic_grievance(
     raw_input: str,
     language: str = "en",
@@ -91,9 +97,74 @@ async def analyze_civic_grievance(
     Enforces privacy checks (Aadhaar redaction), extracts strict JSON,
     and returns confidence metrics and follow-up prompts tailored to the portal.
     """
+    # 0. Check In-Memory Session Cache for Repeat Queries
+    cache_key = f"{language}:{portal_context or ''}:{raw_input.strip().lower()}"
+    if cache_key in _GRIEVANCE_ANALYSIS_CACHE:
+        logger.info(f"Returning cached analysis for key: {cache_key}")
+        return _GRIEVANCE_ANALYSIS_CACHE[cache_key]
+
     # 1. Privacy & Sensitive PII Inspection
     sanitized_input, privacy_warning = inspect_and_sanitize_pii(raw_input)
     input_lower = sanitized_input.lower()
+    ctx_lower = (portal_context or "").lower()
+
+    # Specialized Grounded Guidance for JEE Main / NTA Portal
+    is_jee_query = any(k in input_lower for k in ["jee", "nta", "entrance", "exam", "mains", "admit card"]) or any(k in ctx_lower for k in ["jee", "nta", "exam", "admission"])
+    is_guidance_ask = any(k in input_lower for k in ["apply", "register", "fill", "how to", "steps", "where", "guide", "sign in", "login", "link", "form", "date", "center"])
+    
+    if is_jee_query and is_guidance_ask:
+        jee_steps = [
+            GuideStep(
+                step_number=1,
+                badge="STEP 1 OF 3",
+                title="Find the Official Application Form Link",
+                instruction="On the JEE Main homepage, look for the 'Online Application Form for JEE (Main)' link in the public notice section.",
+                target_text="Online Application Form",
+                target_selector="a[href*='online-application-form'], a[href*='jeemain']",
+                voice_speech="Step 1: Look for the Online Application Form link on the webpage, or click the button to have me open it.",
+                can_auto_click=True
+            ),
+            GuideStep(
+                step_number=2,
+                badge="STEP 2 OF 3",
+                title="New Candidate Registration",
+                instruction="On the candidate login screen, click 'New Candidate Register Here' to fill your basic details and generate your Application Number.",
+                target_text="New Candidate",
+                target_selector="a[href*='registration'], a:contains('Register')",
+                voice_speech="Step 2: On the candidate screen, click New Candidate Register Here to create your account.",
+                can_auto_click=True
+            ),
+            GuideStep(
+                step_number=3,
+                badge="STEP 3 OF 3",
+                title="Upload Documents & Pay Exam Fee",
+                instruction="Enter your personal details, exam centres, upload your photo & signature, and complete the application fee payment.",
+                target_text="Application",
+                target_selector=None,
+                voice_speech="Step 3: Complete your details, upload your photo and signature, and pay the fee to download your confirmation receipt.",
+                can_auto_click=False
+            )
+        ]
+        res = GrievanceAnalysisResult(
+            intent="PORTAL_GUIDANCE",
+            guidance_title="How to Apply for JEE (Main) - Step-by-Step",
+            guidance_message="I will guide you step-by-step through the JEE (Main) application process without overwhelming you.",
+            action_type="CLICK_APPLICATION_LINK",
+            action_label="👉 Open JEE Main Online Application Form",
+            steps=jee_steps,
+            category="National Entrance Examination Registration",
+            department="National Testing Agency (NTA)",
+            urgency_level="MEDIUM",
+            urgency_score=5,
+            location_text="All-India Candidate Application",
+            description="Candidate requested step-by-step guidance to apply for JEE (Main) on the NTA portal.",
+            language=language,
+            actionable_remedy="Guide candidate step-by-step to open application form, register, and submit documents",
+            applicable_act_or_regulation="NTA JEE (Main) Information Bulletin & Candidate Guidelines",
+            privacy_warning=privacy_warning
+        )
+        _GRIEVANCE_ANALYSIS_CACHE[cache_key] = res
+        return res
     
     prompt = f"""
     You are Nagarik AI, an intelligent, empathetic digital governance copilot for citizens across India.
@@ -156,12 +227,20 @@ async def analyze_civic_grievance(
         if not loc or loc.strip() == "":
             loc = "Location pending citizen confirmation"
 
-        return GrievanceAnalysisResult(
+        parsed_steps = None
+        if parsed.get("steps") and isinstance(parsed["steps"], list):
+            try:
+                parsed_steps = [GuideStep(**s) for s in parsed["steps"] if isinstance(s, dict)]
+            except Exception as e:
+                logger.warning(f"Could not parse steps from LLM: {e}")
+
+        res = GrievanceAnalysisResult(
             intent=parsed.get("intent", "GRIEVANCE"),
             guidance_title=parsed.get("guidance_title"),
             guidance_message=parsed.get("guidance_message"),
             action_type=parsed.get("action_type"),
             action_label=parsed.get("action_label"),
+            steps=parsed_steps,
             category=parsed.get("category", "Public Redressal Inquiry"),
             department=parsed.get("department", "Concerned Public Authority"),
             urgency_level=urgency,
@@ -180,15 +259,40 @@ async def analyze_civic_grievance(
             applicable_act_or_regulation=parsed.get("applicable_act_or_regulation", "Public Grievance Redressal Rules"),
             privacy_warning=privacy_warning
         )
+        _GRIEVANCE_ANALYSIS_CACHE[cache_key] = res
+        return res
 
     # 3. Check for Guidance & Sign-in Assistance in Local Fallback
     if any(k in input_lower for k in ["sign in", "signin", "log in", "login", "password", "otp"]):
-        return GrievanceAnalysisResult(
+        cpgrams_steps = [
+            GuideStep(
+                step_number=1,
+                badge="STEP 1 OF 2",
+                title="Locate the Yellow 'Sign In' Button",
+                instruction="Look at the top-right corner of the page and click the yellow 'Sign In' button (or tap Click It for Me).",
+                target_text="Sign In",
+                target_selector=".btn-signIn, a[href*='signin'], a[href*='login']",
+                voice_speech="Step 1: Click the yellow Sign In button at the top-right corner of the CPGRAMS page.",
+                can_auto_click=True
+            ),
+            GuideStep(
+                step_number=2,
+                badge="STEP 2 OF 2",
+                title="Enter Citizen Credentials",
+                instruction="Enter your registered Mobile Number / Email and password, solve the security captcha, and click Login.",
+                target_text="Login",
+                target_selector="input[type='submit'], button[type='submit']",
+                voice_speech="Step 2: Enter your login credentials and solve the captcha to proceed.",
+                can_auto_click=False
+            )
+        ]
+        res = GrievanceAnalysisResult(
             intent="PORTAL_GUIDANCE",
             guidance_title="How to Sign In to this Portal",
             guidance_message="To sign in: Look at the top-right corner of the page and click the yellow 'Sign In' button (or tap the button below to highlight it). Enter your registered Mobile Number / Email and Password. Once signed in, I will guide your grievance filing!",
             action_type="HIGHLIGHT_SIGNIN",
             action_label="✨ Highlight 'Sign In' on Webpage",
+            steps=cpgrams_steps,
             category="Portal Access & Sign-In Guidance",
             department="CPGRAMS Citizen Authentication",
             urgency_level="MEDIUM",
@@ -200,14 +304,39 @@ async def analyze_civic_grievance(
             applicable_act_or_regulation="CPGRAMS User Manual & Citizen Charter",
             privacy_warning=privacy_warning
         )
+        _GRIEVANCE_ANALYSIS_CACHE[cache_key] = res
+        return res
 
     if any(k in input_lower for k in ["register", "signup", "sign up", "create account", "new user"]):
-        return GrievanceAnalysisResult(
+        reg_steps = [
+            GuideStep(
+                step_number=1,
+                badge="STEP 1 OF 2",
+                title="Find the Registration Link",
+                instruction="Click the 'Click here to Sign Up' link on the login page or navigation bar.",
+                target_text="Sign Up",
+                target_selector="a[href*='signup'], a[href*='register']",
+                voice_speech="Step 1: Click the Sign Up link on your screen to open the citizen registration form.",
+                can_auto_click=True
+            ),
+            GuideStep(
+                step_number=2,
+                badge="STEP 2 OF 2",
+                title="Fill Citizen Registration Details",
+                instruction="Enter your Name, Mobile Number, Email, and Address to create your official citizen login account.",
+                target_text="Submit",
+                target_selector="input[type='submit'], button[type='submit']",
+                voice_speech="Step 2: Enter your name, mobile number, and address to complete registration.",
+                can_auto_click=False
+            )
+        ]
+        res = GrievanceAnalysisResult(
             intent="PORTAL_GUIDANCE",
             guidance_title="How to Register for a New Account",
             guidance_message="To register: Click the 'Click here to Sign Up' link on the login page. Enter your Name, Mobile Number, and Address to create your official citizen login account.",
             action_type="HIGHLIGHT_REGISTER",
             action_label="✨ Highlight 'Register' Link",
+            steps=reg_steps,
             category="Citizen Registration Guidance",
             department="CPGRAMS Citizen Onboarding",
             urgency_level="MEDIUM",
@@ -219,6 +348,8 @@ async def analyze_civic_grievance(
             applicable_act_or_regulation="CPGRAMS User Manual",
             privacy_warning=privacy_warning
         )
+        _GRIEVANCE_ANALYSIS_CACHE[cache_key] = res
+        return res
 
     # 3. Resilient Local Rule Engine (Context-Aware, covers Central Ministries, Railways, Banking, Roads & Municipal)
     dept = "General Public Grievance Unit"
@@ -343,6 +474,8 @@ async def analyze_civic_grievance(
         applicable_act_or_regulation=act,
         privacy_warning=privacy_warning
     )
+    _GRIEVANCE_ANALYSIS_CACHE[cache_key] = res
+    return res
 
 
 def study_website_page(url: str, title: str = "", headings: Any = "", page_text: str = "") -> Dict[str, Any]:
@@ -351,6 +484,10 @@ def study_website_page(url: str, title: str = "", headings: Any = "", page_text:
     to understand what portal the citizen is browsing, and returns
     tailored greetings, chips, and authority labels without hardcoded assumptions.
     """
+    cache_key = (url or "").strip().lower()
+    if cache_key and cache_key in _PAGE_STUDY_CACHE:
+        return _PAGE_STUDY_CACHE[cache_key]
+
     if isinstance(headings, list):
         headings_str = " ".join(str(h) for h in headings)
     else:
@@ -373,31 +510,63 @@ def study_website_page(url: str, title: str = "", headings: Any = "", page_text:
         title_lower in ["new tab", "google", "chrome"]
     )
     if is_non_civic:
-        return {
+        res = {
             "portal_name": "No Civic Portal Active",
             "authority_name": "Standby Mode",
             "portal_type": "STANDBY",
-            "welcome_greeting": "Namaste! Nagarik AI is in Standby mode. Please open CPGRAMS or your local municipal portal in your browser, or click a button below to launch one immediately.",
-            "placeholder_text": "Open pgportal.gov.in or click a portal chip below to launch...",
+            "welcome_greeting": "Namaste! Nagarik AI is in Standby mode. Please open CPGRAMS, JEE Main, or your local municipal portal in your browser, or click a button below to launch one immediately.",
+            "placeholder_text": "Open a government or exam portal, or click a chip below...",
             "chips": [
                 {"label": "🏛️ Launch CPGRAMS (pgportal.gov.in)", "text": "OPEN_PORTAL:https://pgportal.gov.in"},
+                {"label": "📝 Launch JEE Main Portal", "text": "OPEN_PORTAL:https://jeemain.nta.nic.in"},
                 {"label": "🏢 Launch Municipal Demo Portal", "text": "OPEN_PORTAL:http://localhost:8000/portal"},
-                {"label": "🚆 Central Railway & IRCTC Grievance", "text": "OPEN_PORTAL:https://pgportal.gov.in"},
-                {"label": "🏦 Bank Pension / Central Issue", "text": "OPEN_PORTAL:https://pgportal.gov.in"}
+                {"label": "🚆 Central Railway & IRCTC Grievance", "text": "OPEN_PORTAL:https://pgportal.gov.in"}
             ],
             "location_question": "Where is this related to? Tell me your city, station, or tap GPS.",
             "authority_label": "Concerned Authority",
             "has_form": False,
             "is_landing_page": True
         }
+        if cache_key:
+            _PAGE_STUDY_CACHE[cache_key] = res
+        return res
 
+    # 1. National Entrance Examinations & Educational Portals (JEE, NEET, NTA, CUET, UPSC, etc.)
+    is_exam = any(k in url_lower or k in title_lower for k in [
+        "jeemain", "nta.nic.in", "neet", "cuet", "upsc.gov.in", "gate", "ssc.gov.in", 
+        "examinationservices", "examination", "admission", "nta.ac.in", "entrance"
+    ])
+    if is_exam:
+        exam_name = "JEE (Main)" if ("jee" in url_lower or "jee" in title_lower) else "National Examination"
+        res = {
+            "portal_name": f"{exam_name} Official Candidate Portal (NTA)",
+            "authority_name": "National Testing Agency (NTA) & Ministry of Education",
+            "portal_type": "EXAM_ADMISSION",
+            "welcome_greeting": f"Namaste! I have studied the {exam_name} portal. I can guide you step-by-step to find the application form link, register as a new candidate, or upload required documents.",
+            "placeholder_text": f"Ask how to apply, e.g. 'how to fill {exam_name} online application form' or 'steps to register'...",
+            "chips": [
+                {"label": f"📝 Apply for {exam_name} (Step-by-Step)", "text": f"How to apply for {exam_name} step-by-step?"},
+                {"label": "🔗 Open Online Application Form Link", "text": "How do I find the online application form link on this screen?"},
+                {"label": "📅 Important Dates & Schedule", "text": f"What are the registration deadlines and exam dates for {exam_name}?"},
+                {"label": "📑 Required Documents & Photo Specs", "text": f"What documents, photo sizes, and certificates are required for {exam_name}?"}
+            ],
+            "location_question": "Which state or preferred exam city are you applying from?",
+            "authority_label": "Exam Authority",
+            "has_form": False,
+            "is_landing_page": True
+        }
+        if cache_key:
+            _PAGE_STUDY_CACHE[cache_key] = res
+        return res
+
+    # 2. Central Public Grievance Portal (CPGRAMS)
     if "pgportal.gov.in" in url_lower or "cpgrams" in title_lower or "administrative reforms" in title_lower:
         is_landing = (
             url_lower.rstrip("/").endswith("pgportal.gov.in") or 
             ("/home" in url_lower and "lodge" not in url_lower) or 
             ("signin" in url_lower or "login" in url_lower)
         )
-        return {
+        res = {
             "portal_name": "Central Public Grievance Portal (CPGRAMS)",
             "authority_name": "Central Government of India",
             "portal_type": "CENTRAL_GOVERNMENT",
@@ -414,7 +583,72 @@ def study_website_page(url: str, title: str = "", headings: Any = "", page_text:
             "has_form": not is_landing,
             "is_landing_page": is_landing
         }
-    elif "portal" in url_lower or "municipal" in text_lower or "corporation" in text_lower or "ward" in text_lower:
+        if cache_key:
+            _PAGE_STUDY_CACHE[cache_key] = res
+        return res
+
+    # 3. Passports & Consular Services
+    if "passport" in url_lower or "passport" in title_lower:
+        return {
+            "portal_name": "Passport Seva Portal (PSP)",
+            "authority_name": "Ministry of External Affairs (MEA)",
+            "portal_type": "PASSPORT_SERVICES",
+            "welcome_greeting": "Namaste! I have inspected Passport Seva. I can guide you through fresh passport application, appointment booking, or tracking status.",
+            "placeholder_text": "Ask passport questions, e.g. 'how to apply for fresh passport'...",
+            "chips": [
+                {"label": "📘 Fresh Passport Step-by-Step", "text": "How to apply for a fresh passport step-by-step?"},
+                {"label": "📅 Book PSK Appointment", "text": "How do I book an appointment slot at Passport Seva Kendra?"},
+                {"label": "📑 Documents Required", "text": "What documents are required for passport address and date of birth proof?"},
+                {"label": "🔍 Track Application Status", "text": "How do I track my passport application file status?"}
+            ],
+            "location_question": "Which city is your nearest Passport Seva Kendra (PSK)?",
+            "authority_label": "Passport Office",
+            "has_form": False,
+            "is_landing_page": True
+        }
+
+    # 4. EPFO / PF & Pensions
+    if "epf" in url_lower or "epfindia" in url_lower or "provident" in text_lower:
+        return {
+            "portal_name": "Employees' Provident Fund Portal (EPFO)",
+            "authority_name": "Employees' Provident Fund Organisation",
+            "portal_type": "EPFO_SERVICES",
+            "welcome_greeting": "Namaste! I have inspected EPFO. I can guide you through online PF withdrawal, UAN KYC linking, and member passbook download.",
+            "placeholder_text": "Ask EPFO questions, e.g. 'how to withdraw PF online'...",
+            "chips": [
+                {"label": "💰 Online PF Withdrawal (Form 19/10C)", "text": "How to withdraw PF money online using UAN?"},
+                {"label": "🔄 Transfer PF from Old Company", "text": "How do I transfer my PF balance from previous employer to new company?"},
+                {"label": "🆔 Link Aadhaar & Bank with UAN", "text": "How to complete KYC and link bank account with UAN?"},
+                {"label": "📜 Download Member Passbook", "text": "How to check and download my EPFO passbook balance?"}
+            ],
+            "location_question": "Where is your employer or regional EPFO office located?",
+            "authority_label": "Regional PF Office",
+            "has_form": False,
+            "is_landing_page": True
+        }
+
+    # 5. Parivahan / Driving License & Vahan
+    if "parivahan" in url_lower or "sarathi" in url_lower or "vahan" in url_lower:
+        return {
+            "portal_name": "Parivahan Sewa (Transport Portal)",
+            "authority_name": "Ministry of Road Transport and Highways (MoRTH)",
+            "portal_type": "TRANSPORT_SERVICES",
+            "welcome_greeting": "Namaste! I have inspected Parivahan Sewa. I can guide you through Learner's License, Driving License renewal, and Vehicle RC.",
+            "placeholder_text": "Ask Parivahan questions, e.g. 'how to apply for learner license'...",
+            "chips": [
+                {"label": "🚗 Apply for Learner's License", "text": "How to apply for online Learner's License test?"},
+                {"label": "💳 Driving License Renewal", "text": "Steps to renew expired driving license online."},
+                {"label": "📄 Vehicle RC Transfer / Duplicate", "text": "How to apply for vehicle ownership transfer online?"},
+                {"label": "📅 Book RTO Slot & Test", "text": "How to book an appointment slot for driving skill test at RTO?"}
+            ],
+            "location_question": "Which RTO or State are you applying in?",
+            "authority_label": "Regional Transport Office (RTO)",
+            "has_form": False,
+            "is_landing_page": True
+        }
+
+    # 6. Municipal Corporation Portals
+    if "portal" in url_lower or "municipal" in text_lower or "corporation" in text_lower or "ward" in text_lower:
         return {
             "portal_name": "Municipal Corporation Redressal Portal",
             "authority_name": "Municipal Corporation & Urban Development",
@@ -432,22 +666,26 @@ def study_website_page(url: str, title: str = "", headings: Any = "", page_text:
             "has_form": True,
             "is_landing_page": False
         }
-    else:
-        portal_name = title.strip() if title else "Public Service Portal"
-        return {
-            "portal_name": portal_name,
-            "authority_name": "Public Redressal Authority",
-            "portal_type": "CIVIC_PORTAL",
-            "welcome_greeting": f"Namaste! I have studied {portal_name}. What issue or public service request can I help you file today?",
-            "placeholder_text": "Speak or type your grievance or public service inquiry...",
-            "chips": [
-                {"label": "🚰 Water & Sanitation Grievance", "text": "Severe drinking water contamination and pipeline leakage in my locality."},
-                {"label": "🚧 Road & Infrastructure Repair", "text": "Major road surface damage and non-functional streetlights."},
-                {"label": "🏛️ Public Service & Scheme Query", "text": "Application for civic certificate is pending beyond citizen charter timeline."},
-                {"label": "⚡ Electricity & Utility Disruption", "text": "Frequent unannounced power cuts and low voltage damaging home appliances."}
-            ],
-            "location_question": "Where did this happen? (Your street, colony, ward, or city) or tap GPS.",
-            "authority_label": "Concerned Department",
-            "has_form": True,
-            "is_landing_page": False
-        }
+
+    # 7. General Fallback with Domain-Specific Chips (NO hardcoded municipal water/roads on generic portals!)
+    portal_name = title.strip() if title else "Public Service Portal"
+    res = {
+        "portal_name": portal_name,
+        "authority_name": "Public Service Authority",
+        "portal_type": "CIVIC_PORTAL",
+        "welcome_greeting": f"Namaste! I have inspected {portal_name}. What service or guidance can I help you with today?",
+        "placeholder_text": f"Ask how to use {portal_name} or report an issue...",
+        "chips": [
+            {"label": "📝 Step-by-Step Application Guide", "text": f"How do I apply or register on {portal_name} step-by-step?"},
+            {"label": "🔍 Track Application / Petition Status", "text": f"How do I track my existing status on {portal_name}?"},
+            {"label": "📑 Required Documents & Guidelines", "text": f"What documents and guidelines are required for {portal_name}?"},
+            {"label": "❓ Helpdesk & Support Assistance", "text": f"How to reach official helpline and support for {portal_name}?"}
+        ],
+        "location_question": "Where are you located (City or State)?",
+        "authority_label": "Concerned Authority",
+        "has_form": False,
+        "is_landing_page": True
+    }
+    if cache_key:
+        _PAGE_STUDY_CACHE[cache_key] = res
+    return res
