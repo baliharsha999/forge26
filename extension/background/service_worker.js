@@ -41,7 +41,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.tabs.sendMessage(tabs[0].id, {
         action: "HIGHLIGHT_PAGE_ELEMENT",
         target: message.target || "SIGN_IN"
-      }, (res) => sendResponse(res || { success: true }));
+      }, (res) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          sendResponse(res || { success: true });
+        }
+      });
     });
     return true;
   }
@@ -55,7 +61,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
       chrome.tabs.sendMessage(tabs[0].id, {
         action: "CLICK_PAGE_ELEMENT",
         target: message.target || "SIGN_IN"
-      }, (res) => sendResponse(res || { success: true }));
+      }, (res) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          sendResponse(res || { success: true });
+        }
+      });
     });
     return true;
   }

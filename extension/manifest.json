@@ -1,7 +1,7 @@
 {
   "manifest_version": 3,
   "name": "Nagarik AI - Civic Copilot",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Empowering Every Citizen - Voice-guided automated civic complaint copilot for municipal and public portals.",
   "icons": {
     "16": "icons/icon16.png",
@@ -17,6 +17,9 @@
   "host_permissions": [
     "http://localhost:8000/*",
     "http://127.0.0.1:8000/*",
+    "https://pgportal.gov.in/*",
+    "http://pgportal.gov.in/*",
+    "https://*.pgportal.gov.in/*",
     "https://*.gov.in/*",
     "http://*.gov.in/*",
     "https://*.nic.in/*",
@@ -36,6 +39,9 @@
       "matches": [
         "http://localhost:8000/*",
         "http://127.0.0.1:8000/*",
+        "https://pgportal.gov.in/*",
+        "http://pgportal.gov.in/*",
+        "https://*.pgportal.gov.in/*",
         "https://*.gov.in/*",
         "http://*.gov.in/*",
         "https://*.nic.in/*",
@@ -49,7 +55,8 @@
         "content/adapters/index.js",
         "content/content_script.js"
       ],
-      "css": ["content/banner.css"]
+      "css": ["content/banner.css"],
+      "run_at": "document_idle"
     }
   ]
 }

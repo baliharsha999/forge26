@@ -631,7 +631,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 chrome.runtime.sendMessage({
                   action: "TRIGGER_HIGHLIGHT_ELEMENT",
                   target: d.action_type === "HIGHLIGHT_REGISTER" ? "REGISTER" : "SIGN_IN"
-                });
+                }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
                 speak("Highlighting on your webpage now.");
               };
             }
@@ -641,7 +641,7 @@ document.addEventListener("DOMContentLoaded", () => {
                 chrome.runtime.sendMessage({
                   action: "TRIGGER_CLICK_ELEMENT",
                   target: d.action_type === "HIGHLIGHT_REGISTER" ? "REGISTER" : "SIGN_IN"
-                });
+                }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
                 speak("Opening sign-in for you.");
               };
             }
@@ -651,7 +651,7 @@ document.addEventListener("DOMContentLoaded", () => {
           chrome.runtime.sendMessage({
             action: "TRIGGER_HIGHLIGHT_ELEMENT",
             target: d.action_type === "HIGHLIGHT_REGISTER" ? "REGISTER" : "SIGN_IN"
-          });
+          }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
 
           speak(d.guidance_message || "Please check the highlighted button on your screen to sign in.");
           return; // STOP! Never ask location/phone when user asked for guidance!
@@ -685,7 +685,7 @@ document.addEventListener("DOMContentLoaded", () => {
           chrome.runtime.sendMessage({
             action: "TRIGGER_FILL_FIELDS",
             fields: complaintData
-          });
+          }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
 
           mandalaSpinner.classList.add("complete");
           analyzingTitle.innerText = "⚡ Form Auto-Filled!";
@@ -704,7 +704,7 @@ document.addEventListener("DOMContentLoaded", () => {
           chrome.runtime.sendMessage({
             action: "TRIGGER_HIGHLIGHT_ELEMENT",
             target: "SIGN_IN"
-          });
+          }, (res) => { if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError); });
 
           setTimeout(() => {
             finalizeToStep6();

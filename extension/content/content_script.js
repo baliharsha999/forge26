@@ -108,22 +108,34 @@
     return true;
   }
 
-    // Observe DOM for newly rendered tracking ID (e.g. after citizen submits)
-  const observer = new MutationObserver(() => {
-    const adapter = window.getPortalAdapter();
-    if (adapter) {
-      adapter.readTrackingId().then(trackingId => {
-        if (trackingId) {
-          chrome.runtime.sendMessage({
-            action: "TRACKING_ID_DETECTED",
-            trackingId: trackingId
-          });
+  // Observe DOM for newly rendered tracking ID safely (only when submit happens)
+  if (typeof MutationObserver !== "undefined" && document.body) {
+    let lastReportedId = null;
+    const observer = new MutationObserver(() => {
+      try {
+        const bodyTxt = document.body ? document.body.innerText : "";
+        // Only inspect if page contains post-submission success indicators
+        if (/registered successfully|grievance lodged|registration no|receipt/i.test(bodyTxt)) {
+          const adapter = typeof window.getPortalAdapter === "function" ? window.getPortalAdapter() : null;
+          if (adapter && typeof adapter.readTrackingId === "function") {
+            adapter.readTrackingId().then(trackingId => {
+              if (trackingId && trackingId !== lastReportedId) {
+                lastReportedId = trackingId;
+                chrome.runtime.sendMessage({
+                  action: "TRACKING_ID_DETECTED",
+                  trackingId: trackingId
+                }).catch(() => {});
+              }
+            }).catch(() => {});
+          }
         }
-      });
-    }
-  });
+      } catch (err) {
+        // Silent catch to prevent console errors
+      }
+    });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
+  }
 
   // Listen for extension messages
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
