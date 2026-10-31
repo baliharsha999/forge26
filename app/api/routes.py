@@ -4,6 +4,7 @@ Provides /chat, /ingest, /documents, /graph, and /health endpoints.
 """
 
 import os
+import asyncio
 from typing import List, Dict, Any, Optional
 from fastapi import APIRouter, HTTPException, BackgroundTasks
 from pydantic import BaseModel, Field
@@ -83,7 +84,7 @@ async def chat_endpoint(request: ChatRequest):
         original_query=request.query.strip(),
         response_language=request.response_language or "auto"
     )
-    final_state = query_graph.invoke(initial_state)
+    final_state = await asyncio.to_thread(query_graph.invoke, initial_state)
 
     eval_data = final_state.get("retrieval_evaluation") or final_state.get("evaluation_result") or {
         "is_relevant": False,
@@ -129,7 +130,7 @@ async def ingest_database_documents():
     Loads HTML, splits chunks, generates SentenceTransformer embeddings, and updates FAISS HNSW + BM25.
     """
     initial_state = RAGState(original_query="Ingest all database documents")
-    res = ingestion_graph.invoke(initial_state)
+    res = await asyncio.to_thread(ingestion_graph.invoke, initial_state)
     chunks_count = len(res.get("chunks", []))
     return IngestResponse(
         status="success",
