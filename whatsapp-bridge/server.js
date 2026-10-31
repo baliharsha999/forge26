@@ -1,10 +1,10 @@
 /**
  * Nagarik AI - Live WhatsApp Business Bridge
- * Turns phone number +91 9553948740 into the official Nagarik AI Chatbot!
+ * Connects +91 9553948740 directly to Nagarik AI RAG Engine
  * 
- * - Pairs with phone via WhatsApp Linked Devices (Pairing Code or QR Code)
- * - Auto-responds to all inbound citizen WhatsApp messages using STAIR RAG Engine (port 8000)
- * - Exposes HTTP API on port 3001 for outbound proactive messaging
+ * - Pairs via QR Code or Phone Pairing Code
+ * - Auto-routes all incoming WhatsApp messages to STAIR RAG Engine (port 8000)
+ * - Auto-replies with verified government scheme citations (.gov.in)
  */
 
 const {
@@ -19,9 +19,10 @@ const axios = require('axios');
 const path = require('path');
 const fs = require('fs');
 const QRCode = require('qrcode');
+const qrcodeTerminal = require('qrcode-terminal');
 
 const PORT = 3001;
-const BOT_PHONE_NUMBER = '919553948740'; // Official Nagarik AI Business Number
+const BOT_PHONE_NUMBER = '919553948740';
 const STAIR_BACKEND_URL = 'http://127.0.0.1:8000/api/v1/schemes/chat';
 
 const app = express();
@@ -32,136 +33,178 @@ let currentQR = null;
 let currentPairingCode = null;
 let isConnected = false;
 let botJid = null;
+let isStarting = false;
+
+process.on('uncaughtException', (err) => {
+  console.log('[WhatsApp Error Guard]', err.message);
+});
+
+process.on('unhandledRejection', (reason) => {
+  console.log('[WhatsApp Rejection Guard]', reason?.message || reason);
+});
 
 async function startWhatsAppBridge() {
-  const authDir = path.join(__dirname, 'auth_info_baileys');
-  const { state, saveCreds } = await useMultiFileAuthState(authDir);
-  const { version } = await fetchLatestBaileysVersion();
+  if (isStarting) return;
+  isStarting = true;
 
-  sock = makeWASocket({
-    version,
-    logger: pino({ level: 'silent' }),
-    printQRInTerminal: false,
-    auth: state,
-    browser: ['Nagarik AI', 'Chrome', '1.0.0']
-  });
+  try {
+    const authDir = path.join(__dirname, 'auth_info_baileys');
+    const { state, saveCreds } = await useMultiFileAuthState(authDir);
+    const { version } = await fetchLatestBaileysVersion();
 
-  // Handle pairing code if not registered yet
-  if (!sock.authState.creds.registered) {
-    console.log(`[WhatsApp] Requesting Pairing Code for +${BOT_PHONE_NUMBER}...`);
-    setTimeout(async () => {
-      try {
-        const code = await sock.requestPairingCode(BOT_PHONE_NUMBER);
-        currentPairingCode = code;
-        console.log(`\n======================================================`);
-        console.log(`🔔 WHATSAPP PAIRING CODE FOR +${BOT_PHONE_NUMBER}:`);
-        console.log(`👉  ${code}  👈`);
-        console.log(`Open WhatsApp on ${BOT_PHONE_NUMBER} -> Linked Devices -> Link with Phone Number -> Enter this code!`);
-        console.log(`======================================================\n`);
-      } catch (err) {
-        console.error('[WhatsApp] Pairing code error:', err.message);
-      }
-    }, 4000);
-  }
-
-  // Connection Updates
-  sock.ev.on('connection.update', async (update) => {
-    const { connection, lastDisconnect, qr } = update;
-
-    if (qr) {
-      currentQR = qr;
+    if (sock) {
+      try { sock.end(); } catch (_) {}
+      sock = null;
     }
 
-    if (connection === 'close') {
-      const shouldReconnect =
-        lastDisconnect?.error?.output?.statusCode !== DisconnectReason.loggedOut;
-      console.log(`[WhatsApp] Connection closed. Reconnecting: ${shouldReconnect}`);
-      isConnected = false;
-      currentPairingCode = null;
-      if (shouldReconnect) {
-        setTimeout(startWhatsAppBridge, 3000);
-      }
-    } else if (connection === 'open') {
-      console.log(`\n✅ [WhatsApp] Successfully connected as +${BOT_PHONE_NUMBER}!`);
-      isConnected = true;
-      currentQR = null;
-      currentPairingCode = null;
-      botJid = sock.user.id;
-    }
-  });
+    sock = makeWASocket({
+      version,
+      logger: pino({ level: 'silent' }),
+      printQRInTerminal: false,
+      auth: state,
+      browser: ['Nagarik AI', 'Chrome', '1.0.0']
+    });
 
-  // Save Credentials
-  sock.ev.on('creds.update', saveCreds);
-
-  // Inbound Messages Listener
-  sock.ev.on('messages.upsert', async ({ messages, type }) => {
-    if (type !== 'notify') return;
-
-    for (const msg of messages) {
-      if (!msg.message || msg.key.remoteJid === 'status@broadcast') continue;
-
-      const fromJid = msg.key.remoteJid;
-      const isFromMe = msg.key.fromMe;
-
-      // Extract text content
-      const text =
-        msg.message.conversation ||
-        msg.message.extendedTextMessage?.text ||
-        msg.message.imageMessage?.caption ||
-        '';
-
-      if (!text || text.trim().length === 0) continue;
-
-      // Don't respond to own automated messages, but allow "Message Yourself" testing
-      if (isFromMe && fromJid !== botJid && !fromJid.includes(BOT_PHONE_NUMBER)) {
-        continue;
-      }
-
-      console.log(`[WhatsApp] Inbound from ${fromJid}: "${text}"`);
-
-      try {
-        // Send typing indicator
-        await sock.sendPresenceUpdate('composing', fromJid);
-
-        // Query Nagarik AI STAIR Engine
-        const res = await axios.post(
-          STAIR_BACKEND_URL,
-          { message: text, language: 'auto' },
-          { timeout: 15000 }
-        );
-
-        const data = res.data;
-        const answer = data.answer || 'Apologies, could not process request right now.';
-        const citations = data.citations || [];
-
-        // Format clean WhatsApp response
-        let reply = answer;
-        if (citations && citations.length > 0) {
-          reply += '\n\n🏛️ *Official Verified Portals:*';
-          citations.slice(0, 3).forEach((c) => {
-            reply += `\n• *${c.name}*: ${c.official_url}`;
-          });
+    // Request pairing code if phone is not registered yet
+    if (!sock.authState.creds.registered) {
+      setTimeout(async () => {
+        try {
+          if (sock && !sock.authState.creds.registered && !isConnected) {
+            console.log(`[WhatsApp] Requesting fresh pairing code for ${BOT_PHONE_NUMBER}...`);
+            const code = await sock.requestPairingCode(BOT_PHONE_NUMBER);
+            currentPairingCode = code;
+            console.log(`\n======================================================`);
+            console.log(`🔔 PAIRING CODE FOR +${BOT_PHONE_NUMBER}: 👉  ${code}  👈`);
+            console.log(`1. In WhatsApp -> Linked Devices -> Link a Device`);
+            console.log(`2. Tap "Link with phone number instead"`);
+            console.log(`3. Country: India (+91) | Number: ONLY 10 digits: 9553948740`);
+            console.log(`4. Enter code: ${code}`);
+            console.log(`======================================================\n`);
+          }
+        } catch (err) {
+          console.log('[WhatsApp] Pairing code note:', err.message);
         }
-        reply += '\n\n_Reply with a question anytime — Nagarik AI is available 24/7._';
-
-        // Send reply
-        await sock.sendMessage(fromJid, { text: reply }, { quoted: msg });
-        console.log(`[WhatsApp] Replied to ${fromJid} with verified guidance.`);
-      } catch (err) {
-        console.error('[WhatsApp] Processing error:', err.message);
-        await sock.sendMessage(fromJid, {
-          text: 'Namaste! We are currently synchronizing official portal records. Please try again in a few moments.'
-        });
-      }
+      }, 3500);
     }
-  });
+
+    // Connection Updates
+    sock.ev.on('connection.update', async (update) => {
+      const { connection, lastDisconnect, qr } = update;
+
+      if (qr) {
+        currentQR = qr;
+        console.log('\n[WhatsApp] QR Code ready! Scan with camera at http://localhost:3001/qr\n');
+        try {
+          qrcodeTerminal.generate(qr, { small: true });
+        } catch (_) {}
+      }
+
+      if (connection === 'close') {
+        const statusCode = lastDisconnect?.error?.output?.statusCode;
+        const isLoggedOut = statusCode === DisconnectReason.loggedOut;
+        console.log(`[WhatsApp] Socket closed (${statusCode || 'unknown'}). Reconnecting in 3s...`);
+        isConnected = false;
+        currentPairingCode = null;
+
+        if (isLoggedOut) {
+          try {
+            fs.rmSync(authDir, { recursive: true, force: true });
+          } catch (_) {}
+        }
+
+        setTimeout(() => {
+          isStarting = false;
+          startWhatsAppBridge();
+        }, 3000);
+      } else if (connection === 'open') {
+        console.log(`\n======================================================`);
+        console.log(`✅ [WhatsApp] CONNECTED AS NAGARIK AI BOT (+${BOT_PHONE_NUMBER})!`);
+        console.log(`======================================================\n`);
+        isConnected = true;
+        currentQR = null;
+        currentPairingCode = null;
+        botJid = sock.user.id;
+      }
+    });
+
+    sock.ev.on('creds.update', saveCreds);
+
+    // Inbound Messages Listener
+    sock.ev.on('messages.upsert', async ({ messages, type }) => {
+      if (type !== 'notify') return;
+
+      for (const msg of messages) {
+        if (!msg.message || msg.key.remoteJid === 'status@broadcast') continue;
+
+        const fromJid = msg.key.remoteJid;
+        const isFromMe = msg.key.fromMe;
+
+        const text =
+          msg.message.conversation ||
+          msg.message.extendedTextMessage?.text ||
+          msg.message.imageMessage?.caption ||
+          '';
+
+        if (!text || text.trim().length === 0) continue;
+
+        // Skip self-replies unless self-chatting
+        if (isFromMe && fromJid !== botJid && !fromJid.includes(BOT_PHONE_NUMBER)) {
+          continue;
+        }
+
+        console.log(`\n[WhatsApp Inbound] From ${fromJid}: "${text}"`);
+
+        try {
+          // Send typing indicator
+          await sock.sendPresenceUpdate('composing', fromJid);
+
+          // Query STAIR RAG Engine
+          const res = await axios.post(
+            STAIR_BACKEND_URL,
+            { message: text, language: 'auto' },
+            { timeout: 20000 }
+          );
+
+          const data = res.data;
+          const answer = data.answer || 'Apologies, could not process query right now.';
+          const citations = data.citations || [];
+
+          let reply = answer;
+          if (citations && citations.length > 0) {
+            reply += '\n\n🏛️ *Official Verified Portals:*';
+            citations.slice(0, 3).forEach((c) => {
+              reply += `\n• *${c.name}*: ${c.official_url}`;
+            });
+          }
+          reply += '\n\n_Nagarik AI Civic Bot • 24/7 Verified Indian Citizen Assistant_';
+
+          await sock.sendMessage(fromJid, { text: reply }, { quoted: msg });
+          console.log(`[WhatsApp Outbound] Successfully replied to ${fromJid}`);
+        } catch (err) {
+          console.error('[WhatsApp Error]', err.message);
+          try {
+            await sock.sendMessage(fromJid, {
+              text: 'Namaste! We are currently retrieving official records from state portals. Please try your question again in a moment.'
+            });
+          } catch (_) {}
+        }
+      }
+    });
+  } catch (err) {
+    console.error('[WhatsApp Setup Error]', err.message);
+    setTimeout(() => {
+      isStarting = false;
+      startWhatsAppBridge();
+    }, 5000);
+  } finally {
+    isStarting = false;
+  }
 }
 
 // -----------------------------------------------------------------------------
-// HTTP Control & Outbound Endpoints
+// Web Interface & HTTP APIs
 // -----------------------------------------------------------------------------
 
-// Status endpoint
 app.get('/status', (req, res) => {
   res.json({
     connected: isConnected,
@@ -171,20 +214,29 @@ app.get('/status', (req, res) => {
   });
 });
 
-// Pairing & QR Code Webpage
 app.get('/qr', async (req, res) => {
   if (isConnected) {
     return res.send(`
       <!DOCTYPE html>
       <html>
-      <head><title>Nagarik AI WhatsApp Bot</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-      <body style="font-family: sans-serif; background: #0B0C1E; color: #E8E9F2; text-align: center; padding: 40px 20px;">
-        <div style="background: #14172B; max-width: 480px; margin: 0 auto; padding: 30px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
-          <div style="font-size: 54px;">✅</div>
-          <h2 style="color: #25D366; margin-top: 10px;">WhatsApp Bot Active!</h2>
-          <p style="color: #8F93B5; font-size: 15px;">Phone number <strong>+${BOT_PHONE_NUMBER}</strong> is officially connected as the Nagarik AI RAG Chatbot.</p>
-          <p style="background: #1B2038; padding: 12px; border-radius: 8px; font-family: monospace; color: #25D366;">Status: CONNECTED & LISTENING</p>
-          <p style="font-size: 13px; color: #64748B;">Any citizen sending a message to +${BOT_PHONE_NUMBER} will receive instant AI replies.</p>
+      <head>
+        <title>Nagarik AI WhatsApp Bot</title>
+        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <style>
+          body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0B0C1E; color: #E8E9F2; text-align: center; padding: 40px 20px; }
+          .card { background: #14172B; max-width: 480px; margin: 0 auto; padding: 32px; border-radius: 20px; border: 1px solid rgba(37,211,102,0.3); box-shadow: 0 10px 40px rgba(0,0,0,0.5); }
+          .badge { background: rgba(37,211,102,0.15); color: #25D366; padding: 6px 14px; border-radius: 20px; font-weight: bold; font-size: 13px; display: inline-block; margin-bottom: 16px; }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <div class="badge">● LIVE & ACTIVE</div>
+          <h2 style="color: #25D366; margin: 0 0 10px 0;">WhatsApp Bot Connected!</h2>
+          <p style="color: #8F93B5; font-size: 15px;">Phone number <strong>+${BOT_PHONE_NUMBER}</strong> is officially serving citizens via Nagarik AI RAG.</p>
+          <div style="background: #1B2038; padding: 14px; border-radius: 10px; font-family: monospace; color: #25D366; margin: 20px 0;">
+            Status: LISTENING TO MESSAGES
+          </div>
+          <p style="font-size: 13px; color: #64748B;">Send any scheme or Aadhaar DBT question to this number to test live responses.</p>
         </div>
       </body>
       </html>
@@ -193,34 +245,57 @@ app.get('/qr', async (req, res) => {
 
   let qrImgTag = '';
   if (currentQR) {
-    const qrDataUrl = await QRCode.toDataURL(currentQR);
-    qrImgTag = `<img src="${qrDataUrl}" style="width: 250px; height: 250px; border-radius: 12px; margin: 20px 0;" />`;
+    const qrDataUrl = await QRCode.toDataURL(currentQR, { width: 300, margin: 2 });
+    qrImgTag = `<img src="${qrDataUrl}" style="width: 260px; height: 260px; border-radius: 16px; margin: 15px auto; display: block; border: 4px solid #25D366;" />`;
   }
 
   res.send(`
     <!DOCTYPE html>
     <html>
-    <head><title>Connect WhatsApp Bot (+91 9553948740)</title><meta name="viewport" content="width=device-width, initial-scale=1"></head>
-    <body style="font-family: sans-serif; background: #0B0C1E; color: #E8E9F2; text-align: center; padding: 40px 20px;">
-      <div style="background: #14172B; max-width: 480px; margin: 0 auto; padding: 30px; border-radius: 16px; border: 1px solid rgba(255,255,255,0.1);">
-        <h2 style="color: #25D366; margin-bottom: 8px;">Connect Nagarik AI WhatsApp Bot</h2>
-        <p style="color: #8F93B5; font-size: 14px; margin-bottom: 24px;">Link phone number <strong>+${BOT_PHONE_NUMBER}</strong></p>
-        
+    <head>
+      <title>Connect WhatsApp Bot (+91 9553948740)</title>
+      <meta name="viewport" content="width=device-width, initial-scale=1">
+      <style>
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #0B0C1E; color: #E8E9F2; text-align: center; padding: 30px 16px; margin: 0; }
+        .card { background: #14172B; max-width: 500px; margin: 0 auto; padding: 28px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.1); box-shadow: 0 10px 40px rgba(0,0,0,0.6); }
+        .pill { background: rgba(37,211,102,0.15); color: #25D366; padding: 4px 12px; border-radius: 12px; font-size: 12px; font-weight: 600; display: inline-block; margin-bottom: 12px; }
+        .code-box { background: #1B2038; padding: 16px; border-radius: 12px; border: 1px dashed #25D366; margin: 20px 0; }
+        .code { font-size: 32px; font-family: ui-monospace, monospace; font-weight: 800; letter-spacing: 5px; color: #25D366; }
+        ol { text-align: left; font-size: 13px; color: #8F93B5; line-height: 1.6; padding-left: 20px; margin: 15px 0; }
+      </style>
+    </head>
+    <body>
+      <div class="card">
+        <div class="pill">NAGARIK AI • WHATSAPP BRIDGE</div>
+        <h2 style="color: #FFFFFF; margin: 0 0 8px 0;">Connect WhatsApp Bot</h2>
+        <p style="color: #8F93B5; font-size: 14px; margin: 0 0 20px 0;">Official Citizen Helpline for <strong>+${BOT_PHONE_NUMBER}</strong></p>
+
+        <!-- Method 1: QR Scan -->
+        <div style="background: rgba(255,255,255,0.03); padding: 18px; border-radius: 14px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 20px;">
+          <h3 style="color: #25D366; font-size: 15px; margin: 0 0 8px 0;">Method 1: Scan with WhatsApp Camera (Easiest)</h3>
+          <p style="color: #8F93B5; font-size: 12px; margin: 0;">Open WhatsApp on phone &rarr; <strong>Linked Devices</strong> &rarr; <strong>Link a Device</strong> &rarr; Scan below:</p>
+          ${qrImgTag || '<div style="padding: 40px 0; color: #8F93B5; font-size: 14px;">Generating fresh QR code...</div>'}
+        </div>
+
+        <!-- Method 2: Pairing Code -->
         ${
           currentPairingCode
             ? `
-          <div style="background: #1B2038; padding: 20px; border-radius: 12px; border: 1px solid #25D366; margin: 20px 0;">
-            <p style="font-size: 12px; color: #25D366; text-transform: uppercase; letter-spacing: 1px; font-weight: bold; margin: 0 0 10px 0;">Instant Pairing Code</p>
-            <div style="font-size: 32px; font-family: monospace; font-weight: bold; letter-spacing: 4px; color: #FFFFFF;">${currentPairingCode}</div>
-            <p style="font-size: 13px; color: #8F93B5; margin: 12px 0 0 0;">Open WhatsApp on <strong>${BOT_PHONE_NUMBER}</strong> &rarr; Linked Devices &rarr; Link with Phone Number &rarr; Enter code</p>
+          <div class="code-box">
+            <div style="font-size: 11px; color: #25D366; font-weight: bold; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 6px;">Method 2: 8-Digit Pairing Code</div>
+            <div class="code">${currentPairingCode}</div>
+            <ol>
+              <li>Open WhatsApp on <strong>${BOT_PHONE_NUMBER}</strong> &rarr; <strong>Linked Devices</strong></li>
+              <li>Tap <strong>Link a Device</strong> &rarr; Tap <strong>"Link with phone number instead"</strong></li>
+              <li>Country: <strong>India (+91)</strong> &bull; Number: type ONLY <strong>9553948740</strong></li>
+              <li>Enter code <strong>${currentPairingCode}</strong></li>
+            </ol>
           </div>
           `
             : ''
         }
 
-        ${qrImgTag ? `<p style="font-size: 13px; color: #8F93B5;">Or scan this QR Code using WhatsApp camera:</p>${qrImgTag}` : ''}
-        
-        <p style="font-size: 12px; color: #64748B; margin-top: 20px;">This page refreshes automatically...</p>
+        <p style="font-size: 11px; color: #64748B; margin-top: 20px;">Page auto-refreshes every 4 seconds...</p>
       </div>
       <script>
         setTimeout(() => location.reload(), 4000);
@@ -228,33 +303,6 @@ app.get('/qr', async (req, res) => {
     </body>
     </html>
   `);
-});
-
-// Outbound message sender (to message users from +91 9553948740)
-app.post('/send', async (req, res) => {
-  const { to, message } = req.body;
-  if (!to || !message) {
-    return res.status(400).json({ error: 'Missing "to" or "message"' });
-  }
-
-  if (!isConnected || !sock) {
-    return res.status(503).json({ error: 'WhatsApp bot is not connected yet. Please link via /qr' });
-  }
-
-  try {
-    let cleanNumber = to.replace(/[^0-9]/g, '');
-    if (!cleanNumber.startsWith('91') && cleanNumber.length === 10) {
-      cleanNumber = '91' + cleanNumber;
-    }
-    const jid = `${cleanNumber}@s.whatsapp.net`;
-
-    await sock.sendMessage(jid, { text: message });
-    console.log(`[WhatsApp] Outbound message sent to ${jid}`);
-    return res.json({ success: true, to: jid });
-  } catch (err) {
-    console.error('[WhatsApp] Outbound error:', err.message);
-    return res.status(500).json({ error: err.message });
-  }
 });
 
 app.listen(PORT, () => {
