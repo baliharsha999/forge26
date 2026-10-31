@@ -470,7 +470,7 @@ class STAIRCivicAgent:
         # 0. Try Local Ollama GPU Model (NVIDIA RTX 4060)
         ollama_url = getattr(settings, "OLLAMA_BASE_URL", "http://127.0.0.1:11434")
         try:
-            async with httpx.AsyncClient(timeout=25.0) as client:
+            async with httpx.AsyncClient(timeout=1.0) as client:
                 tag_resp = await client.get(f"{ollama_url}/api/tags")
                 if tag_resp.status_code == 200:
                     models = [m.get("name") for m in tag_resp.json().get("models", [])]
@@ -489,7 +489,8 @@ class STAIRCivicAgent:
                                     "temperature": 0.1,
                                     "num_predict": 1200
                                 }
-                            }
+                            },
+                            timeout=15.0
                         )
                         if chat_resp.status_code == 200:
                             content = chat_resp.json().get("message", {}).get("content", "")
@@ -497,7 +498,7 @@ class STAIRCivicAgent:
                                 print(f"[STAIR] Generated via Local GPU ({chosen_model})")
                                 return content.strip()
         except Exception as e:
-            print(f"[STAIR] Local GPU note: {e}")
+            pass
 
         # 1. Try Groq (Ultra-fast cloud inference fallback)
         if settings.GROQ_API_KEY:

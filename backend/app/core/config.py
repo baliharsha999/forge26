@@ -39,4 +39,11 @@ class Settings(BaseModel):
     HEADLESS_BROWSER: bool = os.getenv("HEADLESS_BROWSER", "true").lower() == "true"
     CORS_ORIGINS: list[str] = ["http://localhost:3000", "http://localhost:5173", "*"]
 
+    # WhatsApp Integration Configuration
+    WHATSAPP_VERIFY_TOKEN: str = os.getenv("WHATSAPP_VERIFY_TOKEN", "nagarik_ai_secure_token")
+    WHATSAPP_PHONE_NUMBER: str = os.getenv("WHATSAPP_PHONE_NUMBER", "+919876543210")
+    TWILIO_ACCOUNT_SID: str = os.getenv("TWILIO_ACCOUNT_SID", "")
+    TWILIO_AUTH_TOKEN: str = os.getenv("TWILIO_AUTH_TOKEN", "")
+
+
 settings = Settings()

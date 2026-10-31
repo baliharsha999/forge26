@@ -6,6 +6,7 @@ import {
   Layers, Zap, CheckCircle2, RefreshCw, X, ChevronRight, FastForward,
   FileCheck, FileText, ArrowRight
 } from 'lucide-react';
+import { WhatsAppBotView } from './components/WhatsAppBotView';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 
@@ -48,7 +49,7 @@ interface ChatMessage {
 
 export default function App() {
   // Navigation Tabs: Flagship Schemes Chatbot is primary default
-  const [activeTab, setActiveTab] = useState<'chatbot' | 'schemes' | 'grievance' | 'factcheck' | 'ledger' | 'extension'>('chatbot');
+  const [activeTab, setActiveTab] = useState<'chatbot' | 'schemes' | 'grievance' | 'factcheck' | 'ledger' | 'extension' | 'whatsapp'>('chatbot');
   const [selectedLanguage, setSelectedLanguage] = useState<CivicLanguage>('en');
 
   // ==========================================
@@ -797,6 +798,31 @@ Nagarik AI Grievance Escalation Studio`
       {/* ============================================================ */}
       {/* SOVEREIGN CIVIC HEADER & NAVIGATION                         */}
       {/* ============================================================ */}
+            {/* WhatsApp Citizen Channel Announcement Banner */}
+      <div className="bg-gradient-to-r from-[#075e54] via-[#128c7e] to-[#25d366] text-white px-4 py-2 text-xs font-semibold shadow-md border-b border-[#25d366]/30">
+        <div className="max-w-7xl mx-auto flex items-center justify-between gap-3">
+          <div className="flex items-center gap-2.5">
+            <span className="flex h-2.5 w-2.5 relative">
+              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-white opacity-75"></span>
+              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-white"></span>
+            </span>
+            <span className="font-black tracking-wide flex items-center gap-1.5">
+              📱 WhatsApp Bot Live:
+            </span>
+            <span className="hidden md:inline font-medium text-emerald-100">
+              Check Aadhaar DBT bank seeding, PM-KISAN & 5,210+ schemes directly on WhatsApp with zero app install needed!
+            </span>
+          </div>
+          <button
+            onClick={() => setActiveTab('whatsapp')}
+            className="px-3 py-1 bg-white/20 hover:bg-white/30 text-white rounded-lg font-bold text-[11px] transition-all flex items-center gap-1 backdrop-blur-sm border border-white/25 hover:scale-105 active:scale-95 shadow-sm"
+          >
+            <span>📱 Open WhatsApp Bot</span>
+            <ChevronRight className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      </div>
+
       <header className="sticky top-0 z-40 w-full bg-[#0B0E1B]/95 backdrop-blur-xl border-b border-[rgba(255,255,255,0.08)] shadow-lg shadow-black/40">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4">
           
@@ -957,6 +983,22 @@ Nagarik AI Grievance Escalation Studio`
             <Zap className="w-4 h-4" />
             <span>🧩 Chrome Extension Hub</span>
           </button>
+
+          <button
+            onClick={() => setActiveTab('whatsapp')}
+            className={`px-3.5 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+              activeTab === 'whatsapp'
+                ? 'bg-[#25D366] text-[#0B0C1E] shadow-md shadow-[#25D366]/30'
+                : 'text-[#8F93B5] hover:text-[#E8E9F2] hover:bg-[#1a1d24]'
+            }`}
+          >
+            <span className="text-sm">📱</span>
+            <span>WhatsApp Bot</span>
+            <span className="px-1.5 py-0.2 bg-[#0B0C1E]/20 text-[9px] rounded font-mono uppercase tracking-wider font-bold">
+              24/7 Live
+            </span>
+          </button>
+
         </div>
       </header>
 
@@ -2064,6 +2106,16 @@ Nagarik AI Grievance Escalation Studio`
             </div>
           </div>
         )}
+              {/* ============================================================ */}
+        {/* TAB 7: WHATSAPP CITIZEN BOT & GATEWAY MOCKUP                */}
+        {/* ============================================================ */}
+        {activeTab === 'whatsapp' && (
+          <WhatsAppBotView
+            currentLanguage={selectedLanguage}
+            onLanguageChange={setSelectedLanguage}
+          />
+        )}
+
       </main>
 
       {/* ============================================================ */}
