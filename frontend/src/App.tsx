@@ -253,7 +253,7 @@ Select a quick topic below or type your question in English, Hindi (हिंद
         message: textToSend,
         language: selectedLanguage,
         history: historyPayload
-      }, { timeout: 7000 });
+      }, { timeout: 15000 });
 
       const data = res.data;
       const botMessage: ChatMessage = {
@@ -455,7 +455,7 @@ Citizens can register directly through the verified national portal **[${lead.of
 ==============================================================
 Date Generated: ${new Date().toLocaleString()}
 Reference Track: Civic Pulse, Digital Governance & Public Information
-Source Grounding: 1,450+ Verified Gazette & National Scheme Documents
+Source Grounding: 5,210+ Verified Gazette & National/State Scheme Documents
 --------------------------------------------------------------
 
 ${content.replace(/[*#_`]/g, '')}
@@ -784,7 +784,7 @@ Nagarik AI Grievance Escalation Studio`
           <div className="flex items-center gap-4 overflow-x-auto whitespace-nowrap scrollbar-none py-0.5">
             <span className="flex items-center gap-1.5 text-[#ffb692] font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-[#F06A25] animate-ping"></span>
-              🏛️ 1,450+ Verified Schemes Grounded
+              🏛️ 5,210+ Verified Schemes Grounded
             </span>
             <span className="text-[rgba(255,255,255,0.2)]">|</span>
             <span className="text-[#34d399] flex items-center gap-1">
