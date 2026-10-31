@@ -239,6 +239,7 @@ async def health_check():
         "vector_engine": _cached_stats.get("vector_engine", settings.VECTOR_DB_TYPE),
         "total_documents_in_db": db.count_documents(),
         "indexed_vectors": _cached_stats.get("vectors", 0),
+        "faiss_hnsw_vectors": _cached_stats.get("vectors", 0),
         "bm25_documents_indexed": _cached_stats.get("bm25_count", 0),
         "embedding_model": settings.EMBEDDING_MODEL_NAME,
         "reranker_model": settings.RERANKING_MODEL_NAME if not settings.LOW_MEMORY_MODE else "RRF-Cosine-Fallback (Low Memory Mode)",

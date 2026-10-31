@@ -502,13 +502,16 @@ def document_availability_check_node(state: RAGState) -> Dict[str, Any]:
     total_faiss_chunks = getattr(hnsw, "total_vectors", 0)
 
     if not existing_docs:
-        # Latency optimization: If database or FAISS has indexed knowledge,
-        # prefer semantic hybrid retrieval over blocking external web scraping.
-        if total_db_docs > 0 or total_faiss_chunks > 0:
-            scraping_required = False
-        else:
+        missing_docs.append(state.original_query)
+        is_explicit_unknown = bool(
+            (dept and "unknown" in dept.lower()) or 
+            (state.query_analysis and "unknown" in (state.query_analysis.topic or "").lower())
+        )
+        if total_db_docs == 0 or is_explicit_unknown:
             scraping_required = True
-            missing_docs.append(state.original_query)
+        else:
+            # Latency optimization: prefer hybrid retrieval if database has records
+            scraping_required = False
     elif state.knowledge_refinement_queries and state.refinement_attempts > 0:
         # Never trigger blocking web scrape during refinement loops
         scraping_required = False

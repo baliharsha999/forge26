@@ -140,6 +140,11 @@ class AnswerabilityEvaluator:
         if any(p in q_lower for p in ["apply", "process", "procedure"]) and not any(k in combined_text for k in ["apply", "application", "portal", "process", "document"]):
             missing.append("Application process")
 
+        # Specific targeted financial / technical criteria checks
+        for term in ["cibil", "credit score", "interest rate", "deadline", "penalty", "turnover"]:
+            if term in q_lower and term not in combined_text:
+                missing.append(f"Specific requirement: {term.upper()}")
+
         is_ans = len(missing) == 0
         score = 0.90 if is_ans else 0.40
 

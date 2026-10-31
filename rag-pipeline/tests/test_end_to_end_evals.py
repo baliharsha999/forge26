@@ -8,6 +8,7 @@ import os
 sys.path.insert(0, os.path.abspath("."))
 
 import pytest
+pytest.importorskip("deepeval", reason="deepeval is optional for evaluation benchmarks")
 from evals.deepeval_runner import DeepEvalRAGTestSuite
 
 

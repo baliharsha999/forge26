@@ -317,3 +317,131 @@ body {
   transform: scale(0.98);
 }
 
+
+/* Sovereign Markdown Typography & Real Tables */
+.prose-gov {
+  color: #E8E9F2;
+  font-size: 0.875rem;
+  line-height: 1.65;
+}
+
+.prose-gov p {
+  margin: 0.65rem 0;
+}
+
+.prose-gov h1, .prose-gov h2, .prose-gov h3, .prose-gov h4 {
+  color: #ffb692;
+  font-weight: 700;
+  margin-top: 1.25rem;
+  margin-bottom: 0.5rem;
+  letter-spacing: -0.01em;
+}
+
+.prose-gov h3 {
+  font-size: 1.05rem;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  padding-bottom: 0.35rem;
+}
+
+.prose-gov h4 {
+  font-size: 0.95rem;
+}
+
+.prose-gov strong {
+  color: #FFFFFF;
+  font-weight: 700;
+}
+
+.prose-gov em {
+  color: #A3A8CE;
+  font-style: italic;
+}
+
+.prose-gov ul {
+  list-style-type: disc;
+  padding-left: 1.4rem;
+  margin: 0.65rem 0;
+}
+
+.prose-gov ol {
+  list-style-type: decimal;
+  padding-left: 1.4rem;
+  margin: 0.65rem 0;
+}
+
+.prose-gov li {
+  margin: 0.35rem 0;
+}
+
+.prose-gov a {
+  color: #38bdf8;
+  text-decoration: underline;
+  text-underline-offset: 3px;
+  transition: color 0.15s ease;
+}
+
+.prose-gov a:hover {
+  color: #7dd3fc;
+}
+
+.prose-gov blockquote {
+  border-left: 3.5px solid #F06A25;
+  background: rgba(240, 106, 37, 0.08);
+  padding: 0.5rem 0.85rem;
+  border-radius: 0 8px 8px 0;
+  margin: 0.75rem 0;
+  color: #E8E9F2;
+}
+
+.prose-gov hr {
+  border: 0;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  margin: 1.25rem 0;
+}
+
+/* Beautiful responsive markdown tables */
+.prose-gov table {
+  width: 100%;
+  border-collapse: separate;
+  border-spacing: 0;
+  margin: 1rem 0;
+  border-radius: 10px;
+  overflow: hidden;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: rgba(16, 19, 34, 0.7);
+  font-size: 0.8125rem;
+}
+
+.prose-gov th {
+  background: #1B2038;
+  color: #ffb692;
+  font-weight: 700;
+  padding: 8px 12px;
+  text-align: left;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.prose-gov td {
+  padding: 8px 12px;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  color: #E8E9F2;
+}
+
+.prose-gov tr:last-child td {
+  border-bottom: none;
+}
+
+.prose-gov tr:hover td {
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.prose-gov code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.8em;
+  color: #38bdf8;
+}
+

@@ -20,6 +20,14 @@ import unicodedata
 from typing import List, Dict, Any, Optional, Tuple
 import httpx
 
+try:
+    from langsmith import traceable
+except ImportError:
+    def traceable(*args, **kwargs):
+        def decorator(f):
+            return f
+        return decorator
+
 from app.core.config import settings
 from app.models.schemas import (
     SchemesChatResponse,
@@ -181,6 +189,9 @@ class STAIRCivicAgent:
         self.schemes_catalog: List[Dict[str, Any]] = []
         self.scheme_titles_index: Dict[str, Dict[str, Any]] = {}
         self.detailed_schemes: List[Dict[str, Any]] = []
+        self._ollama_available = False
+        self._ollama_last_checked = 0.0
+        self._ollama_model = None
         self._load_all_knowledge_sources()
 
     @classmethod
@@ -313,6 +324,7 @@ class STAIRCivicAgent:
     # -------------------------------------------------------------------------
     # Node 2 & 3: STAIR Iterative Dual-LLM Synthesizer (Groq / Gemini)
     # -------------------------------------------------------------------------
+    @traceable(name="STAIR_Knowledge_Synthesizer", run_type="chain")
     async def synthesize_guidance(
         self,
         query: str,
@@ -465,47 +477,67 @@ class STAIRCivicAgent:
     # -------------------------------------------------------------------------
     # Robust LLM Calling (Local Ollama GPU -> Groq Qwen 27B -> Gemini Flash)
     # -------------------------------------------------------------------------
+    @traceable(name="STAIR_LLM_Call", run_type="llm")
     async def _call_llm(self, system_prompt: str, user_prompt: str) -> Optional[str]:
-        """Executes LLM call using Local Ollama GPU, Groq, or Google Gemini."""
-        # 0. Try Local Ollama GPU Model (NVIDIA RTX 4060)
-        ollama_url = getattr(settings, "OLLAMA_BASE_URL", "http://127.0.0.1:11434")
-        try:
-            async with httpx.AsyncClient(timeout=1.0) as client:
-                tag_resp = await client.get(f"{ollama_url}/api/tags")
-                if tag_resp.status_code == 200:
-                    models = [m.get("name") for m in tag_resp.json().get("models", [])]
-                    if models:
-                        chosen_model = models[0]
-                        chat_resp = await client.post(
-                            f"{ollama_url}/api/chat",
-                            json={
-                                "model": chosen_model,
-                                "messages": [
-                                    {"role": "system", "content": system_prompt},
-                                    {"role": "user", "content": user_prompt}
-                                ],
-                                "stream": False,
-                                "options": {
-                                    "temperature": 0.1,
-                                    "num_predict": 1200
-                                }
-                            },
-                            timeout=15.0
-                        )
-                        if chat_resp.status_code == 200:
-                            content = chat_resp.json().get("message", {}).get("content", "")
-                            if content and len(content.strip()) > 50:
-                                print(f"[STAIR] Generated via Local GPU ({chosen_model})")
-                                return content.strip()
-        except Exception as e:
-            pass
+        """Executes LLM call using Local Ollama GPU, Groq, or Google Gemini with adaptive fast routing."""
+        import time
+        now = time.time()
 
-        # 1. Try Groq (Ultra-fast cloud inference fallback)
+        # 0. Check Local Ollama GPU (adaptive caching: only probe if recently online or every 60s)
+        ollama_url = getattr(settings, "OLLAMA_BASE_URL", "http://127.0.0.1:11434")
+        if self._ollama_available or (now - self._ollama_last_checked > 60.0):
+            self._ollama_last_checked = now
+            try:
+                async with httpx.AsyncClient(timeout=0.25) as client:
+                    tag_resp = await client.get(f"{ollama_url}/api/tags")
+                    if tag_resp.status_code == 200:
+                        models = [m.get("name") for m in tag_resp.json().get("models", [])]
+                        if models:
+                            self._ollama_available = True
+                            self._ollama_model = models[0]
+                        else:
+                            self._ollama_available = False
+                    else:
+                        self._ollama_available = False
+            except Exception:
+                self._ollama_available = False
+
+        if self._ollama_available and self._ollama_model:
+            try:
+                async with httpx.AsyncClient(timeout=15.0) as client:
+                    chat_resp = await client.post(
+                        f"{ollama_url}/api/chat",
+                        json={
+                            "model": self._ollama_model,
+                            "messages": [
+                                {"role": "system", "content": system_prompt},
+                                {"role": "user", "content": user_prompt}
+                            ],
+                            "stream": False,
+                            "options": {
+                                "temperature": 0.1,
+                                "num_predict": 1200
+                            }
+                        }
+                    )
+                    if chat_resp.status_code == 200:
+                        content = chat_resp.json().get("message", {}).get("content", "")
+                        if content and len(content.strip()) > 50:
+                            print(f"[STAIR] Generated via Local GPU ({self._ollama_model})")
+                            return content.strip()
+            except Exception as e:
+                self._ollama_available = False
+
+        # 1. Try Groq (Ultra-fast cloud inference: ~1.2s p95 latency)
         if settings.GROQ_API_KEY:
-            groq_models = ["qwen/qwen3.8-27b", "openai/gpt-oss-120b", "openai/gpt-oss-20b"]
+            primary_model = getattr(settings, "GROQ_MODEL", "qwen/qwen3.8-27b")
+            fallback_model = getattr(settings, "FALLBACK_MODEL", "openai/gpt-oss-120b")
+            groq_models = [primary_model, fallback_model, "openai/gpt-oss-20b"]
+            groq_models = list(dict.fromkeys(groq_models))
+
             for model_name in groq_models:
                 try:
-                    async with httpx.AsyncClient(timeout=12.0) as client:
+                    async with httpx.AsyncClient(timeout=10.0) as client:
                         resp = await client.post(
                             "https://api.groq.com/openai/v1/chat/completions",
                             headers={
@@ -694,6 +726,7 @@ class STAIRCivicAgent:
     # -------------------------------------------------------------------------
     # Full Citizen Processing Pipeline
     # -------------------------------------------------------------------------
+    @traceable(name="STAIR_Civic_Agent", run_type="chain")
     async def process_citizen_query(self, query: str, requested_lang: str = "en") -> SchemesChatResponse:
         """Executes full STAIR DAG workflow from query to verified response."""
         detected_lang_name, lang_code = detect_language(query)

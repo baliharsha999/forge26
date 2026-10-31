@@ -41,14 +41,13 @@ def route_after_document_availability_check(state: RAGState) -> str:
     if bool(state.existing_documents) or bool(state.indexed_document_ids):
         return "hybrid_retrieval_entry"
 
-    # If the database or vector store has indexed documents, always use hybrid retrieval
-    # instead of blocking on external web scraping
-    if db.count_documents() > 0:
-        return "hybrid_retrieval_entry"
-
-    # Case 3: Empty database -> conditional web search
+    # Case 3: Required scraping / missing documents -> conditional web search
     if state.scraping_required or bool(state.missing_documents):
         return "web_search"
+
+    # If the database or vector store has indexed documents, use hybrid retrieval
+    if db.count_documents() > 0:
+        return "hybrid_retrieval_entry"
 
     return "hybrid_retrieval_entry"
 
@@ -80,8 +79,8 @@ def route_after_knowledge_refinement(state: RAGState) -> str:
       - 'controlled_fallback' if refinement attempts are exhausted.
     Prevents timeout cascades on Render free tier.
     """
-    # Cap refinement attempts to 1 to guarantee response within Render 30s budget
-    if state.refinement_attempts < 1 and bool(state.knowledge_refinement_queries):
+    # Allow up to 2 refinement iterations (attempts 0 and 1 retry; 2+ goes to fallback)
+    if state.refinement_attempts <= 1 and bool(state.knowledge_refinement_queries):
         return "query_rewriting"
     return "controlled_fallback"
 
@@ -103,7 +102,7 @@ def route_after_answerability(state: RAGState) -> str:
     if is_answerable and float(score) >= 0.70:
         return "answer_generation"
 
-    if state.refinement_attempts < 1:
+    if state.refinement_attempts <= 1:
         return "knowledge_refinement"
     return "controlled_fallback"
 

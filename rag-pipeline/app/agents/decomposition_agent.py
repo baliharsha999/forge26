@@ -128,6 +128,13 @@ class QueryDecompositionAgent:
         if any(w in q_lower for w in ["apply", "process", "procedure", "document", "how to"]):
             reqs.append("Application procedure and documents")
             subqueries.append(f"{query} application process and documents required")
+        if any(w in q_lower for w in ["student", "engineer", "scholarship", "college", "school", "education"]):
+            reqs.append("Educational qualifications and scholarship coverage")
+            subqueries.append(f"{query} educational scholarship and student grant")
+
+        if len(subqueries) < 2:
+            subqueries.append(f"{query} eligibility guidelines and requirements")
+            reqs.append("Scheme eligibility guidelines")
 
         if not subqueries:
             subqueries = [

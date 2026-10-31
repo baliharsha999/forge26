@@ -4,7 +4,7 @@ Validates all cited URLs and departments against retrieved document metadata and
 Rejects fabricated citations and formats verified source metadata including last_verified_date.
 """
 
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import List, Dict, Any, Optional
 from pydantic import BaseModel, Field
 from app.ingestion.database import GovernmentDatabase
@@ -37,7 +37,7 @@ class CitationValidator:
 
     def __init__(self, db: Optional[GovernmentDatabase] = None):
         self.db = db or GovernmentDatabase()
-        self.verification_timestamp = datetime.utcnow().strftime("%Y-%m-%d")
+        self.verification_timestamp = datetime.now(timezone.utc).strftime("%Y-%m-%d")
 
     def validate_citations(
         self,

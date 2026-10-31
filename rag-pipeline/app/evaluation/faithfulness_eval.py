@@ -161,30 +161,43 @@ class FaithfulnessEvaluator:
         context_documents: List[Dict[str, Any]]
     ) -> FaithfulnessEvaluation:
         """Deterministic numerical and keyword overlap check."""
-        combined_context = " ".join(d.get("page_content", "") for d in context_documents).lower()
+        context_parts = []
+        for d in context_documents:
+            context_parts.append(d.get("page_content", ""))
+            meta = d.get("metadata", {})
+            for v in meta.values():
+                context_parts.append(str(v))
+        combined_context = " ".join(context_parts).lower()
         ans_lower = answer.lower()
 
         # Normalize numbers by removing commas (e.g. 6,000 -> 6000)
         ans_clean = set(n.replace(",", "") for n in re.findall(r"\b\d+(?:,\d+)?\b", ans_lower))
         ctx_clean = set(n.replace(",", "") for n in re.findall(r"\b\d+(?:,\d+)?\b", combined_context))
 
-        ignored_numbers = {
-            "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
-            "12", "15", "18", "20", "21", "25", "30", "35", "50", "60", "100",
-            "2014", "2015", "2018", "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026"
+        # Standard calendar days (1-31), standard percentages, and years
+        calendar_and_standard_numbers = {str(i) for i in range(1, 32)} | {
+            "50", "60", "75", "100", "2014", "2015", "2016", "2017", "2018",
+            "2019", "2020", "2021", "2022", "2023", "2024", "2025", "2026", "2027", "2028", "2029", "2030"
         }
         unsupported_nums = [
             n for n in ans_clean
-            if n not in ctx_clean and len(n) > 2 and n not in ignored_numbers
+            if n not in ctx_clean and n not in calendar_and_standard_numbers
         ]
-        is_f = len(unsupported_nums) == 0
-        score = 0.95 if is_f else 0.50
 
         unsupported = [f"Unsupported figure: {n}" for n in unsupported_nums]
+
+        # Check for ungrounded claims (e.g. free computer, laptop, 0% interest)
+        suspicious_terms = ["computer", "laptop", "smartphone", "0% interest", "guaranteed free", "unconditional"]
+        for term in suspicious_terms:
+            if term in ans_lower and term not in combined_context:
+                unsupported.append(f"Ungrounded claim: {term}")
+
+        is_f = len(unsupported) == 0
+        score = 0.95 if is_f else 0.45
 
         return FaithfulnessEvaluation(
             is_faithful=is_f,
             faithfulness_score=score,
             unsupported_claims=unsupported,
-            reason="All figures verified in context." if is_f else f"Found unsupported figures: {', '.join(unsupported_nums)}"
+            reason="All figures verified in context." if is_f else f"Found unsupported claims: {', '.join(unsupported[:3])}"
         )

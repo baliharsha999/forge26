@@ -204,18 +204,24 @@ class AnswerGenerator:
         retrieved_documents: List[Dict[str, Any]],
         response_language: str = "English"
     ) -> GeneratedResponse:
-        """Deterministic fallback synthesis."""
+        """Deterministic fallback synthesis combining all verified context documents."""
         primary_doc = retrieved_documents[0]
         meta = primary_doc.get("metadata", {})
         title = meta.get("title", "Official Government Scheme")
         dept = meta.get("department", "Government of India")
-        content_preview = primary_doc.get("page_content", "")[:500]
+
+        snippets = []
+        for d in retrieved_documents[:4]:
+            c = d.get("page_content", "").strip()
+            if c:
+                snippets.append(c)
+        content_preview = "\n\n".join(snippets)
 
         answer = (
             f"### {title}\n\n"
             f"**Issuing Department**: {dept}\n\n"
             f"Based on the official government documentation retrieved for your inquiry:\n\n"
-            f"{content_preview}...\n\n"
+            f"{content_preview}\n\n"
             f"For detailed guidelines, eligibility, and the application procedure, refer to the official document links cited below."
         )
 

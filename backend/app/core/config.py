@@ -23,8 +23,16 @@ class Settings(BaseModel):
     GEMINI_API_KEY: str = os.getenv("GEMINI_API_KEY", "")
     GROQ_API_KEY: str = os.getenv("GROQ_API_KEY", "")
     GROQ_MODEL: str = os.getenv("GROQ_MODEL", "qwen/qwen3.8-27b")
+    FALLBACK_MODEL: str = os.getenv("FALLBACK_MODEL", "openai/gpt-oss-120b")
+    LOW_MEMORY_MODE: bool = os.getenv("LOW_MEMORY_MODE", "true").lower() == "true"
+    VECTOR_DB_TYPE: str = os.getenv("VECTOR_DB_TYPE", "faiss")
     OLLAMA_BASE_URL: str = os.getenv("OLLAMA_BASE_URL", "http://127.0.0.1:11434")
     OLLAMA_MODEL: str = os.getenv("OLLAMA_MODEL", "llama3.2:3b")
+
+    # LangSmith Tracing & Observability
+    LANGCHAIN_TRACING_V2: str = os.getenv("LANGCHAIN_TRACING_V2", "true")
+    LANGCHAIN_API_KEY: str = os.getenv("LANGCHAIN_API_KEY", "")
+    LANGCHAIN_PROJECT: str = os.getenv("LANGCHAIN_PROJECT", "government-scheme-assistant")
     
     # Scheme Provider Configuration
     # Options: "apisetu" (Preferred live API) or "local" (Resilient hand-verified fallback)

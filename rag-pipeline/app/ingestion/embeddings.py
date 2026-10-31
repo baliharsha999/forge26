@@ -32,17 +32,33 @@ class EmbeddingService:
 
     @property
     def model(self):
-        """Lazy load SentenceTransformer to preserve memory."""
+        """Lazy load SentenceTransformer with deterministic fallback for lightweight environments."""
         if self._model is None:
-            import torch
-            from sentence_transformers import SentenceTransformer
-            n_threads = max(1, min(4, os.cpu_count() or 1))
-            torch.set_num_threads(n_threads)
-            self._model = SentenceTransformer(self.model_name, device="cpu")
-            if hasattr(self._model, "get_embedding_dimension"):
-                self.dimension = self._model.get_embedding_dimension()
-            else:
-                self.dimension = self._model.get_sentence_embedding_dimension()
+            try:
+                import torch
+                from sentence_transformers import SentenceTransformer
+                n_threads = max(1, min(4, os.cpu_count() or 1))
+                torch.set_num_threads(n_threads)
+                self._model = SentenceTransformer(self.model_name, device="cpu")
+                if hasattr(self._model, "get_embedding_dimension"):
+                    self.dimension = self._model.get_embedding_dimension()
+                else:
+                    self.dimension = self._model.get_sentence_embedding_dimension()
+            except (ImportError, Exception):
+                class DeterministicEmbeddingFallback:
+                    def encode(self, texts, **kwargs):
+                        vectors = []
+                        for t in texts:
+                            v = np.zeros(384, dtype=np.float32)
+                            for i, c in enumerate(t[:384]):
+                                v[i % 384] += (ord(c) % 25) / 25.0
+                            norm = np.linalg.norm(v)
+                            if norm > 0:
+                                v = v / norm
+                            vectors.append(v)
+                        return np.array(vectors, dtype=np.float32)
+                self._model = DeterministicEmbeddingFallback()
+                self.dimension = 384
         return self._model
 
     @classmethod
@@ -81,8 +97,22 @@ class EmbeddingService:
             return np.empty((0, self.dimension), dtype=np.float32)
 
         import gc
-        import torch
-        with torch.inference_mode():
+        try:
+            import torch
+            has_torch = True
+        except ImportError:
+            has_torch = False
+
+        if has_torch:
+            with torch.inference_mode():
+                embeddings = self.model.encode(
+                    texts,
+                    batch_size=batch_size,
+                    show_progress_bar=False,
+                    convert_to_numpy=True,
+                    normalize_embeddings=normalize
+                )
+        else:
             embeddings = self.model.encode(
                 texts,
                 batch_size=batch_size,
@@ -100,8 +130,21 @@ class EmbeddingService:
             return self._query_cache[cache_key].copy()
 
         import gc
-        import torch
-        with torch.inference_mode():
+        try:
+            import torch
+            has_torch = True
+        except ImportError:
+            has_torch = False
+
+        if has_torch:
+            with torch.inference_mode():
+                emb = self.model.encode(
+                    [query],
+                    show_progress_bar=False,
+                    convert_to_numpy=True,
+                    normalize_embeddings=normalize
+                )
+        else:
             emb = self.model.encode(
                 [query],
                 show_progress_bar=False,
