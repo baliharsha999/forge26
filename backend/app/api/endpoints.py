@@ -8,9 +8,12 @@ from app.models.schemas import (
     NormalizedScheme,
     EscalationRequest, EscalationResponse,
     EligibilityCheckRequest, EligibilityCheckResult,
-    PageStudyRequest, PageStudyResult
+    PageStudyRequest, PageStudyResult,
+    DocumentExtractRequest, DocumentExtractResult,
+    IdLocatorRequest, IdLocatorResult
 )
 from app.services.gemini_service import analyze_civic_grievance, study_website_page
+from app.services.document_service import extract_data_from_document, locate_document_id
 from app.services.escalation_service import generate_statutory_escalation
 from app.services.live_data_service import reverse_geocode_osm
 from app.agent.browser_agent import execute_deterministic_playwright_filing
@@ -27,6 +30,35 @@ async def api_study_page(req: PageStudyRequest):
     prompts, chips, and questions without hardcoded assumptions.
     """
     return study_website_page(req.url, req.title or "", req.headings or "", req.page_text or "")
+
+
+@router.post("/agent/extract-document", response_model=DocumentExtractResult)
+async def api_extract_document(req: DocumentExtractRequest):
+    """
+    Multimodal Document Extraction Endpoint:
+    Scans attached marksheets, Aadhaar, PAN, certificates or bills,
+    extracts identity/academic fields, and prepares them for 1-click portal auto-fill.
+    """
+    return extract_data_from_document(
+        image_base64=req.image_base64,
+        document_hint=req.document_hint or "auto",
+        portal_context=req.portal_context or "",
+        language=req.language or "en"
+    )
+
+
+@router.post("/agent/locate-id", response_model=IdLocatorResult)
+async def api_locate_id(req: IdLocatorRequest):
+    """
+    ID & Identifier Locator Endpoint:
+    Tells citizen exactly where to look on their physical cards or documents
+    (e.g., 10th Roll Number, APAAR ID, Aadhaar VID, UAN, CA Number).
+    """
+    return locate_document_id(
+        query=req.id_query,
+        portal_context=req.portal_context or "",
+        language=req.language or "en"
+    )
 
 
 @router.post("/grievance/analyze", response_model=GrievanceAnalysisResult)

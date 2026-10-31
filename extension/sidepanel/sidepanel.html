@@ -100,6 +100,16 @@
       <p id="q1-sub" class="step-subtitle">Tell me what happened in simple everyday words or tap the mic to speak.</p>
     </div>
 
+    <!-- Real-time Live Field Focus Alert Bubble -->
+    <div id="live-field-assistant" class="live-field-assistant hidden" style="background: rgba(16, 185, 129, 0.12); border: 1px solid #10b981; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 8px;">
+      <span style="font-size: 16px;">💡</span>
+      <div style="flex: 1;">
+        <div id="live-field-title" style="font-size: 11px; font-weight: 800; color: #10b981; text-transform: uppercase;">Editing Field: Roll Number</div>
+        <div id="live-field-tip" style="font-size: 11px; color: #E8E9F2; line-height: 1.4; margin-top: 2px;">Your Roll Number is located at the top-right of your 10th marksheet. Tap below to upload it!</div>
+      </div>
+      <button id="btn-live-attach" style="background: #10b981; color: #064e3b; border: none; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 800; cursor: pointer; white-space: nowrap;">📎 Scan Doc</button>
+    </div>
+
     <div class="input-wrapper">
       <textarea id="input-problem" class="big-textarea" rows="3" placeholder="Speak or type what happened in simple words..."></textarea>
       <div class="mic-control-bar">
@@ -108,6 +118,58 @@
           <span class="mic-label">Tap to Speak</span>
         </button>
       </div>
+    </div>
+
+    <!-- Persistent "Attach Document to Auto-Fill" Trigger Button -->
+    <div style="margin-top: 10px; display: flex; gap: 8px;">
+      <input type="file" id="input-doc-autofill" accept="image/*,.pdf" style="display: none;">
+      <button id="btn-trigger-doc-upload" type="button" style="flex: 1; background: rgba(240, 106, 37, 0.12); border: 1px dashed var(--border-orange); color: var(--orange-hover); border-radius: 8px; padding: 8px 12px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
+        <span>📎 Attach Marksheet / Doc to Auto-Fill</span>
+      </button>
+    </div>
+
+    <!-- ID & Document Locator Card -->
+    <div id="id-locator-card" class="id-locator-card hidden" style="border: 1px solid #3b82f6; background: rgba(59, 130, 246, 0.08); border-radius: 12px; padding: 14px; margin-top: 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <span id="id-locator-badge" style="background: #2563eb; color: #ffffff; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">DOCUMENT LOCATOR</span>
+        <button id="btn-close-id-card" style="background: none; border: none; color: #8F93B5; font-size: 14px; cursor: pointer;">✕</button>
+      </div>
+      <h3 id="id-locator-title" style="font-size: 14px; font-weight: 800; color: #fff; margin: 0 0 6px 0;">Where to Find Your ID</h3>
+      <p id="id-locator-desc" style="font-size: 12px; color: #E8E9F2; line-height: 1.5; margin: 0 0 10px 0;"></p>
+      
+      <!-- Visual Locator Badge Box -->
+      <div id="id-locator-visual" style="background: rgba(0,0,0,0.4); border: 1px dashed #3b82f6; border-radius: 8px; padding: 8px 10px; font-size: 11px; font-weight: 700; color: #93c5fd; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
+        <span>🔍</span>
+        <span id="id-locator-visual-text">TOP-RIGHT CORNER: Labeled 'Roll No.'</span>
+      </div>
+
+      <div class="guidance-btn-group" style="display: flex; gap: 8px;">
+        <button id="btn-id-attach-doc" class="btn-next" style="flex: 1; padding: 9px 12px; font-size: 11px; font-weight: 800; background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
+          <span>📎 Attach Doc & Auto-Detect</span>
+        </button>
+        <a id="btn-id-online-link" href="#" target="_blank" class="btn-back" style="flex: 1; padding: 9px 12px; font-size: 11px; font-weight: 800; color: #93c5fd; border: 1px solid #3b82f6; border-radius: 8px; text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center;">
+          <span>🌐 Get Online ↗</span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Document Extraction & 1-Click Auto-Fill Card -->
+    <div id="doc-extract-card" class="doc-extract-card hidden" style="border: 1px solid #10b981; background: rgba(16, 185, 129, 0.08); border-radius: 12px; padding: 14px; margin-top: 14px;">
+      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
+        <span id="doc-detect-badge" style="background: #10b981; color: #064e3b; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">DOCUMENT SCANNED</span>
+        <button id="btn-close-doc-card" style="background: none; border: none; color: #8F93B5; font-size: 14px; cursor: pointer;">✕</button>
+      </div>
+      <h3 id="doc-detect-title" style="font-size: 13px; font-weight: 800; color: #fff; margin: 0 0 4px 0;">CBSE Class X Marksheet</h3>
+      <p id="doc-detect-summary" style="font-size: 11px; color: #A7F3D0; margin: 0 0 10px 0;">Extracted 6 verified fields ready to inject into the active form.</p>
+
+      <!-- Extracted Field Pills List -->
+      <div id="doc-extracted-fields" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-height: 150px; overflow-y: auto;">
+      </div>
+
+      <!-- Action Button -->
+      <button id="btn-autofill-page-now" class="btn-next" style="width: 100%; padding: 10px 14px; font-size: 12px; font-weight: 800; background: #10b981; color: #064e3b; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
+        <span>⚡ Auto-Fill Webpage Form with this Data</span>
+      </button>
     </div>
 
     <!-- Dynamic Adaptive Portal Guidance & Interactive Micro-Step Walker Card -->

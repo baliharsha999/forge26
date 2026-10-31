@@ -158,3 +158,43 @@ class PageStudyResult(BaseModel):
     has_form: bool
     is_landing_page: bool
 
+
+class ExtractedFieldItem(BaseModel):
+    key: str
+    label: str
+    value: str
+    confidence: float = 0.95
+
+
+class DocumentExtractRequest(BaseModel):
+    image_base64: str = Field(..., description="Base64 encoded document image or data URI")
+    document_hint: Optional[str] = Field("auto", description="Optional hint e.g. marksheet_10th, aadhaar, pan, certificate")
+    portal_context: Optional[str] = Field("", description="Active portal name to tailor field mapping")
+    language: Optional[str] = Field("en", description="Citizen language")
+
+
+class DocumentExtractResult(BaseModel):
+    document_detected: str
+    fields: Dict[str, str]
+    field_items: List[ExtractedFieldItem]
+    summary_message: str
+    voice_speech: str
+    autofill_ready: bool = True
+
+
+class IdLocatorRequest(BaseModel):
+    id_query: str = Field(..., description="ID name e.g. APAAR ID, Roll Number, Aadhaar VID, UAN")
+    portal_context: Optional[str] = Field("", description="Active portal name")
+    language: Optional[str] = Field("en", description="Citizen language")
+
+
+class IdLocatorResult(BaseModel):
+    id_name: str
+    document_source: str
+    exact_location_description: str
+    visual_location_badge: str
+    how_to_find_online: str
+    online_url: Optional[str] = None
+    voice_speech: str
+    allow_doc_upload: bool = True
+

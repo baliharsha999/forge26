@@ -349,6 +349,139 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   }
 
+  // ----------------------------------------------------------------
+  // Document Intelligence & 1-Click Auto-Fill Handlers
+  // ----------------------------------------------------------------
+  const inputDocAutofill = document.getElementById("input-doc-autofill");
+  const btnTriggerDocUpload = document.getElementById("btn-trigger-doc-upload");
+  const btnIdAttachDoc = document.getElementById("btn-id-attach-doc");
+  const btnLiveAttach = document.getElementById("btn-live-attach");
+  const docExtractCard = document.getElementById("doc-extract-card");
+  const docDetectTitle = document.getElementById("doc-detect-title");
+  const docDetectSummary = document.getElementById("doc-detect-summary");
+  const docExtractedFields = document.getElementById("doc-extracted-fields");
+  const btnAutofillPageNow = document.getElementById("btn-autofill-page-now");
+  const btnCloseDocCard = document.getElementById("btn-close-doc-card");
+
+  const idLocatorCard = document.getElementById("id-locator-card");
+  const idLocatorTitle = document.getElementById("id-locator-title");
+  const idLocatorDesc = document.getElementById("id-locator-desc");
+  const idLocatorVisualText = document.getElementById("id-locator-visual-text");
+  const btnIdOnlineLink = document.getElementById("btn-id-online-link");
+  const btnCloseIdCard = document.getElementById("btn-close-id-card");
+
+  const liveFieldAssistant = document.getElementById("live-field-assistant");
+  const liveFieldTitle = document.getElementById("live-field-title");
+  const liveFieldTip = document.getElementById("live-field-tip");
+
+  let latestExtractedFields = null;
+
+  function triggerDocumentUpload() {
+    if (inputDocAutofill) inputDocAutofill.click();
+  }
+
+  if (btnTriggerDocUpload) btnTriggerDocUpload.addEventListener("click", triggerDocumentUpload);
+  if (btnIdAttachDoc) btnIdAttachDoc.addEventListener("click", triggerDocumentUpload);
+  if (btnLiveAttach) btnLiveAttach.addEventListener("click", triggerDocumentUpload);
+
+  if (btnCloseDocCard) {
+    btnCloseDocCard.addEventListener("click", () => {
+      docExtractCard.classList.add("hidden");
+    });
+  }
+
+  if (btnCloseIdCard) {
+    btnCloseIdCard.addEventListener("click", () => {
+      idLocatorCard.classList.add("hidden");
+    });
+  }
+
+  if (inputDocAutofill) {
+    inputDocAutofill.addEventListener("change", (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        const b64Data = event.target.result;
+
+        // Activate Animated Reasoning Stage
+        step1.classList.remove("active");
+        analyzingStage.classList.remove("hidden");
+        mandalaSpinner.classList.remove("complete");
+        analyzingTitle.innerText = "🔍 Scanning Document with Vision AI...";
+        reasoningTicker.innerHTML = `<span>Analyzing Marksheet / ID layout & extracting verified fields...</span>`;
+
+        chrome.runtime.sendMessage({
+          action: "CALL_BACKEND_EXTRACT_DOC",
+          payload: {
+            image_base64: b64Data,
+            portal_context: activePortalName,
+            language: currentLang
+          }
+        }, (res) => {
+          analyzingStage.classList.add("hidden");
+          step1.classList.add("active");
+
+          if (res && res.success && res.data) {
+            const d = res.data;
+            latestExtractedFields = d.fields;
+
+            if (docDetectTitle) docDetectTitle.innerText = d.document_detected || "Verified Document";
+            if (docDetectSummary) docDetectSummary.innerText = d.summary_message || "Extracted fields ready to populate.";
+
+            if (docExtractedFields) {
+              docExtractedFields.innerHTML = "";
+              (d.field_items || []).forEach(item => {
+                const row = document.createElement("div");
+                row.style.display = "flex";
+                row.style.alignItems = "center";
+                row.style.justifyContent = "space-between";
+                row.style.background = "rgba(0,0,0,0.3)";
+                row.style.padding = "4px 8px";
+                row.style.borderRadius = "6px";
+                row.style.fontSize = "11px";
+                row.innerHTML = `
+                  <span style="color: #8F93B5;">✓ ${item.label}:</span>
+                  <strong style="color: #34d399; font-weight: 700;">${item.value}</strong>
+                `;
+                docExtractedFields.appendChild(row);
+              });
+            }
+
+            if (docExtractCard) docExtractCard.classList.remove("hidden");
+
+            // Auto-trigger DOM injection onto active tab!
+            chrome.runtime.sendMessage({
+              action: "TRIGGER_AUTOFILL_FROM_DOC",
+              fields: d.fields
+            }, (fillRes) => {
+              if (chrome.runtime.lastError) console.debug(chrome.runtime.lastError);
+            });
+
+            // Announce aloud
+            speak(d.voice_speech || "Extracted details from your document and populated the portal!");
+          } else {
+            alert("Could not scan document. Please verify backend is running.");
+          }
+        });
+      };
+      reader.readAsDataURL(file);
+    });
+  }
+
+  if (btnAutofillPageNow) {
+    btnAutofillPageNow.addEventListener("click", () => {
+      if (!latestExtractedFields) return;
+      chrome.runtime.sendMessage({
+        action: "TRIGGER_AUTOFILL_FROM_DOC",
+        fields: latestExtractedFields
+      }, (fillRes) => {
+        speak("Populated fields into the active webpage form!");
+      });
+    });
+  }
+
   // Quick Chips
   document.querySelectorAll(".chip").forEach(chip => {
     chip.addEventListener("click", () => {
@@ -453,7 +586,10 @@ document.addEventListener("DOMContentLoaded", () => {
       chipBtn.setAttribute("data-text", chip.text);
 
       chipBtn.addEventListener("click", () => {
-        if (chip.text && chip.text.startsWith("OPEN_PORTAL:")) {
+        if (chip.text === "ATTACH_DOCUMENT_ACTION") {
+          triggerDocumentUpload();
+          speak("Please select your marksheet or document to auto-fill the form.");
+        } else if (chip.text && chip.text.startsWith("OPEN_PORTAL:")) {
           const portalUrl = chip.text.replace("OPEN_PORTAL:", "");
           if (activeTab && activeTab.id) {
             chrome.tabs.update(activeTab.id, { url: portalUrl });
@@ -491,12 +627,14 @@ document.addEventListener("DOMContentLoaded", () => {
       // Explicit early check for blank, browser internal, or search pages (Google, New Tab)
       const isStandby = (
         !targetUrl ||
+        targetUrl.trim() === "" ||
         urlLower.startsWith("chrome://") ||
         urlLower.startsWith("chrome-extension://") ||
         urlLower.startsWith("edge://") ||
         urlLower.startsWith("about:") ||
         urlLower.includes("google.com") ||
         urlLower.includes("youtube.com") ||
+        urlLower.includes(":5173") ||
         titleLower === "new tab" ||
         titleLower === "google"
       );
@@ -504,6 +642,7 @@ document.addEventListener("DOMContentLoaded", () => {
       if (isStandby) {
         activePortalName = "Public Civic & Exam Portals";
         activePageHasForm = false;
+        showStep(1, false);
         if (tabStatusText) tabStatusText.innerHTML = `🌐 <strong>No Civic Portal Active</strong>`;
         if (tabStatusBadge) {
           tabStatusBadge.innerText = "STANDBY";
@@ -534,11 +673,12 @@ document.addEventListener("DOMContentLoaded", () => {
       })
       .then(r => r.json())
       .then(study => {
-        const safeName = (study && study.portal_name && study.portal_name !== "undefined") ? study.portal_name : "Public Service Portal";
+        const safeName = (study && study.portal_name && typeof study.portal_name === "string" && study.portal_name !== "undefined" && study.portal_name.trim()) ? study.portal_name.trim() : "Public Service Portal";
         activePortalName = safeName;
         activePageHasForm = !!(study && study.has_form);
 
         if (study && study.portal_type === "STANDBY") {
+          showStep(1, false);
           if (tabStatusText) tabStatusText.innerHTML = `🌐 <strong>No Civic Portal Active</strong>`;
           if (tabStatusBadge) {
             tabStatusBadge.innerText = "STANDBY";
@@ -586,14 +726,23 @@ document.addEventListener("DOMContentLoaded", () => {
         // Fallback local inspection
         chrome.runtime.sendMessage({ action: "TRIGGER_INSPECT_PAGE" }, (res) => {
           if (res && res.supported) {
-            activePortalName = res.portalName || "Public Service Portal";
+            const name = (res.portalName && res.portalName !== "undefined") ? res.portalName : "Public Service Portal";
+            activePortalName = name;
             activePageHasForm = !!res.hasForm;
-            if (tabStatusText) tabStatusText.innerHTML = `🏛️ <strong>${activePortalName}</strong>`;
+            if (tabStatusText) tabStatusText.innerHTML = `🏛️ <strong>${name}</strong>`;
             if (tabStatusBadge) tabStatusBadge.innerText = res.hasForm ? "● READY" : "STANDBY";
             setTimeout(() => speak(DIALOGS[currentLang].q1), 400);
           } else {
+            showStep(1, false);
+            activePortalName = "Public Civic & Exam Portals";
+            activePageHasForm = false;
             if (tabStatusText) tabStatusText.innerHTML = `🌐 <strong>No Civic Portal Active</strong>`;
-            if (tabStatusBadge) tabStatusBadge.innerText = "STANDBY";
+            if (tabStatusBadge) {
+              tabStatusBadge.innerText = "STANDBY";
+              tabStatusBadge.style.background = "rgba(143, 147, 181, 0.2)";
+              tabStatusBadge.style.color = "var(--text-slate)";
+              tabStatusBadge.style.borderColor = "var(--border-slate)";
+            }
           }
         });
       });
@@ -780,6 +929,35 @@ document.addEventListener("DOMContentLoaded", () => {
 
       if (res && res.success && res.data) {
         const d = res.data;
+
+        // -------------------------------------------------------------
+        // 0. INTENT: ID LOCATOR (e.g. "where is roll number", "where is apaar id", "where is vid")
+        // -------------------------------------------------------------
+        if (d.intent === "ID_LOCATOR") {
+          analyzingStage.classList.add("hidden");
+          step1.classList.add("active");
+
+          if (idLocatorCard) {
+            idLocatorCard.classList.remove("hidden");
+            if (idLocatorTitle) idLocatorTitle.innerText = d.guidance_title || "Where to Find Your ID";
+            if (idLocatorDesc) idLocatorDesc.innerText = d.guidance_message || "";
+            if (idLocatorVisualText && d.guidance_message && d.guidance_message.includes("📌 Visual Hint:")) {
+              const hintPart = d.guidance_message.split("📌 Visual Hint:")[1]?.split("🌐")[0]?.trim();
+              if (hintPart) idLocatorVisualText.innerText = hintPart;
+            }
+            if (btnIdOnlineLink) {
+              const matchUrl = (d.guidance_message || "").match(/https?:\/\/[^\s]+/);
+              if (matchUrl) {
+                btnIdOnlineLink.href = matchUrl[0];
+                btnIdOnlineLink.style.display = "flex";
+              } else {
+                btnIdOnlineLink.style.display = "none";
+              }
+            }
+          }
+          speak(`I have displayed where to find this ID on your official document. You can also attach your document below and I will detect it for you!`);
+          return;
+        }
 
         // -------------------------------------------------------------
         // 1. INTENT: PORTAL GUIDANCE / STEP-BY-STEP (e.g. "how to apply", "help me sign in")
@@ -1088,6 +1266,25 @@ document.addEventListener("DOMContentLoaded", () => {
   chrome.runtime.onMessage.addListener((message) => {
     if (message.action === "ACTIVE_TAB_CHANGED") {
       autoStudyPortal();
+    }
+    if (message.action === "PAGE_FIELD_FOCUSED") {
+      if (liveFieldAssistant) {
+        liveFieldAssistant.classList.remove("hidden");
+        if (liveFieldTitle) liveFieldTitle.innerText = `Active Field: ${message.label}`;
+        if (liveFieldTip) {
+          if (message.fieldKey === "roll_number") {
+            liveFieldTip.innerText = "Roll Number is on the top-right of your 10th marksheet. Tap Scan Doc to auto-fill!";
+          } else if (message.fieldKey === "apaar_id") {
+            liveFieldTip.innerText = "APAAR / ABC ID is available on abc.gov.in or DigiLocker using your Aadhaar.";
+          } else if (message.fieldKey === "aadhaar_vid") {
+            liveFieldTip.innerText = "16-digit Virtual ID is located at the bottom-left of your Aadhaar card.";
+          } else if (message.fieldKey === "uan") {
+            liveFieldTip.innerText = "12-digit UAN is on the top section of your monthly salary payslip.";
+          } else {
+            liveFieldTip.innerText = `Need help finding your ${message.label}? Tap Scan Doc to auto-detect from your file.`;
+          }
+        }
+      }
     }
     if (message.action === "UPDATE_TRACKING_RECEIPT") {
       receiptTrackingId.innerText = message.trackingId;

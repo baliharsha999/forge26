@@ -111,6 +111,35 @@ async def analyze_civic_grievance(
     # Specialized Grounded Guidance for JEE Main / NTA Portal
     is_jee_query = any(k in input_lower for k in ["jee", "nta", "entrance", "exam", "mains", "admit card"]) or any(k in ctx_lower for k in ["jee", "nta", "exam", "admission"])
     is_guidance_ask = any(k in input_lower for k in ["apply", "register", "fill", "how to", "steps", "where", "guide", "sign in", "login", "link", "form", "date", "center"])
+
+    # Check if citizen is asking where to find an ID or document number
+    is_id_ask = any(k in input_lower for k in [
+        "apaar", "abc id", "roll number", "roll no", "vid", "virtual id", 
+        "uan", "consumer number", "ca number", "epic", "voter id", "application number", "marksheet"
+    ]) and any(k in input_lower for k in ["where", "how", "find", "get", "what is", "locate", "lost", "which", "see"])
+
+    if is_id_ask:
+        from app.services.document_service import locate_document_id
+        id_info = locate_document_id(sanitized_input, portal_context, language)
+        res = GrievanceAnalysisResult(
+            intent="ID_LOCATOR",
+            guidance_title=f"Where to Find Your {id_info.id_name}",
+            guidance_message=f"{id_info.exact_location_description}\n\n📌 Visual Hint: {id_info.visual_location_badge}\n\n🌐 How to Get Online:\n{id_info.how_to_find_online}",
+            action_type="ATTACH_DOCUMENT",
+            action_label="📎 Attach Document to Auto-Detect ID",
+            category="Document Identifier Assistance",
+            department="Nagarik AI Document Copilot",
+            urgency_level="LOW",
+            urgency_score=3,
+            location_text="",
+            description=f"Citizen inquired where to locate {id_info.id_name}.",
+            language=language,
+            actionable_remedy="Guide citizen to physical document location or DigiLocker retrieval",
+            applicable_act_or_regulation="Digital India & DigiLocker Citizen Guidelines",
+            privacy_warning=privacy_warning
+        )
+        _GRIEVANCE_ANALYSIS_CACHE[cache_key] = res
+        return res
     
     if is_jee_query and is_guidance_ask:
         jee_steps = [
@@ -546,9 +575,9 @@ def study_website_page(url: str, title: str = "", headings: Any = "", page_text:
             "placeholder_text": f"Ask how to apply, e.g. 'how to fill {exam_name} online application form' or 'steps to register'...",
             "chips": [
                 {"label": f"📝 Apply for {exam_name} (Step-by-Step)", "text": f"How to apply for {exam_name} step-by-step?"},
-                {"label": "🔗 Open Online Application Form Link", "text": "How do I find the online application form link on this screen?"},
-                {"label": "📅 Important Dates & Schedule", "text": f"What are the registration deadlines and exam dates for {exam_name}?"},
-                {"label": "📑 Required Documents & Photo Specs", "text": f"What documents, photo sizes, and certificates are required for {exam_name}?"}
+                {"label": "📎 Auto-Fill from Marksheet / Doc", "text": "ATTACH_DOCUMENT_ACTION"},
+                {"label": "🔍 Where is my 10th Roll Number?", "text": "Where is my 10th roll number located on marksheet?"},
+                {"label": "🆔 Where is my APAAR ID / ABC ID?", "text": "Where do I find my APAAR ID or ABC ID?"}
             ],
             "location_question": "Which state or preferred exam city are you applying from?",
             "authority_label": "Exam Authority",

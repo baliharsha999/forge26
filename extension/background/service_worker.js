@@ -32,6 +32,59 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 // Message Router
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 0. Forward highlight/click requests to active tab's content script
+  if (message.action === "PAGE_FIELD_FOCUSED") {
+    chrome.runtime.sendMessage({
+      action: "PAGE_FIELD_FOCUSED",
+      fieldKey: message.fieldKey,
+      label: message.label
+    }).catch(() => {});
+    return false;
+  }
+
+  if (message.action === "TRIGGER_AUTOFILL_FROM_DOC") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) {
+        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
+        return;
+      }
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "AUTOFILL_FROM_DOC",
+        fields: message.fields
+      }, (res) => {
+        if (chrome.runtime.lastError) {
+          sendResponse({ success: false, error: chrome.runtime.lastError.message });
+        } else {
+          sendResponse(res || { success: true });
+        }
+      });
+    });
+    return true;
+  }
+
+  if (message.action === "CALL_BACKEND_EXTRACT_DOC") {
+    fetch("http://localhost:8000/api/v1/agent/extract-document", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(message.payload)
+    })
+      .then(res => res.json())
+      .then(data => sendResponse({ success: true, data: data }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
+  if (message.action === "CALL_BACKEND_LOCATE_ID") {
+    fetch("http://localhost:8000/api/v1/agent/locate-id", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(message.payload)
+    })
+      .then(res => res.json())
+      .then(data => sendResponse({ success: true, data: data }))
+      .catch(err => sendResponse({ success: false, error: err.message }));
+    return true;
+  }
+
   if (message.action === "TRIGGER_HIGHLIGHT_ELEMENT") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0) {
