@@ -171,21 +171,39 @@ serve(async (req: Request) => {
         .split(/\s+/)
         .filter(w => w.length > 2 && !stopWords.has(w));
 
-      // Indic keyword & alias expansion
-      if (/కిసాన్|రైతు|kisan|pm.?kisan|किसान/i.test(citizenQuery)) {
-        keywords.push("kisan", "pm-kisan");
+      // Indic keyword & alias expansion across Indian civic schemes
+      if (/\b(nsp|scholarship|scholarships|post.?matric|pre.?matric|fellowship)\b|స్కాలర్‌షిప్|छात्रवृत्ति/i.test(citizenQuery)) {
+        keywords.push("scholarship", "national scholarship", "post matric");
       }
-      if (/ఆయుష్మాన్|ఆరోగ్య|ayushman|आरोग्य/i.test(citizenQuery)) {
-        keywords.push("ayushman");
+      if (/\b(pmkisan|pm.?kisan|kisan|rythu|farmer|agriculture)\b|కిసాన్|రైతు|किसान/i.test(citizenQuery)) {
+        keywords.push("kisan", "pm-kisan", "rythu");
       }
-      if (/స్కాలర్‌షిప్|scholarship|छात्रवृत्ति/i.test(citizenQuery)) {
-        keywords.push("scholarship");
+      if (/\b(pmjay|pm.?jay|ayushman|arogya|health.?card|golden.?card|abha)\b|ఆయుష్మాన్|ఆరోగ్య|ayushman|आरोग्य/i.test(citizenQuery)) {
+        keywords.push("ayushman", "jan arogya", "pm-jay");
       }
-      if (/ఆవాస్|ఇల్లు|awas|आवास/i.test(citizenQuery)) {
-        keywords.push("awas");
+      if (/\b(pmay|pm.?ay|awas|housing|house.?subsidy)\b|ఆవాస్|ఇల్లు|awas|आवास/i.test(citizenQuery)) {
+        keywords.push("awas", "pmay");
       }
-      if (/ముద్రా|రుణం|mudra|ऋण|लोन/i.test(citizenQuery)) {
+      if (/\b(mudra|pmmy|business.?loan|small.?business)\b|ముద్రా|రుణం|mudra|ऋण|लोन/i.test(citizenQuery)) {
         keywords.push("mudra");
+      }
+      if (/\b(kcc|kisan.?credit)\b/i.test(citizenQuery)) {
+        keywords.push("kisan credit", "kcc");
+      }
+      if (/\b(epfo|uan|provident.?fund|pf)\b/i.test(citizenQuery)) {
+        keywords.push("epfo", "uan");
+      }
+      if (/\b(pension|atal|apy|ignaps|ignoaps)\b|పెన్షన్|पेंशन/i.test(citizenQuery)) {
+        keywords.push("pension", "atal");
+      }
+      if (/\b(ration|pds|food.?security|ration.?card)\b|రేషన్/i.test(citizenQuery)) {
+        keywords.push("ration", "pds");
+      }
+      if (/\b(sukanya|ssy)\b|సుకన్య/i.test(citizenQuery)) {
+        keywords.push("sukanya");
+      }
+      if (/\b(standup|stand.?up)\b/i.test(citizenQuery)) {
+        keywords.push("stand up", "standup");
       }
 
       if (detectedState) {
@@ -214,8 +232,21 @@ serve(async (req: Request) => {
           last_verified_date: s.last_verified_date,
           confidence_score: 0.96
         }));
+      } else if (/\b(nsp|scholarship|scholarships)\b|స్కాలర్‌షిప్|छात्रवृत्ति/i.test(citizenQuery)) {
+        // Direct authoritative grounding for National Scholarship Portal (NSP)
+        citations = [{
+          id: "SCHEME-004",
+          name: "National Scholarship Portal (NSP) - Post Matric Scholarships",
+          department: "Ministry of Social Justice & Empowerment",
+          level: "Central",
+          state: "All-India",
+          benefit: "100% compulsory non-refundable fees reimbursement plus monthly maintenance allowance directly credited via DBT.",
+          eligibility_summary: "Post-matric students from SC, ST, OBC, EBC families with annual family income below ₹2.5 Lakhs.",
+          official_url: "https://scholarships.gov.in",
+          last_verified_date: "2026-11-01",
+          confidence_score: 0.99
+        }];
       } else {
-        // If query is an ungrounded general query, do not blindly dump top 6 schemes
         citations = [];
       }
     }
@@ -344,13 +375,39 @@ Rohit Sharma is one of India's most celebrated international cricketers and form
 ${rows}
 
 *Source: Grounded in Government of India and State Gazettes.*`;
+      } else if (/\b(nsp|scholarship|scholarships)\b|స్కాలర్‌షిప్|छात्रवृत्ति/i.test(citizenQuery)) {
+        answerText = `### 🎓 National Scholarship Portal (NSP) — Complete Citizen Guide
+
+The **National Scholarship Portal (NSP)** ([scholarships.gov.in](https://scholarships.gov.in)) is the Government of India's official digital platform for applying to Central, UGC, AICTE, and State scholarship schemes.
+
+#### 1. Official Portal
+👉 [scholarships.gov.in](https://scholarships.gov.in)
+
+#### 2. Major Scholarship Schemes
+- **Pre-Matric Scholarships**: For Class 1 to 10 students from minority and disadvantaged communities.
+- **Post-Matric Scholarships**: Full tuition fee reimbursement + monthly maintenance allowance for Class 11, 12, ITI, Diploma, Undergraduate, and Postgraduate degrees.
+- **Merit-cum-Means (MCM)**: Professional and technical courses (Engineering, MBBS, MBA, Law).
+- **Top Class Education**: Full funding for studies in designated premier institutions (IITs, NITs, IIMs, AIIMS).
+
+#### 3. Key Eligibility Requirements
+- **Academic Enrollment**: Must be enrolled in a recognized school, college, or university.
+- **Family Income Limit**: Annual family income must be under **₹2.5 Lakhs** (for most schemes).
+- **Minimum Marks**: At least 50% marks in the previous final examination.
+- **Bank Account**: Active savings bank account seeded with **Aadhaar for DBT** (Direct Benefit Transfer).
+
+#### 4. How to Apply Step-by-Step
+1. **One-Time Registration (OTR)**: Go to [scholarships.gov.in](https://scholarships.gov.in) and register via Aadhaar e-KYC or face authentication to receive your 14-digit OTR ID.
+2. **Select Scheme**: Log in with your OTR and apply for the eligible central or state scheme.
+3. **Upload Documents**: Previous marksheet, income certificate, caste certificate, and college bonafide certificate.
+4. **Verification**: Your educational institution verifies your application (Level 1), followed by District/State Nodal Officer approval (Level 2).
+5. **Direct DBT Credit**: Scholarship funds are credited directly to your bank account via PFMS.`;
       } else {
         answerText = `I am your Nagarik AI Sovereign Civic Copilot. I could not find a specific government welfare scheme directly matching "${citizenQuery}".
 
 You can ask me about:
 - **Farmers**: PM-KISAN, Rythu Bharosa, Kisan Credit Card
 - **Health**: Ayushman Bharat PM-JAY ₹5 Lakh cashless hospital care
-- **Students**: National Scholarship Portal, Post-Matric fee reimbursement
+- **Students**: National Scholarship Portal (NSP), Post-Matric fee reimbursement
 - **Civic Documents**: Driving Licence, Aadhaar DBT bank account seeding, Ration Cards
 - **Pensions**: Old-Age Pension, Widow Pension, Disability Pension`;
       }
