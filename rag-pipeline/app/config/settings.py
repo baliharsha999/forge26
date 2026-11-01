@@ -16,8 +16,8 @@ class Settings(BaseSettings):
 
     # LLM Settings
     GROQ_API_KEY: str = Field(default="", description="API key for Groq Cloud")
-    GROQ_MODEL: str = Field(default="qwen/qwen3.8-27b", description="Primary LLM on Groq (High capacity, fast)")
-    FALLBACK_MODEL: str = Field(default="openai/gpt-oss-120b", description="Fallback LLM on Groq")
+    GROQ_MODEL: str = Field(default="openai/gpt-oss-120b", description="Primary LLM on Groq (High capacity, fast)")
+    FALLBACK_MODEL: str = Field(default="openai/gpt-oss-20b", description="Fallback LLM on Groq")
     GEMINI_API_KEY: Optional[str] = Field(default=None, description="API key for Google Gemini if used")
 
     # Embedding & Reranking Models

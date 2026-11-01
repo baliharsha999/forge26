@@ -28,12 +28,16 @@ import json
 import time
 import math
 import logging
+
+os.environ["DEEPEVAL_TELEMETRY_OPT_OUT"] = "YES"
+os.environ["CONFIDENT_AI_API_KEY"] = "local_benchmarking_only"
 from typing import List, Dict, Any, Tuple, Optional
 
 # Ensure project root is in sys.path
 sys.path.insert(0, os.path.abspath("."))
 try:
     sys.stdout.reconfigure(encoding="utf-8")
+    sys.stderr.reconfigure(encoding="utf-8")
 except Exception:
     pass
 
@@ -114,7 +118,7 @@ class GroqDeepEvalJudge(DeepEvalBaseLLM):
         if not self.client:
             return "{}"
 
-        candidates = [self.model_name, self.settings.GROQ_MODEL, self.settings.FALLBACK_MODEL, "qwen/qwen3.8-27b"]
+        candidates = [self.model_name, self.settings.GROQ_MODEL, self.settings.FALLBACK_MODEL, "openai/gpt-oss-120b", "openai/gpt-oss-20b", "allam-2-7b"]
         models_to_try = []
         for m in candidates:
             if m and m not in models_to_try:
@@ -122,20 +126,33 @@ class GroqDeepEvalJudge(DeepEvalBaseLLM):
 
         for m in models_to_try:
             try:
-                response = self.client.chat.completions.create(
-                    model=m,
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.0,
-                    max_tokens=600,
-                    timeout=25.0
-                )
+                kwargs = {
+                    "model": m,
+                    "messages": [{"role": "user", "content": prompt}],
+                    "temperature": 0.0,
+                    "max_tokens": 800,
+                    "timeout": 30.0
+                }
+                if schema is not None or "json" in prompt.lower():
+                    kwargs["response_format"] = {"type": "json_object"}
+                response = self.client.chat.completions.create(**kwargs)
                 content = response.choices[0].message.content or ""
                 if content.strip():
                     return self._extract_clean_json(content)
-            except Exception as e:
-                if "429" in str(e):
-                    time.sleep(1.0)
-                continue
+            except Exception:
+                try:
+                    response = self.client.chat.completions.create(
+                        model=m,
+                        messages=[{"role": "user", "content": prompt}],
+                        temperature=0.0,
+                        max_tokens=800,
+                        timeout=30.0
+                    )
+                    content = response.choices[0].message.content or ""
+                    if content.strip():
+                        return self._extract_clean_json(content)
+                except Exception:
+                    continue
 
         return "{}"
 
@@ -455,7 +472,7 @@ class DeepEvalRAGTestSuite:
 
         for item in EVAL_BENCHMARK_DATASET[:4]:
             q = item["query"]
-            print(f"  -> Evaluating pipeline query [{item['id']}]: {q[:60]}...")
+            print(f"  -> Evaluating pipeline query [{item['id']}]: {q[:60]}...", flush=True)
             state = self.graph.invoke(RAGState(original_query=q))
 
             answer = state.get("final_answer", "")
@@ -529,7 +546,7 @@ class DeepEvalRAGTestSuite:
 
         for item in SECURITY_BENCHMARK_DATASET:
             q = item["query"]
-            print(f"  -> Evaluating security attack [{item['id']}]: {item['attack_type']}...")
+            print(f"  -> Evaluating security attack [{item['id']}]: {item['attack_type']}...", flush=True)
             state = self.graph.invoke(RAGState(original_query=q))
             answer = state.get("final_answer", "")
 

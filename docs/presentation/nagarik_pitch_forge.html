@@ -1,0 +1,1663 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Nagarik AI (नागरिक AI) — Forge Buildathon Pitch Deck</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@700;800;900&family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;700&family=Tiro+Devanagari+Hindi&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --c-midnight: #0B0C1E;
+      --c-slate: #252A48;
+      --c-slate-hover: #2D3356;
+      --c-slate-border: #3B426B;
+      --c-orange: #D97B4A;
+      --c-orange-dim: rgba(217, 123, 74, 0.15);
+      --c-gold: #F2B84B;
+      --c-text: #E8E9F2;
+      --c-text-muted: #9BA0C0;
+      --c-ink: #0B0C1E;
+      --c-ink-muted: #3E435E;
+      --font-serif: 'Cinzel', Georgia, serif;
+      --font-devanagari: 'Tiro Devanagari Hindi', serif;
+      --font-body: 'Plus Jakarta Sans', -apple-system, sans-serif;
+      --font-mono: 'JetBrains Mono', monospace;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+
+    html, body {
+      width: 100%;
+      height: 100%;
+      background-color: #05060D;
+      color: var(--c-text);
+      font-family: var(--font-body);
+      overflow: hidden;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* 16:9 Aspect Ratio Master Container */
+    #deck-wrapper {
+      position: relative;
+      width: 1333px;
+      height: 750px;
+      max-width: 100vw;
+      max-height: 56.25vw;
+      background: var(--c-midnight);
+      overflow: hidden;
+      box-shadow: 0 24px 80px rgba(0,0,0,0.85);
+      border-radius: 4px;
+    }
+
+    @media (max-aspect-ratio: 16/9) {
+      #deck-wrapper {
+        width: 100vw;
+        height: 56.25vw;
+      }
+    }
+    @media (min-aspect-ratio: 16/9) {
+      #deck-wrapper {
+        width: 177.78vh;
+        height: 100vh;
+      }
+    }
+
+    /* Background Mandala Line Geometry */
+    .bg-mandala {
+      position: absolute;
+      pointer-events: none;
+      opacity: 0.06;
+      stroke: var(--c-orange);
+      fill: none;
+      stroke-width: 1.2;
+    }
+    .slide.orange-theme .bg-mandala {
+      opacity: 0.12;
+      stroke: #0B0C1E;
+    }
+
+    /* ------------------------------------------------------------------
+       AUTHENTIC ANIMATED LOGO COMPONENT
+       Diya lamp base + subtle rotating lotus/chakra + breathing golden flame
+       + gentle floating binary digits (0 1) rising into the light
+       ------------------------------------------------------------------ */
+    .nagarik-logo-wrap {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      position: relative;
+    }
+
+    @keyframes flameBreathe {
+      0%, 100% {
+        transform: scale(1) translateY(0);
+        filter: drop-shadow(0 0 5px rgba(242, 184, 75, 0.45));
+      }
+      50% {
+        transform: scale(1.09) translateY(-2px);
+        filter: drop-shadow(0 0 12px rgba(242, 184, 75, 0.8));
+      }
+    }
+    .anim-flame {
+      animation: flameBreathe 3.6s ease-in-out infinite;
+      transform-origin: 32px 36px;
+    }
+
+    @keyframes chakraRotate {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+    .anim-chakra {
+      animation: chakraRotate 36s linear infinite;
+      transform-origin: 32px 32px;
+      opacity: 0.35;
+    }
+
+    @keyframes binaryFloat1 {
+      0% { opacity: 0; transform: translateY(6px); }
+      40% { opacity: 0.8; }
+      80% { opacity: 0.8; }
+      100% { opacity: 0; transform: translateY(-12px); }
+    }
+    @keyframes binaryFloat2 {
+      0% { opacity: 0; transform: translateY(4px); }
+      40% { opacity: 0.7; }
+      80% { opacity: 0.7; }
+      100% { opacity: 0; transform: translateY(-14px); }
+    }
+    .bin-digit-1 {
+      animation: binaryFloat1 4s ease-in-out infinite;
+      font-family: var(--font-mono);
+      font-size: 5px;
+      font-weight: 700;
+      fill: var(--c-gold);
+    }
+    .bin-digit-2 {
+      animation: binaryFloat2 4s ease-in-out 2s infinite;
+      font-family: var(--font-mono);
+      font-size: 5px;
+      font-weight: 700;
+      fill: var(--c-gold);
+    }
+
+    /* Orange Wipe Canvas */
+    #wipe-overlay {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: var(--c-orange);
+      z-index: 500;
+      pointer-events: none;
+      transform: translateX(-101%);
+      transition: transform 0.45s cubic-bezier(0.7, 0, 0.3, 1);
+    }
+    #wipe-overlay.wiping {
+      transform: translateX(0);
+    }
+    #wipe-overlay.wiping-out {
+      transform: translateX(101%);
+      transition: transform 0.45s cubic-bezier(0.7, 0, 0.3, 1);
+    }
+
+    /* Slide Hierarchy */
+    .slide {
+      position: absolute;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      padding: 54px 72px 70px 72px;
+      display: flex;
+      flex-direction: column;
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+      z-index: 10;
+      background: var(--c-midnight);
+    }
+    .slide.active {
+      opacity: 1;
+      visibility: visible;
+      pointer-events: auto;
+      z-index: 20;
+    }
+    .slide.orange-theme {
+      background: var(--c-orange);
+      color: var(--c-ink);
+    }
+
+    /* Layered Reveal */
+    .reveal-l1, .reveal-l2, .reveal-l3, .reveal-l4 {
+      opacity: 0;
+      transform: translateY(14px);
+      transition: opacity 0.4s var(--ease-out), transform 0.4s var(--ease-out);
+    }
+    .slide.active .reveal-l1 {
+      opacity: 1;
+      transform: translateY(0);
+      transition-delay: 0.08s;
+    }
+    .slide.active .reveal-l2 {
+      opacity: 1;
+      transform: translateY(0);
+      transition-delay: 0.18s;
+    }
+    .slide.active .reveal-l3 {
+      opacity: 1;
+      transform: translateY(0);
+      transition-delay: 0.28s;
+    }
+    .slide.active .reveal-l4 {
+      opacity: 1;
+      transform: translateY(0);
+      transition-delay: 0.38s;
+    }
+
+    /* Sub-build elements */
+    .build-item {
+      opacity: 0.2;
+      transform: translateY(8px);
+      transition: opacity 0.35s ease, transform 0.35s ease;
+    }
+    .build-item.revealed {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
+    /* Typography */
+    .chip-bar {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 22px;
+    }
+    .meta-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 4px 12px;
+      border-radius: 6px;
+      font-size: 11px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      background: var(--c-slate);
+      border: 1px solid var(--c-slate-border);
+      color: var(--c-orange);
+    }
+    .slide.orange-theme .meta-chip {
+      background: rgba(11, 12, 30, 0.12);
+      border-color: rgba(11, 12, 30, 0.25);
+      color: var(--c-ink);
+    }
+    .slide-eyebrow {
+      font-size: 11px;
+      font-weight: 800;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      color: var(--c-orange);
+      margin-bottom: 8px;
+    }
+    .slide-heading {
+      font-family: var(--font-serif);
+      font-size: 38px;
+      font-weight: 800;
+      line-height: 1.15;
+      letter-spacing: -0.01em;
+      color: #ffffff;
+      margin-bottom: 12px;
+    }
+    .slide.orange-theme .slide-heading {
+      color: var(--c-ink);
+    }
+    .highlight-gold {
+      color: var(--c-gold);
+    }
+    .slide.orange-theme .highlight-gold {
+      color: #6C3513;
+      font-weight: 900;
+    }
+    .slide-sub {
+      font-size: 16px;
+      font-weight: 500;
+      color: var(--c-text-muted);
+      max-width: 960px;
+      line-height: 1.45;
+      margin-bottom: 30px;
+    }
+    .slide.orange-theme .slide-sub {
+      color: var(--c-ink-muted);
+      font-weight: 600;
+    }
+
+    /* Cards */
+    .card-grid-2 {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 24px;
+      align-items: stretch;
+    }
+    .card-grid-3 {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+      align-items: stretch;
+    }
+    .card-grid-4 {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+    .card-grid-5 {
+      display: grid;
+      grid-template-columns: repeat(5, 1fr);
+      gap: 16px;
+      align-items: stretch;
+    }
+
+    .flat-card {
+      background: var(--c-slate);
+      border: 1px solid var(--c-slate-border);
+      border-radius: 8px;
+      padding: 22px;
+      position: relative;
+      display: flex;
+      flex-direction: column;
+      transition: transform 0.25s var(--ease-out), border-color 0.25s ease, background-color 0.25s ease;
+    }
+    .flat-card:hover {
+      transform: translateY(-5px);
+      border-color: var(--c-orange);
+      background-color: var(--c-slate-hover);
+    }
+    .flat-card.accent-card {
+      border-color: var(--c-orange);
+      background: #20243E;
+    }
+
+    .icon-box {
+      width: 40px;
+      height: 40px;
+      border-radius: 6px;
+      background: rgba(217, 123, 74, 0.12);
+      border: 1px solid rgba(217, 123, 74, 0.25);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      margin-bottom: 14px;
+      color: var(--c-orange);
+      transition: background 0.2s, color 0.2s, border-color 0.2s;
+    }
+    .flat-card:hover .icon-box {
+      background: var(--c-orange);
+      color: var(--c-midnight);
+      border-color: var(--c-orange);
+    }
+    .icon-box svg {
+      width: 22px;
+      height: 22px;
+      stroke: currentColor;
+      stroke-width: 2;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    .card-h {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 6px;
+      line-height: 1.3;
+    }
+    .card-p {
+      font-size: 13.5px;
+      color: var(--c-text-muted);
+      line-height: 1.45;
+    }
+
+    /* Architecture Diagram */
+    .arch-container {
+      display: flex;
+      flex-direction: column;
+      gap: 18px;
+      width: 100%;
+    }
+    .arch-row {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      width: 100%;
+    }
+    .arch-step {
+      flex: 1;
+      background: var(--c-slate);
+      border: 1px solid var(--c-slate-border);
+      border-radius: 8px;
+      padding: 14px;
+      position: relative;
+      transition: all 0.25s ease;
+      cursor: default;
+    }
+    .arch-step:hover {
+      border-color: var(--c-gold);
+      transform: translateY(-4px);
+      box-shadow: 0 8px 24px rgba(0,0,0,0.4);
+    }
+    .arch-step-label {
+      font-size: 10px;
+      font-weight: 700;
+      color: var(--c-orange);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 4px;
+    }
+    .arch-step-title {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 2px;
+    }
+    .arch-step-detail {
+      font-size: 11px;
+      color: var(--c-text-muted);
+      line-height: 1.35;
+      font-family: var(--font-mono);
+    }
+    .arch-arrow {
+      color: var(--c-slate-border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 0 2px;
+    }
+    @keyframes pulseArrow {
+      0% { opacity: 0.2; transform: translateX(-3px); }
+      50% { opacity: 1; transform: translateX(2px); stroke: var(--c-gold); }
+      100% { opacity: 0.2; transform: translateX(-3px); }
+    }
+    .arch-arrow svg {
+      width: 16px;
+      height: 16px;
+      stroke: var(--c-orange);
+      stroke-width: 2;
+      fill: none;
+      animation: pulseArrow 2s infinite ease-in-out;
+    }
+
+    /* Simulation & Proof Slide 6 */
+    .sim-panel {
+      background: #14172C;
+      border: 1px solid var(--c-slate-border);
+      border-radius: 8px;
+      padding: 16px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+    .sim-field {
+      background: var(--c-midnight);
+      border: 1px solid var(--c-slate-border);
+      border-radius: 6px;
+      padding: 10px 14px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      font-size: 12.5px;
+    }
+    .sim-field.pulse-green {
+      border-color: #34D399;
+      background: rgba(52, 211, 153, 0.08);
+    }
+    .sim-status-badge {
+      font-size: 10px;
+      font-weight: 700;
+      font-family: var(--font-mono);
+      padding: 2px 6px;
+      border-radius: 4px;
+      background: var(--c-slate);
+      color: var(--c-text-muted);
+    }
+    .sim-field.pulse-green .sim-status-badge {
+      background: #064E3B;
+      color: #6EE7B7;
+    }
+
+    .counter-number {
+      font-family: var(--font-serif);
+      font-size: 42px;
+      font-weight: 800;
+      color: var(--c-gold);
+      line-height: 1;
+      margin-bottom: 6px;
+    }
+    .counter-label {
+      font-size: 13px;
+      font-weight: 700;
+      color: #ffffff;
+      margin-bottom: 4px;
+    }
+    .counter-desc {
+      font-size: 12px;
+      color: var(--c-text-muted);
+      line-height: 1.4;
+    }
+
+    /* Bottom HUD */
+    #deck-hud {
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      right: 0;
+      height: 48px;
+      padding: 0 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      background: rgba(11, 12, 30, 0.85);
+      border-top: 1px solid rgba(255, 255, 255, 0.07);
+      z-index: 100;
+    }
+    #deck-wrapper.on-orange-slide #deck-hud {
+      background: rgba(217, 123, 74, 0.95);
+      border-top-color: rgba(11, 12, 30, 0.15);
+    }
+
+    .hud-brand-tag {
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--c-text-muted);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    #deck-wrapper.on-orange-slide .hud-brand-tag {
+      color: var(--c-ink);
+    }
+
+    .dot-navigation {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .nav-dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: rgba(255, 255, 255, 0.25);
+      cursor: pointer;
+      transition: all 0.25s ease;
+    }
+    #deck-wrapper.on-orange-slide .nav-dot {
+      background: rgba(11, 12, 30, 0.3);
+    }
+    .nav-dot.active {
+      width: 24px;
+      border-radius: 4px;
+      background: var(--c-orange);
+    }
+    #deck-wrapper.on-orange-slide .nav-dot.active {
+      background: var(--c-ink);
+    }
+
+    .hud-controls-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .slide-counter-text {
+      font-family: var(--font-mono);
+      font-size: 12px;
+      font-weight: 700;
+      color: var(--c-orange);
+    }
+    #deck-wrapper.on-orange-slide .slide-counter-text {
+      color: var(--c-ink);
+    }
+
+    .nav-btn {
+      background: var(--c-slate);
+      border: 1px solid var(--c-slate-border);
+      color: var(--c-text);
+      width: 28px;
+      height: 28px;
+      border-radius: 4px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      transition: background 0.15s, border-color 0.15s;
+    }
+    .nav-btn:hover {
+      border-color: var(--c-orange);
+      color: #ffffff;
+    }
+    #deck-wrapper.on-orange-slide .nav-btn {
+      background: rgba(11, 12, 30, 0.15);
+      border-color: rgba(11, 12, 30, 0.25);
+      color: var(--c-ink);
+    }
+    #deck-wrapper.on-orange-slide .nav-btn:hover {
+      background: var(--c-ink);
+      color: var(--c-orange);
+    }
+
+    @media (prefers-reduced-motion: reduce) {
+      *, .anim-flame, .anim-chakra, .bin-digit-1, .bin-digit-2, #wipe-overlay, .arch-arrow svg {
+        animation: none !important;
+        transition: none !important;
+      }
+    }
+  
+    /* --- 3D TILT & CANVA SLIDESHOW STYLES --- */
+    .flat-card, .arch-step {
+      transform-style: preserve-3d;
+      transition: transform 0.15s ease-out, border-color 0.25s ease, background-color 0.25s ease;
+      will-change: transform;
+    }
+
+    .hud-action-btn {
+      background: var(--c-slate);
+      border: 1px solid var(--c-slate-border);
+      color: var(--c-text);
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: 11px;
+      font-weight: 700;
+      cursor: pointer;
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      transition: all 0.2s ease;
+    }
+    .hud-action-btn:hover {
+      border-color: var(--c-orange);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+    #deck-wrapper.on-orange-slide .hud-action-btn {
+      background: rgba(11, 12, 30, 0.15);
+      border-color: rgba(11, 12, 30, 0.25);
+      color: var(--c-ink);
+    }
+    #deck-wrapper.on-orange-slide .hud-action-btn:hover {
+      background: var(--c-ink);
+      color: var(--c-orange);
+    }
+
+    /* Slideshow Active Indicator */
+    .hud-action-btn.active-ss {
+      background: var(--c-orange);
+      color: var(--c-midnight);
+      border-color: var(--c-orange);
+      font-weight: 800;
+      box-shadow: 0 0 10px rgba(217, 123, 74, 0.4);
+    }
+
+    /* Canva 3D Drawer Modal */
+    #canva-drawer {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 48px;
+      width: 440px;
+      background: rgba(17, 20, 38, 0.96);
+      border-left: 1px solid var(--c-orange);
+      box-shadow: -12px 0 40px rgba(0,0,0,0.8);
+      z-index: 400;
+      padding: 24px;
+      display: flex;
+      flex-direction: column;
+      transform: translateX(102%);
+      transition: transform 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+      backdrop-filter: blur(16px);
+      overflow-y: auto;
+    }
+    #canva-drawer.open {
+      transform: translateX(0);
+    }
+    .canva-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding-bottom: 14px;
+      border-bottom: 1px solid var(--c-slate-border);
+      margin-bottom: 16px;
+    }
+    .canva-title {
+      font-size: 14px;
+      font-weight: 800;
+      color: #ffffff;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .canva-close-btn {
+      background: transparent;
+      border: none;
+      color: var(--c-text-muted);
+      font-size: 18px;
+      cursor: pointer;
+    }
+    .canva-close-btn:hover {
+      color: #ffffff;
+    }
+    .canva-card {
+      background: var(--c-midnight);
+      border: 1px solid var(--c-slate-border);
+      border-radius: 6px;
+      padding: 12px;
+      margin-bottom: 12px;
+    }
+    .canva-card-h {
+      font-size: 11.5px;
+      font-weight: 700;
+      color: var(--c-orange);
+      margin-bottom: 6px;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+    }
+    .canva-copy-btn {
+      background: var(--c-slate);
+      border: 1px solid var(--c-slate-border);
+      color: var(--c-gold);
+      padding: 2px 6px;
+      border-radius: 4px;
+      font-size: 10px;
+      cursor: pointer;
+      font-family: var(--font-mono);
+    }
+    .canva-copy-btn:hover {
+      border-color: var(--c-gold);
+      background: rgba(242, 184, 75, 0.15);
+    }
+    .canva-prompt-text {
+      font-size: 11px;
+      color: var(--c-text-muted);
+      line-height: 1.45;
+      font-family: var(--font-mono);
+      white-space: pre-wrap;
+    }
+
+    /* 3D Slide Flip Animation */
+    .slide {
+      perspective: 1200px;
+      transform-style: preserve-3d;
+    }
+    
+  </style>
+</head>
+<body>
+
+  <div id="deck-wrapper">
+
+    <!-- Wipe Transition Layer -->
+    <div id="wipe-overlay"></div>
+
+    <!-- Background Mandala Line Geometry (Left Corner) -->
+    <svg class="bg-mandala" style="top:-140px; left:-140px; width:480px; height:480px;" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="46"/>
+      <circle cx="50" cy="50" r="36"/>
+      <circle cx="50" cy="50" r="26"/>
+      <circle cx="50" cy="50" r="14"/>
+      <path d="M50 4 L50 96 M4 50 L96 50 M17.5 17.5 L82.5 82.5 M17.5 82.5 L82.5 17.5"/>
+      <path d="M50 14 C42 28, 42 36, 50 50 C58 36, 58 28, 50 14 Z"/>
+      <path d="M50 86 C42 72, 42 64, 50 50 C58 64, 58 72, 50 86 Z"/>
+      <path d="M14 50 C28 42, 36 42, 50 50 C36 58, 28 58, 14 50 Z"/>
+      <path d="M86 50 C72 42, 64 42, 50 50 C64 58, 72 58, 86 50 Z"/>
+    </svg>
+
+    <!-- Background Mandala Line Geometry (Right Bottom) -->
+    <svg class="bg-mandala" style="bottom:-140px; right:-140px; width:460px; height:460px;" viewBox="0 0 100 100">
+      <circle cx="50" cy="50" r="45"/>
+      <circle cx="50" cy="50" r="32"/>
+      <circle cx="50" cy="50" r="18"/>
+      <path d="M50 5 L50 95 M5 50 L95 50"/>
+      <polygon points="50,18 72,28 82,50 72,72 50,82 28,72 18,50 28,28"/>
+    </svg>
+
+    <!-- =======================================================================
+         SLIDE 1: HOOK (Full-Bleed Sunset Orange with Animated Diya Logo)
+         ======================================================================= -->
+    <section class="slide orange-theme active" data-slide="1" data-steps="1">
+      <div class="reveal-l1 chip-bar">
+        <span class="meta-chip">FORGE BUILDATHON · 48-HOUR BUILD</span>
+        <span class="meta-chip">CIVIC PULSE: DIGITAL GOVERNANCE</span>
+      </div>
+
+      <div class="reveal-l2" style="display:flex; align-items:center; gap:22px; margin-bottom:12px;">
+        <!-- ANIMATED LOGO COMPONENT (Hero Size) -->
+        <div class="nagarik-logo-wrap" style="width:72px; height:72px;">
+          <svg width="72" height="72" viewBox="0 0 64 64" fill="none">
+            <!-- Rotating Sacred Chakra Ring -->
+            <g class="anim-chakra">
+              <circle cx="32" cy="32" r="30" stroke="#0B0C1E" stroke-width="1.2" stroke-dasharray="3 3"/>
+              <circle cx="32" cy="32" r="23" stroke="#0B0C1E" stroke-width="0.8"/>
+            </g>
+            <!-- Diya Solid Base Lamp -->
+            <path d="M10 38 C10 52, 54 52, 54 38 C54 36, 10 36, 10 38 Z" fill="#0B0C1E"/>
+            <path d="M23 50 L16 58 L48 58 L41 50 Z" fill="#0B0C1E"/>
+            <!-- Floating Binary Digits Rising into Light -->
+            <text x="28" y="34" class="bin-digit-1">1</text>
+            <text x="34" y="33" class="bin-digit-2">0</text>
+            <!-- Diya Golden Flame with Ambient Breathing Glow -->
+            <g class="anim-flame">
+              <path d="M32 6 C32 6, 20 20, 20 29 C20 36, 25 41, 32 41 C39 41, 44 36, 44 29 C44 20, 32 6, 32 6 Z" fill="#F2B84B"/>
+              <path d="M32 16 C32 16, 26 24, 26 30 C26 34, 29 37, 32 37 C35 37, 38 34, 38 30 C38 24, 32 16, 32 16 Z" fill="#FFFBEB"/>
+            </g>
+          </svg>
+        </div>
+
+        <div>
+          <h1 style="font-family:var(--font-serif); font-size:56px; font-weight:900; line-height:1; color:#0B0C1E; letter-spacing:-0.02em;">
+            Nagarik AI <span style="font-family:var(--font-devanagari); font-size:42px; font-weight:700;">(नागरिक AI)</span>
+          </h1>
+          <div style="font-size:18px; font-weight:700; color:#2D3356; margin-top:4px;">
+            Empowering Every Citizen
+          </div>
+        </div>
+      </div>
+
+      <div class="reveal-l3" style="margin-top:24px; max-width:980px;">
+        <div style="font-family:var(--font-serif); font-size:42px; font-weight:900; line-height:1.2; color:#0B0C1E; margin-bottom:14px;">
+          “Millions qualify. <span style="color:#FFFDF5; text-decoration:underline; text-decoration-color:#0B0C1E;">Few can find out.</span>”
+        </div>
+        <p style="font-size:18px; line-height:1.55; color:#21253B; font-weight:500;">
+          A sovereign civic copilot that helps any citizen find the right government scheme, understand statutory eligibility, and apply directly — in their own language.
+        </p>
+      </div>
+
+      <div class="reveal-l4" style="margin-top:auto; padding-top:18px; display:flex; justify-content:space-between; align-items:flex-end; border-top:1px solid rgba(11,12,30,0.2);">
+        <div style="font-size:13px; font-weight:700; color:#0B0C1E; font-family:var(--font-mono);">
+          LIVE: https://nagarik-ai-civic-2026.web.app
+        </div>
+        <div style="font-size:12.5px; font-weight:600; color:#2D3356;">
+          Team: @cyugandharreddy08 · @baliharsha999 · @Raghavendra-Kasireddy
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SLIDE 2: THE PROBLEM (Broken Journey Flow + 5 Failure Points)
+         ======================================================================= -->
+    <section class="slide" data-slide="2" data-steps="2">
+      <div class="reveal-l1 slide-eyebrow">THE BROKEN DISCOVERY JOURNEY</div>
+      <h2 class="reveal-l2 slide-heading">
+        Why Millions Fall Through <span class="highlight-gold">The Bureaucratic Maze</span>
+      </h2>
+      <p class="reveal-l3 slide-sub">
+        Statutory welfare discovery is the first critical gate. When discovery fails, life-changing benefits expire unclaimed.
+      </p>
+
+      <div class="reveal-l4 card-grid-4" style="margin-bottom:20px;">
+        <div class="flat-card" style="padding:16px;">
+          <div style="font-size:11px; font-weight:700; color:var(--c-orange); margin-bottom:4px;">STEP 1</div>
+          <div class="card-h" style="font-size:14px;">Ask Around</div>
+          <div class="card-p" style="font-size:12px;">Inquire with relatives, ward leaders, or local CSC operators. Mixed accuracy.</div>
+        </div>
+        <div class="flat-card" style="padding:16px;">
+          <div style="font-size:11px; font-weight:700; color:var(--c-orange); margin-bottom:4px;">STEP 2</div>
+          <div class="card-h" style="font-size:14px;">Search Portals</div>
+          <div class="card-p" style="font-size:12px;">Hit multiple disconnected ministry, state, and district websites.</div>
+        </div>
+        <div class="flat-card" style="padding:16px;">
+          <div style="font-size:11px; font-weight:700; color:var(--c-orange); margin-bottom:4px;">STEP 3</div>
+          <div class="card-h" style="font-size:14px;">Repeat Visits</div>
+          <div class="card-p" style="font-size:12px;">Repeated physical office trips to uncover hidden document criteria.</div>
+        </div>
+        <div class="flat-card accent-card" style="padding:16px;">
+          <div style="font-size:11px; font-weight:700; color:var(--c-gold); margin-bottom:4px;">FINAL FAILURE</div>
+          <div class="card-h" style="font-size:14px; color:var(--c-gold);">Give Up or Pay</div>
+          <div class="card-p" style="font-size:12px; color:var(--c-text);">Abandon statutory entitlements or pay intermediaries to file basic forms.</div>
+        </div>
+      </div>
+
+      <!-- Five Failure Points (Build step 2: click to reveal) -->
+      <div class="card-grid-5 build-item" id="slide2-failures">
+        <div class="flat-card" style="padding:14px;">
+          <div class="icon-box" style="margin-bottom:8px;">
+            <svg viewBox="0 0 24 24"><path d="M4 4h16v16H4z M4 9h16 M9 4v16"/></svg>
+          </div>
+          <div class="card-h" style="font-size:13px;">1. Scattered Info</div>
+          <div class="card-p" style="font-size:11.5px;">Split across dozens of unlinked central & state departments.</div>
+        </div>
+
+        <div class="flat-card" style="padding:14px;">
+          <div class="icon-box" style="margin-bottom:8px;">
+            <svg viewBox="0 0 24 24"><path d="M12 3v18 M3 9l9-6 9 6 M6 13h12 M6 18h12"/></svg>
+          </div>
+          <div class="card-h" style="font-size:13px;">2. Legalistic Rules</div>
+          <div class="card-p" style="font-size:11.5px;">Eligibility written in dense, shifting administrative jargon.</div>
+        </div>
+
+        <div class="flat-card" style="padding:14px;">
+          <div class="icon-box" style="margin-bottom:8px;">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z M14 2v6h6 M16 13H8 M16 17H8"/></svg>
+          </div>
+          <div class="card-h" style="font-size:13px;">3. Hidden Docs</div>
+          <div class="card-p" style="font-size:11.5px;">Required certificates & channels are never stated upfront.</div>
+        </div>
+
+        <div class="flat-card" style="padding:14px;">
+          <div class="icon-box" style="margin-bottom:8px;">
+            <svg viewBox="0 0 24 24"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+          </div>
+          <div class="card-h" style="font-size:13px;">4. Language Wall</div>
+          <div class="card-p" style="font-size:11.5px;">Portals offer only English plus one regional language.</div>
+        </div>
+
+        <div class="flat-card" style="padding:14px;">
+          <div class="icon-box" style="margin-bottom:8px;">
+            <svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.35-4.35"/></svg>
+          </div>
+          <div class="card-h" style="font-size:13px;">5. No Single View</div>
+          <div class="card-p" style="font-size:11.5px;">No dashboard of "what I qualify for and what to do next".</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SLIDE 3: SOLUTION (4-Step Loop & Before/After Contrast)
+         ======================================================================= -->
+    <section class="slide" data-slide="3" data-steps="1">
+      <div class="reveal-l1 slide-eyebrow">OUR SOLUTION</div>
+      <h2 class="reveal-l2 slide-heading">
+        One Plain-Language Conversation. <span class="highlight-gold">Direct Welfare Redressal.</span>
+      </h2>
+      <p class="reveal-l3 slide-sub">
+        A citizen speaks or types their situation in plain words. Nagarik AI matches schemes, explains criteria, checklists documents, and guides filing.
+      </p>
+
+      <div class="reveal-l4 card-grid-4" style="margin-bottom:24px;">
+        <div class="flat-card" style="border-top:3px solid var(--c-orange);">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/><line x1="12" y1="19" x2="12" y2="23"/></svg>
+          </div>
+          <div class="card-h">1. Speak Situation</div>
+          <div class="card-p">Describe household need in Hindi, Telugu, or English, or snap a photo of a document.</div>
+        </div>
+
+        <div class="flat-card" style="border-top:3px solid var(--c-gold);">
+          <div class="icon-box" style="color:var(--c-gold); border-color:rgba(242,184,75,0.3); background:rgba(242,184,75,0.1);">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polygon points="16.24 7.76 14.12 14.12 7.76 16.24 9.88 9.88 16.24 7.76"/></svg>
+          </div>
+          <div class="card-h">2. Discover Schemes</div>
+          <div class="card-p">Pluggable SchemeProvider matches live API Setu data & 15 verified welfare gazettes.</div>
+        </div>
+
+        <div class="flat-card" style="border-top:3px solid var(--c-orange);">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"/><polyline points="22 4 12 14.01 9 11.01"/></svg>
+          </div>
+          <div class="card-h">3. Understand Rules</div>
+          <div class="card-p">Clear eligibility reasoning with upfront document checklists and deadline alerts.</div>
+        </div>
+
+        <div class="flat-card" style="border-top:3px solid #34D399;">
+          <div class="icon-box" style="color:#34D399; border-color:rgba(52,211,153,0.3); background:rgba(52,211,153,0.1);">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/><line x1="16" y1="13" x2="8" y2="13"/><line x1="16" y1="17" x2="8" y2="17"/></svg>
+          </div>
+          <div class="card-h">4. Safe Auto-Fill & Track</div>
+          <div class="card-p">Assisted portal injection. Citizen clicks submit; tracking ID is sealed in side panel.</div>
+        </div>
+      </div>
+
+      <div class="card-grid-2">
+        <div class="flat-card" style="background:#171A2E; border-color:#2D3356;">
+          <div style="font-size:11px; font-weight:800; color:var(--c-text-muted); text-transform:uppercase; margin-bottom:4px;">TODAY'S REALITY</div>
+          <div class="card-h" style="font-size:15px; color:#ffffff;">6 Disconnected Websites · 3 Physical Visits</div>
+          <div class="card-p">Decipher 40-page gazette circulars, risk cyber-café data harvesting, and struggle with CAPTCHAs without guidance.</div>
+        </div>
+        <div class="flat-card accent-card">
+          <div style="font-size:11px; font-weight:800; color:var(--c-gold); text-transform:uppercase; margin-bottom:4px;">WITH NAGARIK AI</div>
+          <div class="card-h" style="font-size:15px; color:var(--c-gold);">One Conversation · Complete Welfare Handoff</div>
+          <div class="card-p">Vernacular voice intake, verified statutory citations, client-side Aadhaar masking, and automated portal form autofill.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SLIDE 4: KEY FEATURES (6 Clean Fact-Based Cards)
+         ======================================================================= -->
+    <section class="slide" data-slide="4" data-steps="1">
+      <div class="reveal-l1 slide-eyebrow">BUILT & VERIFIED CAPABILITIES</div>
+      <h2 class="reveal-l2 slide-heading">
+        Six Practical Tools, <span class="highlight-gold">Zero Guesswork</span>
+      </h2>
+      <p class="reveal-l3 slide-sub">
+        Every capability is implemented in our extension and backend codebase. No buzzwords, no dummy promises.
+      </p>
+
+      <div class="reveal-l4 card-grid-3" style="gap:18px;">
+        <div class="flat-card">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/><path d="M19 10v2a7 7 0 0 1-14 0v-2"/></svg>
+          </div>
+          <div class="card-h">Voice in Mother Tongue</div>
+          <div class="card-p">Continuous speech recognition in Hindi, Telugu, and English, converting plain spoken words into a structured petition.</div>
+        </div>
+
+        <div class="flat-card">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg>
+          </div>
+          <div class="card-h">15 Verified Schemes</div>
+          <div class="card-p">Curated repository with verbatim official gazette texts, official URLs, and 2026-10-30 verification timestamps.</div>
+        </div>
+
+        <div class="flat-card">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><path d="M16 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="8.5" cy="7.5" r="4"/><polyline points="17 11 19 13 23 9"/></svg>
+          </div>
+          <div class="card-h">Eligibility Matcher</div>
+          <div class="card-p">Transparent criteria evaluator that explains exactly why a citizen qualifies across caste, age, income, and landholding.</div>
+        </div>
+
+        <div class="flat-card">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+          </div>
+          <div class="card-h">Safe In-Page Auto-Fill</div>
+          <div class="card-p">Portal adapters inject values into CPGRAMS & municipal forms. Never auto-submits; citizen handles OTP/CAPTCHA.</div>
+        </div>
+
+        <div class="flat-card">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+          </div>
+          <div class="card-h">3-Outcome Claim Verifier</div>
+          <div class="card-p">Classifies viral scheme claims into: "Matches official source", "Contradicts official source", or "Couldn't verify".</div>
+        </div>
+
+        <div class="flat-card">
+          <div class="icon-box">
+            <svg viewBox="0 0 24 24"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>
+          </div>
+          <div class="card-h">Statutory Escalations</div>
+          <div class="card-p">Auto-drafts formal Reminders, First Appeals under Public Services Guarantee Acts, and Section 6(1) RTI petitions when SLA lapses.</div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SLIDE 5: TECHNICAL ARCHITECTURE (Layered Flow + Ingestion Pipeline)
+         ======================================================================= -->
+    <section class="slide" data-slide="5" data-steps="1">
+      <div class="reveal-l1 slide-eyebrow">SYSTEM ARCHITECTURE</div>
+      <h2 class="reveal-l2 slide-heading">
+        Engineered for Reliability: <span class="highlight-gold">Grounded RAG Pipeline</span>
+      </h2>
+      <p class="reveal-l3 slide-sub" style="margin-bottom:20px;">
+        Answers are strictly grounded in retrieved scheme chunks to prevent hallucination. Extension maintains zero-knowledge privacy.
+      </p>
+
+      <div class="reveal-l4 arch-container">
+        <!-- Row 1: Real-Time Inference Path -->
+        <div style="font-size:11px; font-weight:800; color:var(--c-orange); text-transform:uppercase; letter-spacing:0.06em;">
+          1. INFERENCE & EXECUTION LOOP (CITIZEN TO PORTAL)
+        </div>
+        <div class="arch-row">
+          <div class="arch-step">
+            <div class="arch-step-label">CLIENT LAYER</div>
+            <div class="arch-step-title">Chrome Side Panel</div>
+            <div class="arch-step-detail">Manifest V3 Side Panel<br>Trilingual Web Speech STT<br>Photo attachment intake</div>
+          </div>
+          <div class="arch-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+
+          <div class="arch-step">
+            <div class="arch-step-label">GATEWAY</div>
+            <div class="arch-step-title">FastAPI Backend</div>
+            <div class="arch-step-detail">Async Python 3.13<br>Zero API keys in client<br>12-digit Aadhaar sanitizer</div>
+          </div>
+          <div class="arch-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+
+          <div class="arch-step" style="border-color:var(--c-gold);">
+            <div class="arch-step-label" style="color:var(--c-gold);">RETRIEVAL</div>
+            <div class="arch-step-title">Hybrid SchemeProvider</div>
+            <div class="arch-step-detail">API Setu live integration<br>FAISS dense + BM25 search<br>15 curated official schemes</div>
+          </div>
+          <div class="arch-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+
+          <div class="arch-step" style="border-color:var(--c-gold);">
+            <div class="arch-step-label" style="color:var(--c-gold);">REASONING</div>
+            <div class="arch-step-title">Grounded LLM Core</div>
+            <div class="arch-step-detail">Groq Llama-3.3 / Gemini 2.0<br>Strict scheme grounding<br>Criteria match evaluation</div>
+          </div>
+          <div class="arch-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+
+          <div class="arch-step">
+            <div class="arch-step-label">EXECUTION</div>
+            <div class="arch-step-title">Portal Adapter In-Page</div>
+            <div class="arch-step-detail">CPGRAMS & Mock Adapters<br>Synthetic event dispatch<br>Tracking ID receipt seal</div>
+          </div>
+        </div>
+
+        <!-- Row 2: Ingestion & Verification Pipeline -->
+        <div style="font-size:11px; font-weight:800; color:var(--c-text-muted); text-transform:uppercase; letter-spacing:0.06em; margin-top:6px;">
+          2. KNOWLEDGE INGESTION & AUDIT TRAIL PIPELINE
+        </div>
+        <div class="arch-row">
+          <div class="arch-step" style="background:#171A2E;">
+            <div class="arch-step-label">SOURCES</div>
+            <div class="arch-step-title">Official Gazettes</div>
+            <div class="arch-step-detail">apisetu.gov.in / myScheme<br>State gazette circulars</div>
+          </div>
+          <div class="arch-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+
+          <div class="arch-step" style="background:#171A2E;">
+            <div class="arch-step-label">INGESTION</div>
+            <div class="arch-step-title">Cleaning & Chunking</div>
+            <div class="arch-step-detail">Semantic criteria split<br>Mandatory document parser</div>
+          </div>
+          <div class="arch-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+
+          <div class="arch-step" style="background:#171A2E;">
+            <div class="arch-step-label">INDEX</div>
+            <div class="arch-step-title">Embeddings Store</div>
+            <div class="arch-step-detail">Sentence-Transformers<br>Local SQLite schemes.db</div>
+          </div>
+          <div class="arch-arrow"><svg viewBox="0 0 24 24"><polyline points="9 18 15 12 9 6"/></svg></div>
+
+          <div class="arch-step" style="background:#171A2E;">
+            <div class="arch-step-label">VERIFICATION</div>
+            <div class="arch-step-title">Source Citations</div>
+            <div class="arch-step-detail">Verbatim official texts<br>Last verified 2026-10-30</div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SLIDE 6: SIMPLICITY + TRUST (Mini-Demo & Proof Counters)
+         ======================================================================= -->
+    <section class="slide" data-slide="6" data-steps="1">
+      <div class="reveal-l1 slide-eyebrow">SIMPLICITY & EVIDENCE</div>
+      <h2 class="reveal-l2 slide-heading">
+        Safe by Design: <span class="highlight-gold">Tested Proof of Trust</span>
+      </h2>
+      <p class="reveal-l3 slide-sub">
+        Never auto-submits on real government portals. The citizen stays in full sovereign control.
+      </p>
+
+      <div class="reveal-l4 card-grid-2">
+        <!-- Left: 3-Step Live Citizen Flow Simulator -->
+        <div class="flat-card" style="padding:20px;">
+          <div style="font-size:12px; font-weight:800; color:var(--c-orange); text-transform:uppercase; margin-bottom:12px;">
+            IN-PAGE CITIZEN AUTO-FILL SIMULATION
+          </div>
+          <div class="sim-panel">
+            <div class="sim-field pulse-green">
+              <span>Citizen Name</span>
+              <span class="sim-status-badge">AUTO-INJECTED (BUBBLING EVENT)</span>
+            </div>
+            <div class="sim-field pulse-green">
+              <span>Aadhaar Identity</span>
+              <span class="sim-status-badge" style="color:var(--c-gold); background:rgba(242,184,75,0.15);">XXXXXXXX4821 (12-DIGIT MASKED)</span>
+            </div>
+            <div class="sim-field pulse-green">
+              <span>Grievance Description</span>
+              <span class="sim-status-badge">STRUCTURED STATUTORY PETITION</span>
+            </div>
+            <div class="sim-field" style="border:1.5px dashed var(--c-gold); background:rgba(242,184,75,0.06);">
+              <span style="color:#ffffff; font-weight:700;">Citizen Verification Gate</span>
+              <span style="color:var(--c-gold); font-size:11px; font-weight:bold;">CAPTCHA / OTP / FINAL SUBMIT</span>
+            </div>
+          </div>
+          <div style="margin-top:12px; font-size:12px; color:var(--c-text-muted); line-height:1.4;">
+            🛡️ <strong>Safety Guarantee:</strong> Nagarik AI injects text and handles file uploads via DataTransfer, but intentionally halts before submission, allowing the citizen to review every word.
+          </div>
+        </div>
+
+        <!-- Right: Real Quality Counters -->
+        <div style="display:flex; flex-direction:column; gap:16px;">
+          <div class="card-grid-2">
+            <div class="flat-card">
+              <div class="counter-number">14 / 14</div>
+              <div class="counter-label">Automated Tests Passed</div>
+              <div class="counter-desc">Portal contract tests, fact-check outcomes, Aadhaar masking & provider fallback verified.</div>
+            </div>
+
+            <div class="flat-card">
+              <div class="counter-number">15</div>
+              <div class="counter-label">Verified Scheme Gazettes</div>
+              <div class="counter-desc">Each mapped to verbatim official legal texts, official URLs, and 2026-10-30 audit stamps.</div>
+            </div>
+          </div>
+
+          <div class="card-grid-2">
+            <div class="flat-card">
+              <div class="counter-number">3</div>
+              <div class="counter-label">Vernacular Languages</div>
+              <div class="counter-desc">Full plain-language voice recognition in Hindi, Telugu, and Indian English.</div>
+            </div>
+
+            <div class="flat-card accent-card">
+              <div class="counter-number" style="color:var(--c-gold);">0</div>
+              <div class="counter-label" style="color:var(--c-gold);">Forced Auto-Submits</div>
+              <div class="counter-desc">Strict policy compliance: zero blind form submissions without explicit citizen confirmation.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         SLIDE 7: FUTURE SCOPE + CLOSE (Full-Bleed Sunset Orange)
+         ======================================================================= -->
+    <section class="slide orange-theme" data-slide="7" data-steps="1">
+      <div class="reveal-l1 chip-bar">
+        <span class="meta-chip">ROADMAP & PUBLIC SCALE</span>
+        <span class="meta-chip">SOVEREIGN CIVIC INFRASTRUCTURE</span>
+      </div>
+
+      <div class="reveal-l2" style="display:flex; align-items:center; gap:16px; margin-bottom:8px;">
+        <!-- Animated Diya Motif in Header -->
+        <div class="nagarik-logo-wrap" style="width:48px; height:48px;">
+          <svg width="48" height="48" viewBox="0 0 64 64" fill="none">
+            <g class="anim-chakra">
+              <circle cx="32" cy="32" r="30" stroke="#0B0C1E" stroke-width="1.2" stroke-dasharray="3 3"/>
+            </g>
+            <path d="M10 38 C10 52, 54 52, 54 38 C54 36, 10 36, 10 38 Z" fill="#0B0C1E"/>
+            <path d="M23 50 L16 58 L48 58 L41 50 Z" fill="#0B0C1E"/>
+            <g class="anim-flame">
+              <path d="M32 6 C32 6, 20 20, 20 29 C20 36, 25 41, 32 41 C39 41, 44 36, 44 29 C44 20, 32 6, 32 6 Z" fill="#F2B84B"/>
+            </g>
+          </svg>
+        </div>
+        <h2 class="slide-heading" style="color:#0B0C1E; font-size:36px; margin-bottom:0;">
+          Expanding From 48-Hour Build to <span style="text-decoration:underline;">National Scale</span>
+        </h2>
+      </div>
+
+      <p class="reveal-l3 slide-sub" style="color:#282C44; margin-bottom:24px;">
+        Building continuous civic rails connecting 1.4 billion citizens to public entitlements.
+      </p>
+
+      <!-- Roadmap Timeline Grid -->
+      <div class="reveal-l4 card-grid-4" style="margin-bottom:24px;">
+        <div class="flat-card" style="background:#0B0C1E; border-color:rgba(11,12,30,0.3); color:#E8E9F2;">
+          <div style="font-size:11px; font-weight:800; color:var(--c-gold); margin-bottom:4px;">PHASE 1 (LIVE)</div>
+          <div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:4px;">Extension & Live MVP</div>
+          <div style="font-size:12px; color:#A5AAC6; line-height:1.4;">Chrome Side Panel, CPGRAMS & Mock adapters, 15 verified schemes.</div>
+        </div>
+
+        <div class="flat-card" style="background:#0B0C1E; border-color:rgba(11,12,30,0.3); color:#E8E9F2;">
+          <div style="font-size:11px; font-weight:800; color:var(--c-gold); margin-bottom:4px;">PHASE 2</div>
+          <div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:4px;">More States & Adapters</div>
+          <div style="font-size:12px; color:#A5AAC6; line-height:1.4;">Adapters for Telangana Prajavani, Karnataka Seva Sindhu, and Spandana.</div>
+        </div>
+
+        <div class="flat-card" style="background:#0B0C1E; border-color:rgba(11,12,30,0.3); color:#E8E9F2;">
+          <div style="font-size:11px; font-weight:800; color:var(--c-gold); margin-bottom:4px;">PHASE 3</div>
+          <div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:4px;">Voice & Deadline Alerts</div>
+          <div style="font-size:12px; color:#A5AAC6; line-height:1.4;">Proactive deadline calendar alerts and IVR phone channel for non-internet users.</div>
+        </div>
+
+        <div class="flat-card" style="background:#0B0C1E; border-color:rgba(11,12,30,0.3); color:#E8E9F2;">
+          <div style="font-size:11px; font-weight:800; color:var(--c-gold); margin-bottom:4px;">PHASE 4</div>
+          <div style="font-size:14px; font-weight:700; color:#fff; margin-bottom:4px;">CSC & Operator Kiosk</div>
+          <div style="font-size:12px; color:#A5AAC6; line-height:1.4;">Empowering village panchayat secretaries and grassroots volunteers.</div>
+        </div>
+      </div>
+
+      <!-- Closing Callout + Inline SVG QR Code -->
+      <div style="margin-top:auto; padding-top:18px; border-top:1px solid rgba(11,12,30,0.25); display:flex; justify-content:space-between; align-items:center;">
+        <div>
+          <div style="font-family:var(--font-serif); font-size:22px; font-weight:900; color:#0B0C1E; margin-bottom:4px;">
+            “Bridging the gap between welfare on paper and welfare in citizen hands.”
+          </div>
+          <div style="font-size:13.5px; font-weight:600; color:#282C44;">
+            GitHub: github.com/cyugandharreddy08/Nagarik-AI · Live: nagarik-ai-civic-2026.web.app
+          </div>
+          <div style="font-size:16px; font-weight:800; color:#0B0C1E; margin-top:6px;">
+            Thank you.
+          </div>
+        </div>
+
+        <!-- Inline SVG QR Code for https://nagarik-ai-civic-2026.web.app -->
+        <div style="display:flex; align-items:center; gap:14px;">
+          <div style="text-align:right;">
+            <div style="font-size:10px; font-weight:800; text-transform:uppercase; letter-spacing:0.08em; color:#0B0C1E;">SCAN FOR LIVE DEMO</div>
+            <div style="font-size:11px; font-family:var(--font-mono); color:#2D3356;">Firebase Deployed</div>
+          </div>
+          <svg width="78" height="78" viewBox="0 0 25 25" style="background:#0B0C1E; padding:5px; border-radius:6px; flex-shrink:0;">
+            <rect x="0" y="0" width="7" height="7" fill="#F2B84B"/>
+            <rect x="1" y="1" width="5" height="5" fill="#0B0C1E"/>
+            <rect x="2" y="2" width="3" height="3" fill="#F2B84B"/>
+            <rect x="18" y="0" width="7" height="7" fill="#F2B84B"/>
+            <rect x="19" y="1" width="5" height="5" fill="#0B0C1E"/>
+            <rect x="20" y="2" width="3" height="3" fill="#F2B84B"/>
+            <rect x="0" y="18" width="7" height="7" fill="#F2B84B"/>
+            <rect x="1" y="19" width="5" height="5" fill="#0B0C1E"/>
+            <rect x="2" y="20" width="3" height="3" fill="#F2B84B"/>
+            <rect x="9" y="2" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="13" y="1" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="10" y="5" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="3" y="10" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="6" y="12" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="9" y="9" width="3" height="3" fill="#F2B84B"/>
+            <rect x="14" y="10" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="18" y="11" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="22" y="9" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="10" y="14" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="13" y="15" width="3" height="3" fill="#F2B84B"/>
+            <rect x="18" y="16" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="22" y="15" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="9" y="20" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="13" y="21" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="17" y="21" width="2" height="2" fill="#E8E9F2"/>
+            <rect x="21" y="20" width="2" height="2" fill="#E8E9F2"/>
+          </svg>
+        </div>
+      </div>
+    </section>
+
+    <!-- =======================================================================
+         HUD CONTROLS & NAVIGATION (With Mini Animated Diya in Brand Tag)
+         ======================================================================= -->
+    
+    <!-- CANVA 3D PRESENTATION DRAWER MODAL -->
+    <aside id="canva-drawer">
+      <div class="canva-header">
+        <div class="canva-title">
+          <span>🎨 Canva 3D Slide Deck Prompts</span>
+        </div>
+        <button class="canva-close-btn" id="canva-close" title="Close Drawer">✕</button>
+      </div>
+
+      <p style="font-size:11.5px; color:var(--c-text-muted); line-height:1.45; margin-bottom:14px;">
+        Use these ready-to-paste prompts in <strong>Canva Magic Design</strong> or Canva Presentation builder. Combine with Canva's 3D isometric graphics library.
+      </p>
+
+      <div class="canva-card">
+        <div class="canva-card-h">
+          <span>SLIDE 1: HOOK (3D DIYA HERO)</span>
+          <button class="canva-copy-btn" onclick="copyCanvaPrompt(1)">Copy</button>
+        </div>
+        <div class="canva-prompt-text" id="cp-1">16:9 Presentation slide, full-bleed sunset orange #D97B4A. Minimalist dark typography in ink #0B0C1E: 'Nagarik AI (नागरिक AI)' in bold serif. Subtitle 'Empowering Every Citizen'. 3D glowing Indian Diya lamp with golden flame and floating binary digits (0 1). Subtle mandala geometry watermark.</div>
+      </div>
+
+      <div class="canva-card">
+        <div class="canva-card-h">
+          <span>SLIDE 2: THE PROBLEM (MAZE & CARDS)</span>
+          <button class="canva-copy-btn" onclick="copyCanvaPrompt(2)">Copy</button>
+        </div>
+        <div class="canva-prompt-text" id="cp-2">16:9 Dark slide #0B0C1E. Header: 'The Broken Welfare Discovery Journey'. 4 connected horizontal process cards showing citizen steps (Ask Around -> Search Portals -> Repeat Visits -> Give Up or Pay). Below, 5 dark slate-indigo #252A48 cards with 3D icons: Scattered Info, Legalistic Rules, Hidden Docs, Language Wall, No Single View.</div>
+      </div>
+
+      <div class="canva-card">
+        <div class="canva-card-h">
+          <span>SLIDE 3: SOLUTION (4-STEP LOOP)</span>
+          <button class="canva-copy-btn" onclick="copyCanvaPrompt(3)">Copy</button>
+        </div>
+        <div class="canva-prompt-text" id="cp-3">16:9 Dark slide #0B0C1E. Header: 'One Plain-Language Conversation. Direct Welfare Redressal.' Row of 4 cards with colored top borders: 1. Speak Situation (3D Mic), 2. Discover Schemes (3D Compass), 3. Understand Rules (3D Checkmark), 4. Safe Auto-Fill (3D Shield). Bottom: 2-column Before/After comparison.</div>
+      </div>
+
+      <div class="canva-card">
+        <div class="canva-card-h">
+          <span>SLIDE 4: KEY FEATURES (3D TOOLS)</span>
+          <button class="canva-copy-btn" onclick="copyCanvaPrompt(4)">Copy</button>
+        </div>
+        <div class="canva-prompt-text" id="cp-4">16:9 Dark slide #0B0C1E. Header: 'Six Practical Tools, Zero Guesswork'. 2x3 grid of slate-indigo cards with thin borders and 3D icons: Voice in Mother Tongue, 15 Verified Schemes, Eligibility Matcher, Safe Auto-Fill, 3-Outcome Claim Verifier, Statutory Escalations. One sunset orange accent.</div>
+      </div>
+
+      <div class="canva-card">
+        <div class="canva-card-h">
+          <span>SLIDE 5: ARCHITECTURE (3D PIPELINE)</span>
+          <button class="canva-copy-btn" onclick="copyCanvaPrompt(5)">Copy</button>
+        </div>
+        <div class="canva-prompt-text" id="cp-5">16:9 Dark slide #0B0C1E. Header: 'Engineered for Reliability: Grounded RAG Pipeline'. Clean horizontal flowchart: Chrome Side Panel -> FastAPI Backend -> Hybrid SchemeProvider -> Grounded LLM Core -> Portal Adapter. Bottom row: Data Ingestion. Connecting arrows with golden glowing pulses.</div>
+      </div>
+
+      <div class="canva-card">
+        <div class="canva-card-h">
+          <span>SLIDE 6: SIMPLICITY + TRUST (COUNTERS)</span>
+          <button class="canva-copy-btn" onclick="copyCanvaPrompt(6)">Copy</button>
+        </div>
+        <div class="canva-prompt-text" id="cp-6">16:9 Dark slide #0B0C1E. Left: UI simulation mockup of government form auto-filling with green glowing fields and masked Aadhaar XXXXXXXX4821. Right: 4 large gold counters: '14/14 Tests Passed', '15 Verified Schemes', '3 Languages', '0 Forced Submits'.</div>
+      </div>
+
+      <div class="canva-card">
+        <div class="canva-card-h">
+          <span>SLIDE 7: ROADMAP + QR CODE</span>
+          <button class="canva-copy-btn" onclick="copyCanvaPrompt(7)">Copy</button>
+        </div>
+        <div class="canva-prompt-text" id="cp-7">16:9 Sunset orange full-bleed slide #D97B4A. Header: 'Expanding From 48-Hour Build to National Scale'. 4 horizontal dark timeline cards (Phases 1 to 4). Bottom: QR code badge linking to live Firebase application, team handles, and 'Thank you'.</div>
+      </div>
+    </aside>
+    
+    <footer id="deck-hud">
+      <div class="hud-brand-tag">
+        <!-- Mini Animated Diya Logo in HUD -->
+        <div class="nagarik-logo-wrap" style="width:22px; height:22px;">
+          <svg width="22" height="22" viewBox="0 0 64 64" fill="none">
+            <path d="M10 38 C10 52, 54 52, 54 38 Z" fill="currentColor"/>
+            <g class="anim-flame">
+              <path d="M32 8 C32 8, 22 22, 22 30 C22 36, 26 40, 32 40 C38 40, 42 36, 42 30 C42 22, 32 8, 32 8 Z" fill="#F2B84B"/>
+            </g>
+          </svg>
+        </div>
+        <span>नागरिक AI</span>
+        <span>•</span>
+        <span>Empowering Every Citizen</span>
+      </div>
+
+      <div class="dot-navigation" id="dot-bar">
+        <!-- Rendered by JS -->
+      </div>
+
+      <div class="hud-controls-right">
+        <span class="slide-counter-text" id="hud-counter">01 / 07</span>
+        
+        <button class="hud-action-btn" id="btn-slideshow" title="Toggle 3D Autoplay Slideshow">▶ 3D Slideshow</button>
+        <button class="hud-action-btn" id="btn-canva" title="Canva 3D Prompts & Magic Design">🎨 Canva 3D</button>
+        <button class="hud-action-btn" id="btn-fullscreen-hud" title="Fullscreen [F]">⛶ Fullscreen</button>
+    
+        <button class="nav-btn" id="btn-prev" aria-label="Previous Slide">‹</button>
+        <button class="nav-btn" id="btn-next" aria-label="Next Slide">›</button>
+      </div>
+    </footer>
+
+  </div>
+
+  <script>
+    (function() {
+      const slides = document.querySelectorAll('.slide');
+      const totalSlides = slides.length;
+      const deckWrapper = document.getElementById('deck-wrapper');
+      const wipe = document.getElementById('wipe-overlay');
+      const counterEl = document.getElementById('hud-counter');
+      const dotBar = document.getElementById('dot-bar');
+      const btnNext = document.getElementById('btn-next');
+      const btnPrev = document.getElementById('btn-prev');
+
+      let currentSlideIdx = 0;
+      let isTransitioning = false;
+      let buildStep = 0;
+
+      for (let i = 0; i < totalSlides; i++) {
+        const dot = document.createElement('div');
+        dot.className = `nav-dot ${i === 0 ? 'active' : ''}`;
+        dot.addEventListener('click', () => goToSlide(i));
+        dotBar.appendChild(dot);
+      }
+      const dots = document.querySelectorAll('.nav-dot');
+
+      function updateHud() {
+        counterEl.textContent = `${String(currentSlideIdx + 1).padStart(2, '0')} / ${String(totalSlides).padStart(2, '0')}`;
+        dots.forEach((d, idx) => {
+          d.classList.toggle('active', idx === currentSlideIdx);
+        });
+        const isOrange = slides[currentSlideIdx].classList.contains('orange-theme');
+        deckWrapper.classList.toggle('on-orange-slide', isOrange);
+      }
+
+      function goToSlide(targetIdx) {
+        if (targetIdx === currentSlideIdx || isTransitioning || targetIdx < 0 || targetIdx >= totalSlides) return;
+        isTransitioning = true;
+        buildStep = 0;
+
+        wipe.classList.remove('wiping-out');
+        wipe.classList.add('wiping');
+
+        setTimeout(() => {
+          slides[currentSlideIdx].classList.remove('active');
+          currentSlideIdx = targetIdx;
+          slides[currentSlideIdx].classList.add('active');
+          updateHud();
+
+          const builds = slides[currentSlideIdx].querySelectorAll('.build-item');
+          builds.forEach(b => b.classList.remove('revealed'));
+
+          wipe.classList.remove('wiping');
+          wipe.classList.add('wiping-out');
+
+          setTimeout(() => {
+            wipe.classList.remove('wiping-out');
+            isTransitioning = false;
+          }, 450);
+        }, 320);
+      }
+
+      function handleNext() {
+        if (isTransitioning) return;
+        const currentSlide = slides[currentSlideIdx];
+        const maxSteps = parseInt(currentSlide.dataset.steps || "1", 10);
+
+        if (buildStep < maxSteps - 1) {
+          buildStep++;
+          if (currentSlideIdx === 1 && buildStep === 1) {
+            const el = document.getElementById('slide2-failures');
+            if (el) el.classList.add('revealed');
+          }
+          return;
+        }
+
+        if (currentSlideIdx < totalSlides - 1) {
+          goToSlide(currentSlideIdx + 1);
+        }
+      }
+
+      function handlePrev() {
+        if (isTransitioning) return;
+        if (currentSlideIdx > 0) {
+          goToSlide(currentSlideIdx - 1);
+        }
+      }
+
+      btnNext.addEventListener('click', handleNext);
+      btnPrev.addEventListener('click', handlePrev);
+
+      window.addEventListener('keydown', (e) => {
+        if (e.key === 'ArrowRight' || e.key === ' ' || e.key === 'PageDown') {
+          e.preventDefault();
+          handleNext();
+        } else if (e.key === 'ArrowLeft' || e.key === 'PageUp') {
+          e.preventDefault();
+          handlePrev();
+        } else if (e.key === 'Home') {
+          e.preventDefault();
+          goToSlide(0);
+        } else if (e.key === 'End') {
+          e.preventDefault();
+          goToSlide(totalSlides - 1);
+        } else if (e.key === 'f' || e.key === 'F') {
+          toggleFullscreen();
+        }
+      });
+
+      deckWrapper.addEventListener('click', (e) => {
+        if (e.target.closest('#deck-hud') || e.target.closest('button') || e.target.closest('a')) return;
+        handleNext();
+      });
+
+      function toggleFullscreen() {
+        if (!document.fullscreenElement) {
+          deckWrapper.requestFullscreen().catch(() => {});
+        } else {
+          document.exitFullscreen().catch(() => {});
+        }
+      }
+
+      
+      // --- 3D Parallax Tilt Physics ---
+      const tiltCards = document.querySelectorAll('.flat-card, .arch-step');
+      tiltCards.forEach(card => {
+        card.addEventListener('mousemove', e => {
+          const rect = card.getBoundingClientRect();
+          const x = e.clientX - rect.left;
+          const y = e.clientY - rect.top;
+          const cx = rect.width / 2;
+          const cy = rect.height / 2;
+          const rotX = ((y - cy) / cy) * -7;
+          const rotY = ((x - cx) / cx) * 7;
+          card.style.transform = `perspective(1000px) rotateX(${rotX}deg) rotateY(${rotY}deg) translateZ(8px)`;
+        });
+        card.addEventListener('mouseleave', () => {
+          card.style.transform = 'perspective(1000px) rotateX(0deg) rotateY(0deg) translateZ(0px)';
+        });
+      });
+
+      // --- 3D Slideshow Autoplay Mode ---
+      let slideshowTimer = null;
+      let isSlideshowActive = false;
+      const btnSlideshow = document.getElementById('btn-slideshow');
+
+      function startSlideshow() {
+        isSlideshowActive = true;
+        btnSlideshow.classList.add('active-ss');
+        btnSlideshow.textContent = '⏸ Pause Slideshow';
+        scheduleNextSlide();
+      }
+
+      function stopSlideshow() {
+        isSlideshowActive = false;
+        btnSlideshow.classList.remove('active-ss');
+        btnSlideshow.textContent = '▶ 3D Slideshow';
+        if (slideshowTimer) clearTimeout(slideshowTimer);
+        slideshowTimer = null;
+      }
+
+      function scheduleNextSlide() {
+        if (!isSlideshowActive) return;
+        if (slideshowTimer) clearTimeout(slideshowTimer);
+        slideshowTimer = setTimeout(() => {
+          if (!isSlideshowActive) return;
+          if (currentSlideIdx < totalSlides - 1) {
+            goToSlide(currentSlideIdx + 1);
+          } else {
+            goToSlide(0); // Loop back
+          }
+          scheduleNextSlide();
+        }, 7500); // 7.5 seconds per slide
+      }
+
+      btnSlideshow.addEventListener('click', (e) => {
+        e.stopPropagation();
+        if (isSlideshowActive) {
+          stopSlideshow();
+        } else {
+          startSlideshow();
+        }
+      });
+
+      // Pause on hover over slide content
+      deckWrapper.addEventListener('mouseenter', () => {
+        if (isSlideshowActive && slideshowTimer) clearTimeout(slideshowTimer);
+      });
+      deckWrapper.addEventListener('mouseleave', () => {
+        if (isSlideshowActive) scheduleNextSlide();
+      });
+
+      // --- Canva 3D Drawer Modal ---
+      const canvaDrawer = document.getElementById('canva-drawer');
+      const btnCanva = document.getElementById('btn-canva');
+      const canvaClose = document.getElementById('canva-close');
+
+      btnCanva.addEventListener('click', (e) => {
+        e.stopPropagation();
+        canvaDrawer.classList.toggle('open');
+      });
+      canvaClose.addEventListener('click', (e) => {
+        e.stopPropagation();
+        canvaDrawer.classList.remove('open');
+      });
+
+      document.getElementById('btn-fullscreen-hud').addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleFullscreen();
+      });
+
+      window.copyCanvaPrompt = function(slideNum) {
+        const textEl = document.getElementById(`cp-${slideNum}`);
+        if (!textEl) return;
+        navigator.clipboard.writeText(textEl.textContent).then(() => {
+          const btn = textEl.parentElement.querySelector('.canva-copy-btn');
+          if (btn) {
+            const old = btn.textContent;
+            btn.textContent = 'Copied!';
+            setTimeout(() => { btn.textContent = old; }, 1500);
+          }
+        });
+      };
+    
+      updateHud();
+    })();
+  </script>
+</body>
+</html>

@@ -4,34 +4,21 @@ import { marked } from 'marked';
 import {
   Send, Mic, MicOff, Volume2, VolumeX, Copy, Check,
   ExternalLink, Plus, MessageSquare, Trash2, Search, Menu, X,
-  ShieldCheck, Calculator, Smartphone, Compass, ArrowRight,
+  ShieldCheck, Compass, ArrowRight,
   Globe, Radio, Sparkles, Square, Headphones, Monitor, Download,
   Settings, ChevronsLeft, ChevronsRight, Sliders, User, FileText,
-  ShieldAlert, Activity, Phone, Bookmark
+  ShieldAlert, Phone, Bookmark
 } from 'lucide-react';
 import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
-import { CivicEligibilityCalculator } from './components/CivicEligibilityCalculator';
-import { WhatsAppBotView } from './components/WhatsAppBotView';
 import { AISaathiExtensionModal } from './components/AISaathiExtensionModal';
 import { CivicSettingsModal, type SettingsLanguage } from './components/CivicSettingsModal';
 import { CivicChatSummarizerModal } from './components/CivicChatSummarizerModal';
 import { CivicFactCheckModal } from './components/CivicFactCheckModal';
-import { CivicGrievanceStudioModal } from './components/CivicGrievanceStudioModal';
 import { CivicHelplineModal } from './components/CivicHelplineModal';
 import { CivicSchemeLockerModal } from './components/CivicSchemeLockerModal';
 
 // Civic Language Support
 export type CivicLanguage = 'en' | 'hi' | 'te' | 'ta';
-
-export const WHATSAPP_BOT_NUMBER = '919553948740';
-export const WHATSAPP_BOT_URL = `https://wa.me/${WHATSAPP_BOT_NUMBER}?text=Hi%20Nagarik%20AI,%20I%20want%20to%20know%20about%20government%20welfare%20schemes`;
-
-// Official Crisp WhatsApp Vector Emblem
-export const WhatsAppIcon: React.FC<{ className?: string }> = ({ className = "w-4 h-4" }) => (
-  <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-    <path d="M17.472 14.382c-.297-.149-1.758-.867-2.03-.967-.273-.099-.471-.148-.67.15-.197.297-.767.966-.94 1.164-.173.199-.347.223-.644.075-.297-.15-1.255-.463-2.39-1.475-.883-.788-1.48-1.761-1.653-2.059-.173-.297-.018-.458.13-.606.134-.133.298-.347.446-.52.149-.174.198-.298.298-.497.099-.198.05-.371-.025-.52-.075-.149-.669-1.612-.916-2.207-.242-.579-.487-.5-.669-.51-.173-.008-.371-.01-.57-.01-.198 0-.52.074-.792.372-.272.297-1.04 1.016-1.04 2.479 0 1.462 1.065 2.875 1.213 3.074.149.198 2.096 3.2 5.077 4.487.709.306 1.262.489 1.694.625.712.227 1.36.195 1.871.118.571-.085 1.758-.719 2.006-1.413.248-.694.248-1.289.173-1.413-.074-.124-.272-.198-.57-.347m-5.421 7.403h-.004a9.87 9.87 0 01-5.031-1.378l-.361-.214-3.741.982.998-3.648-.235-.374a9.86 9.86 0 01-1.51-5.26c.001-5.45 4.436-9.884 9.888-9.884 2.64 0 5.122 1.03 6.988 2.898a9.825 9.825 0 012.893 6.994c-.003 5.45-4.437 9.884-9.885 9.884m8.413-18.297A11.815 11.815 0 0012.05 0C5.495 0 .16 5.335.157 11.892c0 2.096.547 4.142 1.588 5.945L.057 24l6.305-1.654a11.882 11.882 0 005.683 1.448h.005c6.554 0 11.89-5.335 11.893-11.893a11.821 11.821 0 00-3.48-8.413Z"/>
-  </svg>
-);
 
 interface SchemeCitation {
   id: string;
@@ -165,13 +152,10 @@ export function App() {
   const [autoVoiceLoop, setAutoVoiceLoop] = useState(true);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
-  const [showEligibilityModal, setShowEligibilityModal] = useState(false);
-  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showSummarizerModal, setShowSummarizerModal] = useState(false);
   const [showFactCheckModal, setShowFactCheckModal] = useState(false);
-  const [showGrievanceStudioModal, setShowGrievanceStudioModal] = useState(false);
   const [showHelplineModal, setShowHelplineModal] = useState(false);
   const [showSchemeLockerModal, setShowSchemeLockerModal] = useState(false);
   const [incognito, setIncognito] = useState<boolean>(() => {
@@ -1018,22 +1002,6 @@ export function App() {
             <span className="text-[10px] bg-[#ffb692]/20 px-1.5 py-0.5 rounded text-[#ffb692]">Live</span>
           </button>
 
-          <button
-            onClick={() => setShowEligibilityModal(true)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
-          >
-            <Calculator className="w-4 h-4 text-[#f2ca50]" />
-            <span>Check Eligibility</span>
-          </button>
-
-          <button
-            onClick={() => setShowWhatsAppModal(true)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
-          >
-            <Smartphone className="w-4 h-4 text-[#ffb692]" />
-            <span>WhatsApp Citizen Bot</span>
-          </button>
-
           {/* Satya Setu Fact Checker */}
           <button
             onClick={() => {
@@ -1047,21 +1015,6 @@ export function App() {
               <span>Satya Setu (Fact-Check)</span>
             </div>
             <span className="text-[10px] bg-red-500/20 px-1.5 py-0.5 rounded text-red-300 font-mono">PIB</span>
-          </button>
-
-          {/* Nyaya Setu Grievance & RTI Studio */}
-          <button
-            onClick={() => {
-              setSidebarOpen(false);
-              setShowGrievanceStudioModal(true);
-            }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <Activity className="w-4 h-4 text-[#f2ca50]" />
-              <span>Nyaya Setu (Grievance & RTI)</span>
-            </div>
-            <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-300 font-mono">SLA</span>
           </button>
 
           {/* Nagarik Sahayata SOS & Helplines */}
@@ -1722,65 +1675,6 @@ export function App() {
         selectedLanguage={selectedLanguage}
       />
 
-      {/* Eligibility Calculator Modal */}
-      {showEligibilityModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#121418] border border-[#22262f] rounded-2xl overflow-y-auto shadow-2xl p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-[#22262f] mb-6">
-              <div className="flex items-center gap-3">
-                <Calculator className="w-6 h-6 text-[#f2ca50]" />
-                <div>
-                  <h2 className="text-lg font-bold text-white">Civic Entitlement Calculator</h2>
-                  <p className="text-xs text-[#8F93B5]">Determine your official benefits based on age, income, and category</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowEligibilityModal(false)}
-                className="p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#22262f]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <CivicEligibilityCalculator
-              onAskCopilot={(query: string) => {
-                setShowEligibilityModal(false);
-                handleSendChat(query);
-              }}
-              selectedLanguage={selectedLanguage}
-            />
-          </div>
-        </div>
-      )}
-
-      {/* WhatsApp Citizen Bot Modal */}
-      {showWhatsAppModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#121418] border border-[#22262f] rounded-2xl overflow-y-auto shadow-2xl p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-[#22262f] mb-4">
-              <div className="flex items-center gap-3">
-                <Smartphone className="w-6 h-6 text-[#ffb692]" />
-                <div>
-                  <h2 className="text-lg font-bold text-white">WhatsApp Citizen Gateway</h2>
-                  <p className="text-xs text-[#8F93B5]">Access Nagarik AI on WhatsApp with zero app install</p>
-                </div>
-              </div>
-              <button
-                onClick={() => setShowWhatsAppModal(false)}
-                className="p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#22262f]"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <WhatsAppBotView
-              currentLanguage={selectedLanguage}
-              onLanguageChange={setSelectedLanguage}
-            />
-          </div>
-        </div>
-      )}
-
       {/* Citizen Consultation Summarizer Modal */}
       <CivicChatSummarizerModal
         isOpen={showSummarizerModal}
@@ -1793,13 +1687,6 @@ export function App() {
       <CivicFactCheckModal
         isOpen={showFactCheckModal}
         onClose={() => setShowFactCheckModal(false)}
-        currentLanguage={selectedLanguage}
-      />
-
-      {/* Nyaya Setu Grievance Tracker & RTI Studio Modal */}
-      <CivicGrievanceStudioModal
-        isOpen={showGrievanceStudioModal}
-        onClose={() => setShowGrievanceStudioModal(false)}
         currentLanguage={selectedLanguage}
       />
 
