@@ -469,6 +469,9 @@
         const parentLbl = el.closest("label");
         if (parentLbl) labelText = (parentLbl.innerText || "").toLowerCase();
       }
+      if (!labelText && el.parentElement) {
+        labelText = (el.parentElement.innerText || "").toLowerCase();
+      }
       const combined = `${name} ${id} ${ph} ${aria} ${title} ${labelText}`;
       return keywords.some(k => combined.includes(k.toLowerCase()));
     }
@@ -487,7 +490,7 @@
     const mappings = [
       {
         fieldKeys: ["uid", "aadhaar", "aadhar", "aadhaar_number", "aadhar_number", "id_number", "identity_no"],
-        domKeywords: ["uid", "aadhaar", "aadhar", "adharnumber", "aadhaarno", "aadharno", "uidai", "id_number", "identity_no", "identity", "आधार", "ఆధార్"],
+        domKeywords: ["uid", "aadhaar", "aadhar", "adharnumber", "aadhaarno", "aadharno", "uidai", "id_number", "identity_no", "identity", "enter aadhaar", "enter aadhaar number", "आधार", "ఆధార్"],
         isIdentity: true,
         preferTag: "INPUT"
       },
@@ -883,14 +886,18 @@
       return true;
     }
 
-    // 9. GUIDE_LOGIN_SEQUENCE (Sequential Order: Appl No -> Password -> Security PIN / Captcha -> Log In)
+    // 9. GUIDE_LOGIN_SEQUENCE (Sequential Order: Aadhaar / Appl No -> Password -> Security PIN / Captcha -> Log In)
     if (message.action === "GUIDE_LOGIN_SEQUENCE") {
       const allInputs = querySelectorAllDeep("input:not([type='hidden']), select, textarea");
       
       const appNoEl = allInputs.find(el => {
         if (isSecPinOrCaptcha(el)) return false;
-        const s = `${el.id} ${el.name} ${el.placeholder || ""} ${el.getAttribute("aria-label") || ""}`.toLowerCase();
-        return s.includes("regno") || s.includes("application_no") || s.includes("applicationno") || s.includes("appno") || s.includes("userid") || s.includes("user_id") || s.includes("username") || s.includes("txtregno") || s.includes("rollno");
+        const s = `${el.id} ${el.name} ${el.placeholder || ""} ${el.getAttribute("aria-label") || ""} ${el.parentElement ? el.parentElement.innerText : ""}`.toLowerCase();
+        return s.includes("aadhaar") || s.includes("aadhar") || s.includes("uid") ||
+               s.includes("regno") || s.includes("application_no") || s.includes("applicationno") ||
+               s.includes("appno") || s.includes("userid") || s.includes("user_id") ||
+               s.includes("username") || s.includes("txtregno") || s.includes("rollno") ||
+               s.includes("आधार") || s.includes("ఆధార్");
       });
 
       const pwdEl = allInputs.find(el => {
@@ -902,33 +909,36 @@
       const captchaEl = allInputs.find(el => isSecPinOrCaptcha(el));
       const loginBtn = findTargetElement("LOGIN");
 
+      const isAadhaar = appNoEl && /aadhaar|aadhar|uid/i.test(`${appNoEl.id} ${appNoEl.name} ${appNoEl.placeholder} ${appNoEl.parentElement ? appNoEl.parentElement.innerText : ""}`);
+
       if (appNoEl && !(appNoEl.value || '').trim()) {
-        highlightPageElement(appNoEl, "👉 Step 1: Enter Application No");
+        const step1Label = isAadhaar ? "👉 Step 1: Enter Aadhaar Number" : "👉 Step 1: Enter Application No";
+        highlightPageElement(appNoEl, step1Label);
         try { appNoEl.focus(); } catch (e) {}
-        showBanner("👉 Step 1 of 4: Enter Application Number", false);
-        sendResponse({ success: true, step: 1, target: "Application No" });
+        showBanner(step1Label, false);
+        sendResponse({ success: true, step: 1, target: isAadhaar ? "Aadhaar Number" : "Application No" });
         return true;
       }
 
       if (pwdEl && !(pwdEl.value || '').trim()) {
         highlightPageElement(pwdEl, "👉 Step 2: Enter Password");
         try { pwdEl.focus(); } catch (e) {}
-        showBanner("👉 Step 2 of 4: Enter Password", false);
+        showBanner("👉 Step 2: Enter Password", false);
         sendResponse({ success: true, step: 2, target: "Password" });
         return true;
       }
 
       if (captchaEl && !(captchaEl.value || '').trim()) {
-        highlightPageElement(captchaEl, "👉 Step 3: Enter Security PIN from Image");
+        highlightPageElement(captchaEl, "👉 Step 3: Enter Captcha / Security PIN");
         try { captchaEl.focus(); } catch (e) {}
-        showBanner("👉 Step 3 of 4: Enter Security PIN from Image", false);
-        sendResponse({ success: true, step: 3, target: "Security PIN" });
+        showBanner("👉 Step 3: Enter Captcha shown in image (Manual input)", false);
+        sendResponse({ success: true, step: 3, target: "Captcha / Security PIN" });
         return true;
       }
 
       if (loginBtn) {
-        highlightPageElement(loginBtn, "👉 Step 4: Click Log In");
-        showBanner("👉 Step 4 of 4: Click Log In to Proceed", true);
+        highlightPageElement(loginBtn, isAadhaar ? "👉 Final Step: Click Login With OTP" : "👉 Final Step: Click Log In");
+        showBanner(isAadhaar ? "👉 Click Login With OTP to Proceed" : "👉 Click Log In to Proceed", true);
         sendResponse({ success: true, step: 4, target: "Log In Button" });
         return true;
       }

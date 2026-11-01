@@ -21,11 +21,14 @@ document.addEventListener("DOMContentLoaded", () => {
     actionButtons: []
   };
 
-  // Base citizen profile for quick-fill shortcut
+  // Base citizen profile for quick-fill shortcut (includes default demo credentials)
   let currentCitizenState = {
     citizen_name: "Ramesh Kumar",
     citizen_phone: "9876543210",
     citizen_email: "ramesh.kumar@example.com",
+    uid: "234567890123",
+    aadhaar: "234567890123",
+    application_no: "240310001234",
     location: "Ward 42, Hyderabad, Telangana",
     pincode: "500034",
     department: "Municipal Corporation & Public Works",
