@@ -1,29 +1,89 @@
 /**
- * Nagarik AI - Content Script
+ * Nagarik AI - Universal Civic Content Script
  * Injected into all web pages to provide Universal Civic Copilot capabilities.
- * Always supports any webpage on desktop with real-time DOM analysis and form autofill.
+ * Always supports any webpage on desktop with real-time DOM analysis, auto-healing, and form autofill.
  */
 (() => {
   let activeBanner = null;
 
-  function showBanner(text, isDone = false) {
+  // Civic Concept Synonym Graph for High-Precision Dropdown and Department Matching
+  const CIVIC_CONCEPT_SYNONYMS = {
+    "Water Supply & Sewerage Board": [
+      "water", "sewerage", "drainage", "pipe", "pipeline", "tap", "leakage", "drain", "sewage", "jal", "neellu", "paani", "manhole", "water supply", "drinking water"
+    ],
+    "State Electricity Distribution Company (DISCOM)": [
+      "electricity", "power", "discom", "current", "voltage", "transformer", "wire", "pole", "meter", "bijli", "vidyut", "blackout", "power cut", "eb", "bescom", "tsspdcl", "tneb", "mseb", "light"
+    ],
+    "Municipal Corporation & Public Works": [
+      "road", "pothole", "pavement", "street", "footpath", "bridge", "public works", "pwd", "highway", "traffic", "building", "encroachment", "tree", "tar road", "asphalt", "culvert"
+    ],
+    "Solid Waste Management & Public Health": [
+      "waste", "garbage", "solid waste", "sanitation", "cleanliness", "trash", "kuda", "debris", "mosquitoes", "fogging", "sweeping", "dump", "bin", "litter", "drain cleaning"
+    ],
+    "Civil Supplies & Consumer Affairs": [
+      "ration", "civil supplies", "consumer", "pds", "fair price", "food grain", "subsidy", "dealer", "ration card", "quota", "ration shop"
+    ]
+  };
+
+  function inferCivicDepartment(text) {
+    if (!text) return "Municipal Corporation & Public Works";
+    const t = text.toLowerCase();
+    let bestDept = "Municipal Corporation & Public Works";
+    let maxMatches = 0;
+    for (const [dept, keywords] of Object.entries(CIVIC_CONCEPT_SYNONYMS)) {
+      let score = 0;
+      for (const kw of keywords) {
+        if (t.includes(kw)) score += kw.length;
+      }
+      if (score > maxMatches) {
+        maxMatches = score;
+        bestDept = dept;
+      }
+    }
+    return bestDept;
+  }
+
+  function showBanner(text, isDone = false, filledCount = 0) {
     if (!activeBanner) {
       activeBanner = document.createElement("div");
       activeBanner.id = "jansetu-form-filling-banner";
       document.body.appendChild(activeBanner);
     }
+    
     activeBanner.innerHTML = `
       <div class="${isDone ? '' : 'jansetu-spinner'}"></div>
-      <div>
+      <div style="flex: 1;">
         <div style="font-weight: 800; color: #F06A25; font-size: 13px; display: flex; align-items: center; gap: 6px;">
           <span>Nagarik AI</span>
           <span style="font-size: 9px; color: #8F93B5; font-weight: normal; text-transform: uppercase; letter-spacing: 0.5px;">Universal Civic Shield</span>
         </div>
-        <div style="color: #E8E9F2; font-size: 11px;">${text}</div>
+        <div style="color: #E8E9F2; font-size: 11px; margin-top: 2px;">${text}</div>
       </div>
+      ${isDone ? `
+        <button id="nagarik-hud-spotlight-btn" style="background: #F06A25; color: #0B0C1E; border: none; border-radius: 6px; padding: 4px 10px; font-size: 10px; font-weight: 800; cursor: pointer; white-space: nowrap; margin-left: 8px;">
+          👉 Locate Submit
+        </button>
+        <button id="nagarik-hud-close-btn" style="background: transparent; color: #8F93B5; border: none; font-size: 14px; cursor: pointer; padding: 0 4px; margin-left: 4px;">✕</button>
+      ` : ''}
     `;
 
     if (isDone) {
+      const locateBtn = document.getElementById("nagarik-hud-spotlight-btn");
+      if (locateBtn) {
+        locateBtn.onclick = () => {
+          highlightPageElement("SUBMIT", "Review & Submit");
+        };
+      }
+      const closeBtn = document.getElementById("nagarik-hud-close-btn");
+      if (closeBtn) {
+        closeBtn.onclick = () => {
+          if (activeBanner) {
+            activeBanner.remove();
+            activeBanner = null;
+          }
+        };
+      }
+
       setTimeout(() => {
         if (activeBanner) {
           activeBanner.style.opacity = "0";
@@ -32,10 +92,13 @@
             activeBanner = null;
           }, 400);
         }
-      }, 5000);
+      }, 7000);
     }
   }
 
+  /**
+   * Deep query selector that traverses regular DOM and Shadow DOM roots
+   */
   function querySelectorAllDeep(selector, root = document) {
     let results = [];
     try {
@@ -87,30 +150,64 @@
     } catch (e) {}
 
     element.classList.add("jansetu-highlight");
-    element.style.outline = "3px solid #F06A25";
-    element.style.boxShadow = "0 0 16px rgba(240, 106, 37, 0.55)";
+    element.style.outline = "2.5px solid #F06A25";
+    element.style.boxShadow = "0 0 16px rgba(240, 106, 37, 0.45)";
 
     try {
       const rect = element.getBoundingClientRect();
-      const badge = document.createElement("div");
-      badge.className = "nagarik-field-autofilled-tag";
-      badge.innerText = "✓ Nagarik AI: Auto-Filled";
-      badge.style.position = "absolute";
-      badge.style.background = "#10B981";
-      badge.style.color = "#0B0C1E";
-      badge.style.padding = "2px 8px";
-      badge.style.borderRadius = "10px";
-      badge.style.fontSize = "10px";
-      badge.style.fontWeight = "bold";
-      badge.style.zIndex = "9999999";
-      badge.style.pointerEvents = "none";
-      badge.style.top = Math.max(0, (window.scrollY + rect.top - 18)) + "px";
-      badge.style.left = Math.max(0, (window.scrollX + rect.left + 4)) + "px";
-      document.body.appendChild(badge);
-      setTimeout(() => { badge.remove(); }, 6000);
+      if (rect.width > 0 && rect.height > 0) {
+        const badge = document.createElement("div");
+        badge.className = "nagarik-field-autofilled-tag";
+        badge.innerText = "✓ Nagarik AI";
+        badge.style.position = "absolute";
+        badge.style.background = "#10B981";
+        badge.style.color = "#0B0C1E";
+        badge.style.padding = "2px 6px";
+        badge.style.borderRadius = "8px";
+        badge.style.fontSize = "9px";
+        badge.style.fontWeight = "bold";
+        badge.style.zIndex = "9999999";
+        badge.style.pointerEvents = "none";
+        badge.style.top = Math.max(0, (window.scrollY + rect.top - 18)) + "px";
+        badge.style.left = Math.max(0, (window.scrollX + rect.left + 4)) + "px";
+        document.body.appendChild(badge);
+        setTimeout(() => { badge.remove(); }, 6000);
+      }
     } catch (e) {}
 
     return true;
+  }
+
+  /**
+   * Attaches image file using browser DataTransfer API
+   */
+  function setFileInputWithDataTransfer(inputElement, base64Data, fileName = "evidence.png") {
+    if (!inputElement || !base64Data) return false;
+    try {
+      const parts = base64Data.split(";base64,");
+      const contentType = parts.length > 1 ? parts[0].replace("data:", "") : "image/png";
+      const rawBase64 = parts.length > 1 ? parts[1] : parts[0];
+      
+      const byteCharacters = atob(rawBase64);
+      const byteNumbers = new Array(byteCharacters.length);
+      for (let i = 0; i < byteCharacters.length; i++) {
+        byteNumbers[i] = byteCharacters.charCodeAt(i);
+      }
+      const byteArray = new Uint8Array(byteNumbers);
+      const blob = new Blob([byteArray], { type: contentType });
+      const file = new File([blob], fileName, { type: contentType });
+
+      const dt = new DataTransfer();
+      dt.items.add(file);
+      inputElement.files = dt.files;
+      inputElement.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+      inputElement.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+      inputElement.classList.add("jansetu-highlight");
+      return true;
+    } catch (e) {
+      console.warn("Nagarik AI: DataTransfer file attachment note:", e);
+      return false;
+    }
   }
 
   /**
@@ -127,7 +224,7 @@
     const h3 = document.querySelector("h3");
     const mainHeading = h1 ? h1.innerText.trim() : (h2 ? h2.innerText.trim() : (h3 ? h3.innerText.trim() : title));
 
-    // Discover form inputs, textareas, selects (using deep traversal across Shadow DOM)
+    // Discover form inputs, textareas, selects
     const inputs = querySelectorAllDeep("input:not([type='hidden']):not([type='submit']):not([type='button']), textarea, select");
     const fields = inputs.map((el, idx) => {
       let label = "";
@@ -158,13 +255,13 @@
 
     const hasForm = fields.length > 0 || !!document.querySelector("form");
 
-    // Discover actionable buttons (including shadow DOM buttons)
+    // Discover actionable buttons
     const actionButtons = querySelectorAllDeep("button, input[type='submit'], input[type='button'], a.btn, a.button, [role='button']")
       .filter(el => {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0 && el.style.display !== "none" && el.style.visibility !== "hidden";
       })
-      .slice(0, 12)
+      .slice(0, 15)
       .map(b => ({
         text: (b.innerText || b.value || b.getAttribute("aria-label") || "Action").replace(/\s+/g, " ").trim(),
         id: b.id || "",
@@ -172,12 +269,26 @@
         selector: b.id ? `#${b.id}` : (b.name ? `[name='${b.name}']` : b.tagName.toLowerCase())
       }));
 
+    // Classify Page Intent
+    let pageType = "GENERAL_PORTAL";
+    const textSample = (document.title + " " + mainHeading + " " + (document.body ? document.body.innerText.substring(0, 500) : "")).toLowerCase();
+    if (/grievance|complaint|redressal|petition|samadhan|sahaaya|prajavani|cpgrams/i.test(textSample)) {
+      pageType = "CIVIC_GRIEVANCE_PORTAL";
+    } else if (/scholarship|pension|welfare|yojana|subsidy|ration|pmkisan|sevasindhu/i.test(textSample)) {
+      pageType = "WELFARE_SCHEME_PORTAL";
+    } else if (/examination|admit card|hall ticket|candidate|roll no|nta|upsc/i.test(textSample)) {
+      pageType = "EXAM_ADMISSION_PORTAL";
+    } else if (/uidai|aadhaar|update|download|enrolment/i.test(textSample)) {
+      pageType = "IDENTITY_PORTAL";
+    }
+
     return {
       title,
       url,
       domain,
       mainHeading,
       hasForm,
+      pageType,
       fields,
       actionButtons,
       totalInputs: fields.length
@@ -203,7 +314,7 @@
 
     const allInteractive = querySelectorAllDeep("a, button, input[type='submit'], input[type='button'], [role='button'], .btn, .button");
 
-    // 2. Specific intent mappings (supports UIDAI, CPGRAMS, state portals)
+    // 2. Specific intent mappings
     if (targetUpper === "SUBMIT" || targetUpper === "SAVE" || targetUpper === "LODGE" || targetUpper === "APPLY" || targetUpper === "LOGIN" || targetUpper === "OTP") {
       const found = allInteractive.find(el => {
         const txt = (el.innerText || el.value || "").toLowerCase();
@@ -211,8 +322,9 @@
         const name = (el.name || "").toLowerCase();
         return id === "login-btn" || id.includes("login") || id.includes("submit") || name.includes("login") ||
                txt.includes("login with otp") || txt.includes("send otp") || txt.includes("get otp") ||
-               txt.includes("login") || txt.includes("submit") || txt.includes("lodge") ||
-               txt.includes("apply") || txt.includes("save") || txt.includes("proceed") || txt.includes("register");
+               txt.includes("submit grievance") || txt.includes("submit complaint") || txt.includes("lodge grievance") ||
+               txt.includes("submit") || txt.includes("lodge") || txt.includes("apply") || txt.includes("save") ||
+               txt.includes("proceed") || txt.includes("register");
       });
       if (found) return found;
     }
@@ -257,7 +369,7 @@
     const originalShadow = el.style.boxShadow;
 
     el.style.outline = "4px solid #F06A25";
-    el.style.boxShadow = "0 0 30px #F06A25, 0 0 10px rgba(240, 106, 37, 0.8)";
+    el.style.boxShadow = "0 0 32px #F06A25, 0 0 12px rgba(240, 106, 37, 0.85)";
 
     const badge = document.createElement("div");
     badge.id = "nagarik-spotlight-badge";
@@ -290,7 +402,7 @@
 
   /**
    * Universal fuzzy DOM auto-filling across all inputs, textareas, selects
-   * Supports Shadow DOM and portal-specific identity fields (UIDAI / CPGRAMS / State Portals)
+   * Handles multilingual tokens (English, Hindi, Telugu), word-overlap matching, and Aadhaar shielding.
    */
   function executeUniversalFill(fieldsData) {
     if (!fieldsData || typeof fieldsData !== "object") {
@@ -334,40 +446,51 @@
       } catch (e) {}
     }
 
-    // Process specific standard citizen fields
+    // Explicit Mappings with Multilingual Tokens (EN, HI, TE)
     const mappings = [
       {
         fieldKeys: ["uid", "aadhaar", "aadhar", "aadhaar_number", "aadhar_number", "id_number", "identity_no"],
-        domKeywords: ["uid", "aadhaar", "aadhar", "adharnumber", "aadhaarno", "aadharno", "uidai", "id_number", "identity_no", "identity"],
+        domKeywords: ["uid", "aadhaar", "aadhar", "adharnumber", "aadhaarno", "aadharno", "uidai", "id_number", "identity_no", "identity", "आधार", "ఆధార్"],
         isIdentity: true
       },
       {
         fieldKeys: ["citizen_name", "name", "fullname", "applicant_name", "first_name", "applicant"],
-        domKeywords: ["name", "citizen", "applicant", "fullname", "candidate", "user", "first_name", "fname"]
+        domKeywords: ["citizen-name", "citizen_name", "applicant_name", "candidate_name", "name", "fullname", "first_name", "fname", "txtname", "नाम", "పేరు"]
       },
       {
         fieldKeys: ["citizen_phone", "phone", "mobile", "contact_number", "contact"],
-        domKeywords: ["mobile", "phone", "contact", "cell", "tel"]
+        domKeywords: ["citizen-phone", "citizen_phone", "mobile", "phone", "contact", "cell", "tel", "contact_no", "मोबाइल", "ఫోన్"]
       },
       {
         fieldKeys: ["citizen_email", "email"],
-        domKeywords: ["email", "mail", "e-mail"]
+        domKeywords: ["email", "mail", "e-mail", "email_id", "ईमेल", "ఈమెయిల్"]
+      },
+      {
+        fieldKeys: ["department", "dept", "ministry", "authority", "board"],
+        domKeywords: ["department-select", "department", "dept", "ministry", "authority", "board", "विभाग", "విభాగం"],
+        isDepartment: true
+      },
+      {
+        fieldKeys: ["category", "issue", "sub_category", "subject", "topic"],
+        domKeywords: ["category-select", "category", "issue", "sub_category", "topic", "subject", "वर्गीकरण", "వర్గం"],
+        isCategory: true
+      },
+      {
+        fieldKeys: ["urgency_level", "urgency", "priority", "severity"],
+        domKeywords: ["urgency-select", "urgency", "urgency_level", "priority", "severity", "तात्कालिकता", "తీవ్రత"],
+        isUrgency: true
       },
       {
         fieldKeys: ["location", "address", "city", "ward", "landmark", "street", "district"],
-        domKeywords: ["location", "address", "ward", "landmark", "street", "city", "village", "district", "locality", "place"]
+        domKeywords: ["location-input", "location", "address", "ward", "landmark", "street", "city", "village", "district", "locality", "colony", "पता", "स्थान", "చిరునామా", "ప్రాంతం"]
       },
       {
         fieldKeys: ["description", "grievance", "problem", "problem_raw", "details", "issue", "petition"],
-        domKeywords: ["grievance", "complaint", "description", "details", "problem", "issue", "petition", "remarks", "message", "comments", "query"]
+        domKeywords: ["description-textarea", "description", "grievance", "complaint", "details", "problem", "issue", "petition", "remarks", "message", "comments", "query", "विवरण", "समस्या", "शिकायत", "సమస్య", "ఫిర్యాదు", "వివరాలు"]
       },
       {
-        fieldKeys: ["category", "department", "ministry", "service"],
-        domKeywords: ["category", "department", "ministry", "service", "topic", "subject"]
-      },
-      {
-        fieldKeys: ["pincode", "pin_code", "zip", "postal_code"],
-        domKeywords: ["pincode", "pin_code", "postal_code", "zip", "pin"]
+        fieldKeys: ["pincode", "pin_code", "zip", "postal_code", "pin"],
+        domKeywords: ["pincode", "pin_code", "postal_code", "zip", "pin", "पिनकोड", "పిన్‌కోడ్"]
       },
       {
         fieldKeys: ["otp", "one_time_password", "passcode"],
@@ -384,6 +507,22 @@
           break;
         }
       }
+
+      // If department is missing, infer from problem description!
+      if (!val && mapping.isDepartment && (fieldsData.description || fieldsData.problem_raw || fieldsData.grievance)) {
+        val = inferCivicDepartment(fieldsData.description || fieldsData.problem_raw || fieldsData.grievance);
+      }
+
+      // If category is missing, provide default
+      if (!val && mapping.isCategory) {
+        val = "Civic Infrastructure & Public Service Grievance";
+      }
+
+      // If urgency is missing, default to HIGH
+      if (!val && mapping.isUrgency) {
+        val = "HIGH";
+      }
+
       if (!val) return;
 
       // Clean value if digits
@@ -396,7 +535,28 @@
         if (matchesKeywords(el, mapping.domKeywords)) {
           if (el.tagName === "SELECT") {
             const valStr = String(val).toLowerCase();
-            const option = Array.from(el.options).find(o => o.text.toLowerCase().includes(valStr) || o.value.toLowerCase().includes(valStr));
+            // 1. Direct substring search
+            let option = Array.from(el.options).find(o => {
+              if (!o.value) return false;
+              const optLower = (o.text + " " + o.value).toLowerCase();
+              return optLower.includes(valStr) || valStr.includes(optLower);
+            });
+
+            // 2. Word-overlap search (if department or category)
+            if (!option) {
+              const words = valStr.split(/[\s\-_&,]+/).filter(w => w.length >= 4);
+              option = Array.from(el.options).find(o => {
+                if (!o.value) return false;
+                const optLower = (o.text + " " + o.value).toLowerCase();
+                return words.some(w => optLower.includes(w));
+              });
+            }
+
+            // 3. Fallback for urgency
+            if (!option && mapping.isUrgency) {
+              option = Array.from(el.options).find(o => (o.value || "").toUpperCase() === "HIGH" || o.text.toUpperCase().includes("HIGH"));
+            }
+
             if (option) {
               el.value = option.value;
               el.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
@@ -407,7 +567,7 @@
               filledItems.push({
                 key: mapping.fieldKeys[0],
                 label: el.placeholder || el.name || el.id || mapping.fieldKeys[0],
-                maskedValue: mapping.isIdentity && String(val).length >= 8 ? "XXXXXXXX" + String(val).slice(-4) : String(val)
+                maskedValue: option.text || option.value
               });
               break;
             }
@@ -426,6 +586,37 @@
         }
       }
     });
+
+    // Auto-check declaration / agreement checkboxes
+    const agreementCheckboxes = allInputs.filter(el => 
+      el.type === "checkbox" && 
+      !el.checked && 
+      matchesKeywords(el, ["agree", "declaration", "terms", "declare", "certify", "accept", "consent", "confirm"])
+    );
+    agreementCheckboxes.forEach(cb => {
+      try {
+        cb.checked = true;
+        cb.dispatchEvent(new Event("change", { bubbles: true }));
+        cb.classList.add("jansetu-highlight");
+        filledCount++;
+      } catch (e) {}
+    });
+
+    // Handle photo evidence attachment if provided
+    if (fieldsData.photo_base64 || fieldsData.photo) {
+      const fileInput = allInputs.find(el => el.type === "file");
+      if (fileInput) {
+        const attached = setFileInputWithDataTransfer(fileInput, fieldsData.photo_base64 || fieldsData.photo, "evidence.png");
+        if (attached) {
+          filledCount++;
+          filledItems.push({
+            key: "photo",
+            label: "Evidence Photo / Document",
+            maskedValue: "Attached via DataTransfer"
+          });
+        }
+      }
+    }
 
     // Also handle any arbitrary keys passed directly in fieldsData
     for (const [key, rawVal] of Object.entries(fieldsData)) {
@@ -458,8 +649,8 @@
       }, 500);
     }
 
-    // Visual floating banner on the page as required
-    showBanner(`Nagarik AI: Form Populated (${filledCount} Fields) & Aadhaar Shielded!`, true);
+    // Visual floating banner on the page
+    showBanner(`Nagarik AI: Form Populated (${filledCount} Fields) & Aadhaar Shielded!`, true, filledCount);
 
     return {
       success: filledCount > 0,
@@ -495,6 +686,37 @@
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
+  }
+
+  // Continuous DOM Mutation Observer:
+  // Detects dynamic rendering and notifies sidepanel
+  let mutationTimeout = null;
+  if (typeof MutationObserver !== "undefined" && document.body) {
+    const domObserver = new MutationObserver((mutations) => {
+      let shouldNotify = false;
+      for (const m of mutations) {
+        if (m.addedNodes && m.addedNodes.length > 0) {
+          for (const node of m.addedNodes) {
+            if (node.nodeType === Node.ELEMENT_NODE) {
+              if (node.matches && (node.matches("input, select, textarea, form") || node.querySelector("input, select, textarea, form"))) {
+                shouldNotify = true;
+                break;
+              }
+            }
+          }
+        }
+        if (shouldNotify) break;
+      }
+
+      if (shouldNotify) {
+        clearTimeout(mutationTimeout);
+        mutationTimeout = setTimeout(() => {
+          chrome.runtime.sendMessage({ action: "PAGE_DOM_MUTATED" }).catch(() => {});
+        }, 500);
+      }
+    });
+
+    domObserver.observe(document.body, { childList: true, subtree: true });
   }
 
   // Listen for extension messages
@@ -583,15 +805,6 @@
 
     // 8. FILL_SINGLE_FIELD
     if (message.action === "FILL_SINGLE_FIELD") {
-      const adapter = typeof window.getPortalAdapter === "function" ? window.getPortalAdapter() : null;
-      if (adapter && typeof adapter.fillSingleField === "function") {
-        adapter.fillSingleField(message.key, message.value).then(res => {
-          sendResponse(res);
-        }).catch(err => {
-          sendResponse({ success: false, error: err.message });
-        });
-        return true;
-      }
       const singleObj = {};
       singleObj[message.key] = message.value;
       const res = executeUniversalFill(singleObj);

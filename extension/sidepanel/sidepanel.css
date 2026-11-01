@@ -1666,3 +1666,118 @@ header, div, main, footer {
 .spotlight-notice strong {
   color: var(--orange-hover);
 }
+
+/* Synthesized Citizen Petition & Field Preview */
+.synthesis-preview-card {
+  background: rgba(15, 20, 38, 0.75);
+  border: 1px solid rgba(240, 106, 37, 0.28);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-top: 10px;
+  margin-bottom: 10px;
+}
+
+.synthesis-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
+}
+
+.synthesis-badge {
+  background: rgba(240, 106, 37, 0.16);
+  border: 1px solid var(--border-on-orange);
+  color: var(--orange-hover);
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  letter-spacing: 0.4px;
+}
+
+.btn-micro-edit {
+  background: transparent;
+  border: none;
+  color: #93c5fd;
+  font-size: 10.5px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+  transition: color 0.2s;
+}
+
+.btn-micro-edit:hover {
+  color: #fff;
+}
+
+.synthesis-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.synthesis-item {
+  display: flex;
+  flex-direction: column;
+  background: rgba(0, 0, 0, 0.3);
+  border: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 6px;
+  padding: 5px 8px;
+}
+
+.synthesis-key {
+  font-size: 9.5px;
+  color: var(--muted-on-slate);
+  font-weight: 700;
+}
+
+.synthesis-val {
+  font-size: 11px;
+  font-weight: 800;
+  color: #fff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  margin-top: 2px;
+}
+
+.editable-drawer {
+  margin-top: 8px;
+  padding-top: 8px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.drawer-label {
+  font-size: 10px;
+  color: var(--muted-on-slate);
+  font-weight: 700;
+}
+
+.drawer-textarea {
+  width: 100%;
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  padding: 6px 8px;
+  resize: vertical;
+}
+
+.drawer-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 6px;
+}
+
+.drawer-input {
+  background: rgba(0, 0, 0, 0.4);
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  color: #fff;
+  font-size: 11px;
+  padding: 6px 8px;
+}

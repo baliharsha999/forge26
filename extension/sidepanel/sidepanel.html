@@ -167,8 +167,47 @@
         <span id="plan-status-badge" class="badge-running">EXECUTING</span>
       </div>
       <p id="plan-subtitle" class="section-desc">
-        Nagarik AI has determined 4 specific steps tailored to this page and your problem.
+        Nagarik AI has determined tailored actions based on your problem and page layout.
       </p>
+
+      <!-- Synthesized Civic Petition & Field Preview -->
+      <div id="plan-synthesis-preview" class="synthesis-preview-card">
+        <div class="synthesis-header">
+          <span class="synthesis-badge">SYNTHESIZED CITIZEN PETITION</span>
+          <button id="btn-toggle-edit-fields" class="btn-micro-edit">✏️ Edit Details</button>
+        </div>
+        
+        <div class="synthesis-grid">
+          <div class="synthesis-item">
+            <span class="synthesis-key">🏢 Dept:</span>
+            <span id="preview-dept" class="synthesis-val">Municipal Corporation</span>
+          </div>
+          <div class="synthesis-item">
+            <span class="synthesis-key">⚡ Urgency:</span>
+            <span id="preview-urgency" class="synthesis-val text-orange">HIGH</span>
+          </div>
+          <div class="synthesis-item">
+            <span class="synthesis-key">📍 Location:</span>
+            <span id="preview-location" class="synthesis-val">Hyderabad</span>
+          </div>
+          <div class="synthesis-item">
+            <span class="synthesis-key">👤 Citizen:</span>
+            <span id="preview-citizen" class="synthesis-val">Ramesh Kumar</span>
+          </div>
+        </div>
+
+        <div id="editable-fields-drawer" class="editable-drawer hidden">
+          <label class="drawer-label">Edit Petition / Grievance Text:</label>
+          <textarea id="edit-custom-desc" class="drawer-textarea" rows="2"></textarea>
+          <div class="drawer-row">
+            <input type="text" id="edit-custom-name" class="drawer-input" placeholder="Citizen Name">
+            <input type="text" id="edit-custom-phone" class="drawer-input" placeholder="Phone Number">
+          </div>
+          <button id="btn-apply-custom-edit" class="btn-primary-action" style="padding: 6px 12px; font-size: 11px; margin-top: 6px; width: 100%;">
+            Apply Changes & Re-Fill Page
+          </button>
+        </div>
+      </div>
 
       <!-- Interactive Step Checklist -->
       <div id="task-checklist" class="task-checklist">
@@ -177,11 +216,14 @@
 
       <!-- Action Button Group -->
       <div class="plan-actions">
+        <button id="btn-reinject-fields" class="btn-secondary-action">
+          <span>🚀 Re-Inject Form</span>
+        </button>
         <button id="btn-highlight-submit" class="btn-secondary-action">
-          <span>🎯 Spotlight Submit Button on Page</span>
+          <span>🎯 Spotlight Submit</span>
         </button>
         <button id="btn-explain-audio" class="btn-secondary-action">
-          <span>🔊 Read Aloud Explanation</span>
+          <span>🔊 Read Aloud</span>
         </button>
       </div>
     </section>

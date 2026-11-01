@@ -2,8 +2,8 @@
  * Nagarik AI - Dynamic Contextual Civic Copilot
  * "Empowering Every Citizen"
  * 
- * Determines custom tasks based dynamically on [Active Website + Page DOM + Citizen Problem].
- * Zero predetermined steps. Full zero-knowledge privacy.
+ * Determines custom tasks dynamically based on [Active Website + Page DOM + Citizen Problem].
+ * Zero predetermined steps. Continuous auto-detecting and perfection loop.
  */
 document.addEventListener("DOMContentLoaded", () => {
   // State
@@ -15,18 +15,44 @@ document.addEventListener("DOMContentLoaded", () => {
     domain: "",
     title: "",
     mainHeading: "",
+    pageType: "GENERAL_PORTAL",
     hasForm: false,
     fields: [],
     actionButtons: []
   };
 
-  // Saved citizen profile for quick-fill shortcut
-  const citizenProfile = {
+  // Base citizen profile for quick-fill shortcut
+  let currentCitizenState = {
     citizen_name: "Ramesh Kumar",
     citizen_phone: "9876543210",
     citizen_email: "ramesh.kumar@example.com",
     location: "Ward 42, Hyderabad, Telangana",
-    pincode: "500034"
+    pincode: "500034",
+    department: "Municipal Corporation & Public Works",
+    category: "General Civic Redressal",
+    urgency_level: "HIGH",
+    description: ""
+  };
+
+  let lastFillResult = null;
+
+  // Civic Concept Synonym Graph for Department Inference
+  const CIVIC_CONCEPT_SYNONYMS = {
+    "Water Supply & Sewerage Board": [
+      "water", "sewerage", "drainage", "pipe", "pipeline", "tap", "leakage", "drain", "sewage", "jal", "neellu", "paani", "manhole", "water supply"
+    ],
+    "State Electricity Distribution Company (DISCOM)": [
+      "electricity", "power", "discom", "current", "voltage", "transformer", "wire", "pole", "meter", "bijli", "vidyut", "blackout", "power cut", "eb", "bescom", "tsspdcl", "tneb", "mseb", "light"
+    ],
+    "Municipal Corporation & Public Works": [
+      "road", "pothole", "pavement", "street", "footpath", "bridge", "public works", "pwd", "highway", "traffic", "building", "encroachment", "tree"
+    ],
+    "Solid Waste Management & Public Health": [
+      "waste", "garbage", "solid waste", "sanitation", "cleanliness", "trash", "kuda", "debris", "mosquitoes", "fogging", "sweeping", "dump", "bin"
+    ],
+    "Civil Supplies & Consumer Affairs": [
+      "ration", "civil supplies", "consumer", "pds", "fair price", "food grain", "subsidy", "dealer", "ration card"
+    ]
   };
 
   // Dialog & Speech Prompts
@@ -36,11 +62,11 @@ document.addEventListener("DOMContentLoaded", () => {
       welcome: "Nagarik AI active. I am studying your screen. Tell me what you need help with.",
       analyzing: "Synthesizing custom plan based on this website and your problem...",
       task_autofill_title: "Auto-Fill Form Fields",
-      task_autofill_desc: "Inject validated citizen details and grievance text into page DOM.",
+      task_autofill_desc: "Inject validated citizen details and formal petition into page DOM.",
       task_shield_title: "Aadhaar & PII Shield",
       task_shield_desc: "Mask national IDs with zero-knowledge privacy protection.",
       task_spotlight_title: "Spotlight Submit Button",
-      task_spotlight_desc: "Draw bright interactive visual guide around official submit action.",
+      task_spotlight_desc: "Draw bright interactive beacon around official submit action.",
       task_explain_title: "Multilingual Voice Guidance",
       task_explain_desc: "Explain submission instructions in your preferred language.",
       success_speech: "Form populated and Aadhaar shielded. Please review the highlighted button on your screen to submit."
@@ -100,14 +126,28 @@ document.addEventListener("DOMContentLoaded", () => {
   const planSubtitle = document.getElementById("plan-subtitle");
   const planStatusBadge = document.getElementById("plan-status-badge");
   const taskChecklist = document.getElementById("task-checklist");
+  const btnReinjectFields = document.getElementById("btn-reinject-fields");
   const btnHighlightSubmit = document.getElementById("btn-highlight-submit");
   const btnExplainAudio = document.getElementById("btn-explain-audio");
+
+  // Plan Synthesis Preview & Editable Drawer
+  const previewDept = document.getElementById("preview-dept");
+  const previewUrgency = document.getElementById("preview-urgency");
+  const previewLocation = document.getElementById("preview-location");
+  const previewCitizen = document.getElementById("preview-citizen");
+  const btnToggleEditFields = document.getElementById("btn-toggle-edit-fields");
+  const editableFieldsDrawer = document.getElementById("editable-fields-drawer");
+  const editCustomDesc = document.getElementById("edit-custom-desc");
+  const editCustomName = document.getElementById("edit-custom-name");
+  const editCustomPhone = document.getElementById("edit-custom-phone");
+  const btnApplyCustomEdit = document.getElementById("btn-apply-custom-edit");
 
   // Results Card
   const resultsCard = document.getElementById("results-card");
   const resFieldsCount = document.getElementById("res-fields-count");
   const receiptRefBox = document.getElementById("receipt-ref-box");
   const receiptTrackingId = document.getElementById("receipt-tracking-id");
+  const resultsInstructionEl = document.getElementById("results-instruction");
   const btnResetCopilot = document.getElementById("btn-reset-copilot");
 
   // Voice Toggle & Speaking Indicator
@@ -223,7 +263,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
   // Profile Quick-fill button
   btnUseProfile.addEventListener("click", () => {
-    const defaultProblem = "Severe water logging and drainage overflow in our area causing health hazard. Please inspect and resolve.";
+    const defaultProblem = "Severe water pipeline leakage on main road near bus stand since yesterday, flooding the lane. Please inspect and repair.";
     if (!citizenProblemInput.value.trim()) {
       citizenProblemInput.value = defaultProblem;
     }
@@ -265,7 +305,6 @@ document.addEventListener("DOMContentLoaded", () => {
       // Ask content script for real DOM inspection
       chrome.tabs.sendMessage(tab.id, { action: "INSPECT_PAGE_FORM" }, (res) => {
         if (chrome.runtime.lastError || !res) {
-          // If script wasn't ready, retry via background trigger
           chrome.runtime.sendMessage({ action: "TRIGGER_INSPECT_PAGE" }, (bgRes) => {
             if (bgRes && bgRes.supported) {
               applyInspectionResults(bgRes);
@@ -285,6 +324,7 @@ document.addEventListener("DOMContentLoaded", () => {
     activeTabInfo.fields = data.fields || [];
     activeTabInfo.actionButtons = data.actionButtons || [];
     activeTabInfo.mainHeading = data.mainHeading || activeTabInfo.title;
+    activeTabInfo.pageType = data.pageType || "GENERAL_PORTAL";
     if (data.domain) activeTabInfo.domain = data.domain;
     if (data.title) activeTabInfo.title = data.title;
 
@@ -361,6 +401,11 @@ document.addEventListener("DOMContentLoaded", () => {
         label: "Mask Aadhaar & PII",
         action: "MASK_PII"
       });
+      chips.push({
+        icon: "📋",
+        label: "Verify Required Fields",
+        action: "VERIFY_FIELDS"
+      });
     } else {
       chips.push({
         icon: "🔍",
@@ -372,6 +417,11 @@ document.addEventListener("DOMContentLoaded", () => {
         icon: "📑",
         label: "Find Required Documents",
         action: "FIND_DOCS"
+      });
+      chips.push({
+        icon: "💡",
+        label: "Check Eligibility Rules",
+        action: "ELIGIBILITY_RULES"
       });
     }
 
@@ -395,7 +445,7 @@ document.addEventListener("DOMContentLoaded", () => {
   function handleActionChipClick(action) {
     if (action === "AUTOFILL") {
       if (!citizenProblemInput.value.trim()) {
-        citizenProblemInput.value = "Civic grievance and general service request for immediate official resolution.";
+        citizenProblemInput.value = "Severe water pipeline leakage on main road near bus stand since yesterday, flooding the lane. Please inspect and repair.";
       }
       executeDynamicTaskPlan();
     } else if (action === "SPOTLIGHT_SUBMIT" || action === "SPOTLIGHT_APPLY") {
@@ -412,7 +462,152 @@ document.addEventListener("DOMContentLoaded", () => {
     } else if (action === "FIND_DOCS") {
       citizenProblemInput.value = "What official documents and eligibility certificates are required for this scheme?";
       executeDynamicTaskPlan();
+    } else if (action === "VERIFY_FIELDS") {
+      verifyPageFields();
+    } else if (action === "ELIGIBILITY_RULES") {
+      citizenProblemInput.value = "Explain eligibility criteria, age limits, and statutory benefits for this welfare scheme.";
+      executeDynamicTaskPlan();
     }
+  }
+
+  function verifyPageFields() {
+    const required = activeTabInfo.fields.filter(f => f.required);
+    const emptyRequired = required.filter(f => !f.isFilled);
+    if (emptyRequired.length === 0) {
+      speak("All mandatory fields on this form are filled. Ready to submit.");
+    } else {
+      speak(`Notice: ${emptyRequired.length} mandatory fields are still empty. Highlighting now.`);
+      chrome.tabs.sendMessage(activeTabInfo.id, {
+        action: "HIGHLIGHT_PAGE_ELEMENT",
+        target: emptyRequired[0].id || emptyRequired[0].name || "INPUT",
+        label: `Required: ${emptyRequired[0].label}`
+      });
+    }
+  }
+
+  // ----------------------------------------------------------------
+  // Dynamic Entity & Semantic Parser
+  // ----------------------------------------------------------------
+  function parseCitizenInput(text) {
+    const res = {
+      rawText: text || "",
+      extractedAadhaar: null,
+      extractedPhone: null,
+      extractedPin: null,
+      extractedEmail: null,
+      extractedName: null,
+      extractedLocation: null
+    };
+    if (!text) return res;
+
+    // 1. Aadhaar / UID (12 digits, with or without spaces)
+    const aadhaarMatch = text.match(/(?:aadhaar|aadhar|uid|uidai)[\s:=]*([0-9]{4}\s?[0-9]{4}\s?[0-9]{4})\b/i) ||
+                         text.match(/\b([0-9]{4}\s[0-9]{4}\s[0-9]{4})\b/) ||
+                         text.match(/\b([0-9]{12})\b/);
+    if (aadhaarMatch) {
+      res.extractedAadhaar = aadhaarMatch[1].replace(/\s+/g, "");
+    }
+
+    // 2. Phone / Mobile (10 digits starting with 6-9)
+    const phoneMatch = text.match(/(?:phone|mobile|contact|cell)[\s:=]*([6-9][0-9]{9})\b/i) ||
+                       text.match(/\b([6-9][0-9]{9})\b/);
+    if (phoneMatch) {
+      res.extractedPhone = phoneMatch[1];
+    }
+
+    // 3. Pincode (6 digits starting 1-9)
+    const pinMatch = text.match(/(?:pin|pincode|postal)[\s:=]*([1-9][0-9]{5})\b/i) ||
+                     text.match(/\b([1-9][0-9]{5})\b/);
+    if (pinMatch) {
+      res.extractedPin = pinMatch[1];
+    }
+
+    // 4. Email
+    const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    if (emailMatch) {
+      res.extractedEmail = emailMatch[1];
+    }
+
+    // 5. Citizen Name
+    const nameMatch = text.match(/(?:my name is|i am|myself|citizen:?)\s+([^.,\n]+?)(?=\s+(?:and|who|from|need|residing|with|my)\b|[.,\n]|$)/i);
+    if (nameMatch) {
+      res.extractedName = nameMatch[1].trim();
+    }
+
+    // 6. Location
+    const locMatch = text.match(/(?:in|at|near|around|from|opposite|behind|beside|lane|colony|ward|sector|street|nagar|road|dist|district|city)\s+([A-Za-z0-9\s,\-_#]+?)(?=\s+(?:since|which|please|causing|due|and\s+it|is\s+broken|[.,\n]|$))/i);
+    if (locMatch) {
+      res.extractedLocation = locMatch[0].trim();
+    }
+
+    return res;
+  }
+
+  function inferCivicDepartment(text) {
+    if (!text) return "Municipal Corporation & Public Works";
+    const t = text.toLowerCase();
+    let bestDept = "Municipal Corporation & Public Works";
+    let maxMatches = 0;
+    for (const [dept, keywords] of Object.entries(CIVIC_CONCEPT_SYNONYMS)) {
+      let score = 0;
+      for (const kw of keywords) {
+        if (t.includes(kw)) score += kw.length;
+      }
+      if (score > maxMatches) {
+        maxMatches = score;
+        bestDept = dept;
+      }
+    }
+    return bestDept;
+  }
+
+  function inferCategory(text, dept) {
+    const t = text.toLowerCase();
+    if (dept.includes("Water") || t.includes("water") || t.includes("leak") || t.includes("pipe") || t.includes("drainage")) {
+      return "Water Pipeline Leakage & Sewerage Disruption";
+    }
+    if (dept.includes("Electricity") || t.includes("power") || t.includes("electricity") || t.includes("voltage") || t.includes("current")) {
+      return "Frequent Power Outage / Voltage Fluctuation";
+    }
+    if (t.includes("pothole") || t.includes("road") || t.includes("street")) {
+      return "Dangerous Road Potholes & Infrastructure Damage";
+    }
+    if (t.includes("garbage") || t.includes("waste") || t.includes("trash")) {
+      return "Solid Waste Accumulation & Sanitation Hazard";
+    }
+    if (t.includes("ration") || t.includes("pds") || t.includes("dealer")) {
+      return "Public Distribution System & Fair Price Denial";
+    }
+    return "Public Infrastructure & Civic Amenity Grievance";
+  }
+
+  function inferUrgency(text) {
+    const t = text.toLowerCase();
+    if (/immediate|urgent|hazard|severe|danger|health|safety|overflow|emergency|shock|fire|leak|dengue|hospital|blocked|night/i.test(t)) {
+      return "HIGH";
+    }
+    return "MEDIUM";
+  }
+
+  function generateFormalPetition(problemText, name, phone, location, category) {
+    return `SUBJECT: Urgent Redressal Request Regarding ${category}
+
+RESPECTED OFFICER,
+
+I am bringing to your urgent attention the following civic grievance:
+"${problemText}"
+
+INCIDENT LOCATION / JURISDICTION:
+${location}
+
+This condition causes severe inconvenience and potential health/safety risks for local residents.
+
+REQUESTED REMEDY:
+1. Urgent on-site inspection by the designated municipal or departmental officer.
+2. Immediate repair, rectification, or clearance of the issue.
+3. Official confirmation and dispatch reference.
+
+Submitted in good faith by ${name}, Contact: ${phone}.`.trim();
   }
 
   // ----------------------------------------------------------------
@@ -422,8 +617,39 @@ document.addEventListener("DOMContentLoaded", () => {
     executeDynamicTaskPlan();
   });
 
+  // Toggle Editable Fields Drawer
+  btnToggleEditFields.addEventListener("click", () => {
+    editableFieldsDrawer.classList.toggle("hidden");
+    if (!editableFieldsDrawer.classList.contains("hidden")) {
+      editCustomDesc.value = currentCitizenState.description;
+      editCustomName.value = currentCitizenState.citizen_name;
+      editCustomPhone.value = currentCitizenState.citizen_phone;
+    }
+  });
+
+  btnApplyCustomEdit.addEventListener("click", () => {
+    if (editCustomDesc.value.trim()) currentCitizenState.description = editCustomDesc.value.trim();
+    if (editCustomName.value.trim()) currentCitizenState.citizen_name = editCustomName.value.trim();
+    if (editCustomPhone.value.trim()) currentCitizenState.citizen_phone = editCustomPhone.value.trim();
+    
+    updateSynthesisPreview();
+    editableFieldsDrawer.classList.add("hidden");
+    injectCurrentStateIntoPage();
+  });
+
+  btnReinjectFields.addEventListener("click", () => {
+    injectCurrentStateIntoPage();
+  });
+
+  function updateSynthesisPreview() {
+    if (previewDept) previewDept.innerText = currentCitizenState.department;
+    if (previewUrgency) previewUrgency.innerText = currentCitizenState.urgency_level;
+    if (previewLocation) previewLocation.innerText = currentCitizenState.location;
+    if (previewCitizen) previewCitizen.innerText = `${currentCitizenState.citizen_name} (${currentCitizenState.citizen_phone})`;
+  }
+
   function executeDynamicTaskPlan(options = {}) {
-    const citizenText = citizenProblemInput.value.trim() || "Public service assistance and grievance resolution.";
+    const citizenText = citizenProblemInput.value.trim() || "Severe civic grievance and public service request for immediate official redressal.";
     
     // 1. Show Animated Nagarik Reasoning Stage
     analyzingStage.classList.remove("hidden");
@@ -443,94 +669,76 @@ document.addEventListener("DOMContentLoaded", () => {
       reasoningTicker.innerHTML = `<span>${reasoningLines[lineIdx]}</span>`;
     }, 450);
 
-    // Speak initial acknowledgment
     speak(LOCALES[currentLang].analyzing);
 
-    setTimeout(() => {
+    // Try backend AI analysis with local fallback
+    chrome.runtime.sendMessage({
+      action: "CALL_BACKEND_ANALYZE",
+      payload: {
+        raw_input: citizenText,
+        language: currentLang,
+        location: currentCitizenState.location,
+        portal_context: activeTabInfo.domain
+      }
+    }, (bgRes) => {
       clearInterval(tickerInterval);
       analyzingStage.classList.add("hidden");
       taskPlanCard.classList.remove("hidden");
 
-      // 2. Synthesize Custom Task Plan
-      const plan = synthesizeCustomPlan(citizenText, options);
+      // 2. Synthesize State (From Backend or Local Graph)
+      synthesizeCitizenState(citizenText, bgRes && bgRes.success ? bgRes.data : null);
+      updateSynthesisPreview();
+
+      // 3. Build & Execute Plan
+      const plan = synthesizeCustomPlan(options);
       renderTaskPlan(plan);
       executeTasksSequentially(plan);
-    }, 1800);
+    });
   }
 
-  let lastFillResult = null;
+  function synthesizeCitizenState(rawText, aiData) {
+    const parsed = parseCitizenInput(rawText);
 
-  function parseCitizenInput(text) {
-    const res = {
-      rawText: text || "",
-      extractedAadhaar: null,
-      extractedPhone: null,
-      extractedPin: null,
-      extractedEmail: null,
-      extractedName: null
-    };
-    if (!text) return res;
+    if (parsed.extractedName) currentCitizenState.citizen_name = parsed.extractedName;
+    if (parsed.extractedPhone) currentCitizenState.citizen_phone = parsed.extractedPhone;
+    if (parsed.extractedPin) currentCitizenState.pincode = parsed.extractedPin;
+    if (parsed.extractedEmail) currentCitizenState.citizen_email = parsed.extractedEmail;
+    if (parsed.extractedLocation) currentCitizenState.location = parsed.extractedLocation;
 
-    // 1. Aadhaar / UID (12 digits, with or without spaces, e.g. "228654705324" or "2286 5470 5324")
-    const aadhaarMatch = text.match(/(?:aadhaar|aadhar|uid|uidai)[\s:=]*([0-9]{4}\s?[0-9]{4}\s?[0-9]{4})\b/i) ||
-                         text.match(/\b([0-9]{4}\s[0-9]{4}\s[0-9]{4})\b/) ||
-                         text.match(/\b([0-9]{12})\b/);
-    if (aadhaarMatch) {
-      res.extractedAadhaar = aadhaarMatch[1].replace(/\s+/g, "");
+    if (aiData) {
+      currentCitizenState.department = aiData.department || inferCivicDepartment(rawText);
+      currentCitizenState.category = aiData.category || inferCategory(rawText, currentCitizenState.department);
+      currentCitizenState.urgency_level = aiData.urgency_level || inferUrgency(rawText);
+      currentCitizenState.description = aiData.description || generateFormalPetition(
+        rawText,
+        currentCitizenState.citizen_name,
+        currentCitizenState.citizen_phone,
+        currentCitizenState.location,
+        currentCitizenState.category
+      );
+    } else {
+      currentCitizenState.department = inferCivicDepartment(rawText);
+      currentCitizenState.category = inferCategory(rawText, currentCitizenState.department);
+      currentCitizenState.urgency_level = inferUrgency(rawText);
+      currentCitizenState.description = generateFormalPetition(
+        rawText,
+        currentCitizenState.citizen_name,
+        currentCitizenState.citizen_phone,
+        currentCitizenState.location,
+        currentCitizenState.category
+      );
     }
-
-    // 2. Phone / Mobile (10 digits starting with 6-9)
-    const phoneMatch = text.match(/(?:phone|mobile|contact|cell)[\s:=]*([6-9][0-9]{9})\b/i) ||
-                       text.match(/\b([6-9][0-9]{9})\b/);
-    if (phoneMatch) {
-      res.extractedPhone = phoneMatch[1];
-    }
-
-    // 3. Pincode (6 digits starting 1-9)
-    const pinMatch = text.match(/(?:pin|pincode|postal)[\s:=]*([1-9][0-9]{5})\b/i);
-    if (pinMatch) {
-      res.extractedPin = pinMatch[1];
-    }
-
-    // 4. Email
-    const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-    if (emailMatch) {
-      res.extractedEmail = emailMatch[1];
-    }
-
-    // 5. Citizen Name
-    const nameMatch = text.match(/(?:my name is|i am|myself|citizen:?)\s+([^.,\n]+?)(?=\s+(?:and|who|from|need|residing|with|my)\b|[.,\n]|$)/i);
-    if (nameMatch) {
-      res.extractedName = nameMatch[1].trim();
-    }
-
-    return res;
-  }
-
-  function synthesizeCustomPlan(userProblem, options = {}) {
-    const loc = LOCALES[currentLang] || LOCALES.en;
-    const tasks = [];
-    const parsed = parseCitizenInput(userProblem);
-
-    // Prepare payload combining profile with extracted entities
-    const payload = {
-      ...citizenProfile,
-      description: userProblem,
-      grievance: userProblem,
-      problem_raw: userProblem,
-      category: "General Public Grievance"
-    };
 
     if (parsed.extractedAadhaar) {
-      payload.uid = parsed.extractedAadhaar;
-      payload.aadhaar = parsed.extractedAadhaar;
-      payload.aadhar = parsed.extractedAadhaar;
-      payload.id_number = parsed.extractedAadhaar;
+      currentCitizenState.uid = parsed.extractedAadhaar;
+      currentCitizenState.aadhaar = parsed.extractedAadhaar;
+      currentCitizenState.id_number = parsed.extractedAadhaar;
     }
-    if (parsed.extractedPhone) payload.citizen_phone = parsed.extractedPhone;
-    if (parsed.extractedPin) payload.pincode = parsed.extractedPin;
-    if (parsed.extractedEmail) payload.citizen_email = parsed.extractedEmail;
-    if (parsed.extractedName) payload.citizen_name = parsed.extractedName;
+  }
+
+  function synthesizeCustomPlan(options = {}) {
+    const loc = LOCALES[currentLang] || LOCALES.en;
+    const tasks = [];
 
     // Task 1: DOM Semantic Analysis & Problem Formulation
     tasks.push({
@@ -540,14 +748,14 @@ document.addEventListener("DOMContentLoaded", () => {
       desc: `Mapped to "${activeTabInfo.domain}" targeting ${activeTabInfo.fields.length || 'interactive'} elements.`,
       status: "pending",
       run: async () => {
-        await new Promise(r => setTimeout(r, 400));
+        await new Promise(r => setTimeout(r, 350));
         return true;
       }
     });
 
     // Task 2: Zero-Knowledge Privacy & Aadhaar Shield
-    const shieldDesc = parsed.extractedAadhaar 
-      ? `Aadhaar UID XXXXXXXX${parsed.extractedAadhaar.slice(-4)} masked with zero-knowledge privacy.`
+    const shieldDesc = currentCitizenState.uid 
+      ? `Aadhaar UID XXXXXXXX${currentCitizenState.uid.slice(-4)} masked with zero-knowledge privacy.`
       : loc.task_shield_desc;
 
     tasks.push({
@@ -557,15 +765,13 @@ document.addEventListener("DOMContentLoaded", () => {
       desc: shieldDesc,
       status: "pending",
       run: async () => {
-        await new Promise(r => setTimeout(r, 350));
+        await new Promise(r => setTimeout(r, 300));
         return true;
       }
     });
 
     // Task 3: Form Autofill (if page has inputs or fields requested)
-    const autofillDesc = parsed.extractedAadhaar
-      ? `Populating official UID input and selecting OTP verification on ${activeTabInfo.domain}.`
-      : `Injecting description, citizen identity, contact, and address.`;
+    const autofillDesc = `Injecting department, category, citizen identity, contact, and formal petition.`;
 
     tasks.push({
       id: "task_autofill",
@@ -574,25 +780,7 @@ document.addEventListener("DOMContentLoaded", () => {
       desc: autofillDesc,
       status: "pending",
       run: async () => {
-        return new Promise((resolve) => {
-          chrome.tabs.sendMessage(activeTabInfo.id, {
-            action: "FILL_FIELDS",
-            fields: payload
-          }, (res) => {
-            if (chrome.runtime.lastError || !res) {
-              chrome.runtime.sendMessage({
-                action: "TRIGGER_FILL_FIELDS",
-                fields: payload
-              }, (bgRes) => {
-                lastFillResult = bgRes || { success: false, filledCount: 0 };
-                resolve(lastFillResult);
-              });
-            } else {
-              lastFillResult = res;
-              resolve(res);
-            }
-          });
-        });
+        return injectCurrentStateIntoPage();
       }
     });
 
@@ -632,6 +820,28 @@ document.addEventListener("DOMContentLoaded", () => {
     });
 
     return tasks;
+  }
+
+  function injectCurrentStateIntoPage() {
+    return new Promise((resolve) => {
+      chrome.tabs.sendMessage(activeTabInfo.id, {
+        action: "FILL_FIELDS",
+        fields: currentCitizenState
+      }, (res) => {
+        if (chrome.runtime.lastError || !res) {
+          chrome.runtime.sendMessage({
+            action: "TRIGGER_FILL_FIELDS",
+            fields: currentCitizenState
+          }, (bgRes) => {
+            lastFillResult = bgRes || { success: false, filledCount: 0 };
+            resolve(lastFillResult);
+          });
+        } else {
+          lastFillResult = res;
+          resolve(res);
+        }
+      });
+    });
   }
 
   function renderTaskPlan(tasks) {
@@ -689,9 +899,7 @@ document.addEventListener("DOMContentLoaded", () => {
     planStatusBadge.style.color = "#34d399";
     planStatusBadge.style.borderColor = "#10b981";
 
-    const resultsInstructionEl = document.getElementById("results-instruction");
-
-    // Show Completion Results Card with HONEST, verified feedback
+    // Show Completion Results Card with verified feedback
     setTimeout(() => {
       resultsCard.classList.remove("hidden");
       
@@ -715,7 +923,7 @@ document.addEventListener("DOMContentLoaded", () => {
         resFieldsCount.innerText = `0 Populated`;
         resFieldsCount.style.color = "#f59e0b";
         if (resultsInstructionEl) {
-          resultsInstructionEl.innerHTML = `<strong>Page Inspected:</strong> Nagarik AI found ${activeTabInfo.fields.length} inputs on this webpage (${activeTabInfo.fields.map(f => f.label || f.name).join(", ")}). No matching fields for the provided input. Click 'Spotlight Submit Button' or tap a field to fill manually.`;
+          resultsInstructionEl.innerHTML = `<strong>Page Inspected:</strong> Nagarik AI found ${activeTabInfo.fields.length} inputs on this webpage (${activeTabInfo.fields.map(f => f.label || f.name).join(", ")}). Click 'Spotlight Submit Button' or tap a field to fill manually.`;
         }
       }
 
@@ -755,9 +963,9 @@ document.addEventListener("DOMContentLoaded", () => {
     inspectActiveTab();
   });
 
-  // Listen for background events (e.g. tracking receipt captured)
+  // Listen for background events (e.g. tracking receipt captured or DOM mutation)
   chrome.runtime.onMessage.addListener((msg) => {
-    if (msg.action === "ACTIVE_TAB_CHANGED") {
+    if (msg.action === "ACTIVE_TAB_CHANGED" || msg.action === "PAGE_DOM_MUTATED") {
       inspectActiveTab();
     } else if (msg.action === "UPDATE_TRACKING_RECEIPT" || msg.action === "TRACKING_ID_DETECTED") {
       receiptRefBox.classList.remove("hidden");

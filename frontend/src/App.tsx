@@ -6,7 +6,8 @@ import {
   ExternalLink, Plus, MessageSquare, Trash2, Search, Menu, X,
   ShieldCheck, Calculator, Smartphone, Compass, ArrowRight,
   Globe, Radio, Sparkles, Square, Headphones, Monitor, Download,
-  Settings, ChevronsLeft, ChevronsRight, Sliders, User, FileText
+  Settings, ChevronsLeft, ChevronsRight, Sliders, User, FileText,
+  ShieldAlert, Activity, Phone, Bookmark
 } from 'lucide-react';
 import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
 import { CivicEligibilityCalculator } from './components/CivicEligibilityCalculator';
@@ -14,6 +15,10 @@ import { WhatsAppBotView } from './components/WhatsAppBotView';
 import { AISaathiExtensionModal } from './components/AISaathiExtensionModal';
 import { CivicSettingsModal, type SettingsLanguage } from './components/CivicSettingsModal';
 import { CivicChatSummarizerModal } from './components/CivicChatSummarizerModal';
+import { CivicFactCheckModal } from './components/CivicFactCheckModal';
+import { CivicGrievanceStudioModal } from './components/CivicGrievanceStudioModal';
+import { CivicHelplineModal } from './components/CivicHelplineModal';
+import { CivicSchemeLockerModal } from './components/CivicSchemeLockerModal';
 
 // Civic Language Support
 export type CivicLanguage = 'en' | 'hi' | 'te' | 'ta';
@@ -165,6 +170,10 @@ export function App() {
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showSummarizerModal, setShowSummarizerModal] = useState(false);
+  const [showFactCheckModal, setShowFactCheckModal] = useState(false);
+  const [showGrievanceStudioModal, setShowGrievanceStudioModal] = useState(false);
+  const [showHelplineModal, setShowHelplineModal] = useState(false);
+  const [showSchemeLockerModal, setShowSchemeLockerModal] = useState(false);
   const [incognito, setIncognito] = useState<boolean>(() => {
     return sessionStorage.getItem('nagarik_incognito') === 'true';
   });
@@ -813,6 +822,28 @@ export function App() {
     }
   };
 
+  const handleSaveCitationToBasta = (cite: SchemeCitation) => {
+    try {
+      const existingStr = localStorage.getItem('nagarik_saved_schemes');
+      const list = existingStr ? JSON.parse(existingStr) : [];
+      if (!list.some((s: any) => s.name === cite.name)) {
+        list.push({
+          id: cite.id || 'scheme_' + Date.now(),
+          name: cite.name,
+          department: cite.department || 'Government Welfare Portal',
+          benefit: cite.benefit || 'Verified Government Scheme',
+          eligibility_summary: cite.eligibility_summary || 'Check official guidelines on portal',
+          official_url: cite.official_url,
+          saved_at: new Date().toLocaleDateString()
+        });
+        localStorage.setItem('nagarik_saved_schemes', JSON.stringify(list));
+      }
+      setShowSchemeLockerModal(true);
+    } catch {
+      setShowSchemeLockerModal(true);
+    }
+  };
+
   const filteredThreads = threads.filter(t =>
     t.title.toLowerCase().includes(threadSearch.toLowerCase())
   );
@@ -1001,6 +1032,66 @@ export function App() {
           >
             <Smartphone className="w-4 h-4 text-[#ffb692]" />
             <span>WhatsApp Citizen Bot</span>
+          </button>
+
+          {/* Satya Setu Fact Checker */}
+          <button
+            onClick={() => {
+              setSidebarOpen(false);
+              setShowFactCheckModal(true);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <ShieldAlert className="w-4 h-4 text-red-400" />
+              <span>Satya Setu (Fact-Check)</span>
+            </div>
+            <span className="text-[10px] bg-red-500/20 px-1.5 py-0.5 rounded text-red-300 font-mono">PIB</span>
+          </button>
+
+          {/* Nyaya Setu Grievance & RTI Studio */}
+          <button
+            onClick={() => {
+              setSidebarOpen(false);
+              setShowGrievanceStudioModal(true);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <Activity className="w-4 h-4 text-[#f2ca50]" />
+              <span>Nyaya Setu (Grievance & RTI)</span>
+            </div>
+            <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-300 font-mono">SLA</span>
+          </button>
+
+          {/* Nagarik Sahayata SOS & Helplines */}
+          <button
+            onClick={() => {
+              setSidebarOpen(false);
+              setShowHelplineModal(true);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <Phone className="w-4 h-4 text-emerald-400" />
+              <span>Civic Helplines (SOS)</span>
+            </div>
+            <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-400 font-mono">112/1930</span>
+          </button>
+
+          {/* Nagarik Basta Saved Schemes & Docs Locker */}
+          <button
+            onClick={() => {
+              setSidebarOpen(false);
+              setShowSchemeLockerModal(true);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <Bookmark className="w-4 h-4 text-[#f2ca50]" />
+              <span>Nagarik Basta (Saved Schemes)</span>
+            </div>
+            <span className="text-[10px] bg-[#f2ca50]/20 px-1.5 py-0.5 rounded text-[#f2ca50] font-mono">Dossier</span>
           </button>
 
           <a
@@ -1252,16 +1343,27 @@ export function App() {
                             </div>
                             <div className="flex flex-wrap gap-2">
                               {msg.citations.map((cite, cIdx) => (
-                                <a
+                                <div
                                   key={cIdx}
-                                  href={cite.official_url}
-                                  target="_blank"
-                                  rel="noreferrer"
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16191f] border border-[#22262f] hover:border-[#f2ca50]/60 text-xs text-[#ffb692] hover:text-[#f2ca50] transition-colors"
+                                  className="inline-flex items-center rounded-lg bg-[#16191f] border border-[#22262f] hover:border-[#f2ca50]/60 transition-colors overflow-hidden"
                                 >
-                                  <span>{cite.name}</span>
-                                  <ExternalLink className="w-3 h-3 text-[#8F93B5]" />
-                                </a>
+                                  <a
+                                    href={cite.official_url}
+                                    target="_blank"
+                                    rel="noreferrer"
+                                    className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs text-[#ffb692] hover:text-[#f2ca50] transition-colors"
+                                  >
+                                    <span>{cite.name}</span>
+                                    <ExternalLink className="w-3 h-3 text-[#8F93B5]" />
+                                  </a>
+                                  <button
+                                    onClick={() => handleSaveCitationToBasta(cite)}
+                                    title="Save to Nagarik Basta (Document Locker)"
+                                    className="p-1.5 border-l border-[#22262f] text-[#8F93B5] hover:text-[#f2ca50] hover:bg-[#22262f] transition-colors"
+                                  >
+                                    <Bookmark className="w-3.5 h-3.5" />
+                                  </button>
+                                </div>
                               ))}
                             </div>
                           </div>
@@ -1684,6 +1786,34 @@ export function App() {
         isOpen={showSummarizerModal}
         onClose={() => setShowSummarizerModal(false)}
         messages={messages}
+        currentLanguage={selectedLanguage}
+      />
+
+      {/* Satya Setu Fact Checker & Mythbuster Modal */}
+      <CivicFactCheckModal
+        isOpen={showFactCheckModal}
+        onClose={() => setShowFactCheckModal(false)}
+        currentLanguage={selectedLanguage}
+      />
+
+      {/* Nyaya Setu Grievance Tracker & RTI Studio Modal */}
+      <CivicGrievanceStudioModal
+        isOpen={showGrievanceStudioModal}
+        onClose={() => setShowGrievanceStudioModal(false)}
+        currentLanguage={selectedLanguage}
+      />
+
+      {/* Nagarik Sahayata Emergency SOS & Civic Helplines Modal */}
+      <CivicHelplineModal
+        isOpen={showHelplineModal}
+        onClose={() => setShowHelplineModal(false)}
+        currentLanguage={selectedLanguage}
+      />
+
+      {/* Nagarik Basta Saved Schemes & Document Locker Modal */}
+      <CivicSchemeLockerModal
+        isOpen={showSchemeLockerModal}
+        onClose={() => setShowSchemeLockerModal(false)}
         currentLanguage={selectedLanguage}
       />
     </div>

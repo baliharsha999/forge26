@@ -69,7 +69,38 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
-  // 2. Check active tab support (ALWAYS TRUE)
+  // 2. Relay dynamic DOM mutation to side panel
+  if (message.action === "PAGE_DOM_MUTATED") {
+    chrome.runtime.sendMessage({
+      action: "PAGE_DOM_MUTATED"
+    }).catch(() => {});
+    return false;
+  }
+
+  // 3. Optional backend call for LLM analysis with fast timeout
+  if (message.action === "CALL_BACKEND_ANALYZE") {
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 2500);
+
+    fetch("http://localhost:8000/api/v1/grievance/analyze", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify(message.payload),
+      signal: controller.signal
+    })
+      .then(res => res.json())
+      .then(data => {
+        clearTimeout(timeoutId);
+        sendResponse({ success: true, data: data });
+      })
+      .catch(err => {
+        clearTimeout(timeoutId);
+        sendResponse({ success: false, error: err.message });
+      });
+    return true; // Keep channel open
+  }
+
+  // 4. Check active tab support (ALWAYS TRUE)
   if (message.action === "CHECK_ACTIVE_TAB_SUPPORT") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0) {
@@ -91,7 +122,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 3. Forward inspection request to active tab
+  // 5. Forward inspection request to active tab
   if (message.action === "TRIGGER_INSPECT_PAGE") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0) {
@@ -113,7 +144,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 4. Forward batch field fill request to active tab
+  // 6. Forward batch field fill request to active tab
   if (message.action === "TRIGGER_FILL_FIELDS") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0) {
@@ -141,7 +172,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 5. Forward highlight request to active tab
+  // 7. Forward highlight request to active tab
   if (message.action === "TRIGGER_HIGHLIGHT_ELEMENT") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0) {
@@ -171,7 +202,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return true;
   }
 
-  // 6. Forward click request to active tab
+  // 8. Forward click request to active tab
   if (message.action === "TRIGGER_CLICK_ELEMENT") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0) {
