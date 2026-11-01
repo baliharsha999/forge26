@@ -142,9 +142,10 @@
 
     try {
       element.dispatchEvent(new Event("focus", { bubbles: true }));
-      element.dispatchEvent(new Event("keydown", { bubbles: true, key: "Enter" }));
+      try {
+        element.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true, data: String(value) }));
+      } catch (ie) {}
       element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
-      element.dispatchEvent(new Event("keyup", { bubbles: true }));
       element.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
       element.dispatchEvent(new Event("blur", { bubbles: true }));
     } catch (e) {}

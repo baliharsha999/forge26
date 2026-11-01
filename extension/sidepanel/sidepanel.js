@@ -21,13 +21,13 @@ document.addEventListener("DOMContentLoaded", () => {
     actionButtons: []
   };
 
-  // Base citizen profile for quick-fill shortcut (includes default demo credentials)
+  // Base citizen profile for quick-fill shortcut (includes valid Verhoeff Aadhaar credentials)
   let currentCitizenState = {
     citizen_name: "Ramesh Kumar",
     citizen_phone: "9876543210",
     citizen_email: "ramesh.kumar@example.com",
-    uid: "234567890123",
-    aadhaar: "234567890123",
+    uid: "228654705324",
+    aadhaar: "228654705324",
     application_no: "240310001234",
     location: "Ward 42, Hyderabad, Telangana",
     pincode: "500034",
@@ -263,6 +263,20 @@ document.addEventListener("DOMContentLoaded", () => {
   } else {
     micActionBtn.style.display = "none";
   }
+
+  // Live extraction as citizen types into textarea (e.g. Aadhaar, phone, name)
+  citizenProblemInput.addEventListener("input", () => {
+    const text = citizenProblemInput.value.trim();
+    if (!text) return;
+    const parsed = parseCitizenInput(text);
+    if (parsed.extractedAadhaar) {
+      currentCitizenState.uid = parsed.extractedAadhaar;
+      currentCitizenState.aadhaar = parsed.extractedAadhaar;
+      injectCurrentStateIntoPage();
+    }
+    if (parsed.extractedName) currentCitizenState.citizen_name = parsed.extractedName;
+    if (parsed.extractedPhone) currentCitizenState.citizen_phone = parsed.extractedPhone;
+  });
 
   // Profile Quick-fill button
   btnUseProfile.addEventListener("click", () => {
