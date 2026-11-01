@@ -88,7 +88,7 @@ flowchart TD
 
 ---
 
-## 🧩 Extension System Design (Deep-Dive for Judges)
+## 🧩 Extension System Design (Deep-Dive)
 
 The **Nagarik AI Chrome Extension (v1.2.3)** is engineered under the strict constraints of **Chrome Manifest V3**, adhering to zero-trust client privacy, multi-process memory boundaries, and dynamic reactive form manipulation without modifying target website source code.
 
