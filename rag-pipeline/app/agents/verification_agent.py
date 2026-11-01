@@ -58,9 +58,14 @@ class SourceVerificationAgent:
             or any(host == td or host.endswith("." + td) for td in self.settings.TRUSTED_DOMAINS)
         )
 
-        # 2. Department legitimacy check
-        known_keywords = ["ministry", "department", "pradhan mantri", "central", "state", "board", "commission", "scheme"]
-        is_dept_verified = any(kw in dept.lower() for kw in known_keywords) or len(dept) > 5
+        # 2. Department legitimacy check - strict validation against known official civic bodies
+        known_keywords = [
+            "ministry", "department", "pradhan mantri", "central", "state", "board",
+            "commission", "scheme", "directorate", "authority", "corporation", "council",
+            "bureau", "niti aayog", "uidai", "nic", "epfo", "esic"
+        ]
+        dept_clean = dept.strip().lower()
+        is_dept_verified = any(kw in dept_clean for kw in known_keywords) and len(dept_clean) >= 4
 
         # 3. Document currency / age analysis
         date_str = last_updated or pub_date

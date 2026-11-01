@@ -6,7 +6,7 @@ Provides /chat, /ingest, /documents, /graph, and /health endpoints.
 import os
 import asyncio
 from typing import List, Dict, Any, Optional
-from fastapi import APIRouter, HTTPException, BackgroundTasks
+from fastapi import APIRouter, HTTPException, BackgroundTasks, Header, Depends
 from pydantic import BaseModel, Field
 
 from app.graph.workflow import build_query_retrieval_graph, build_ingestion_graph
@@ -22,6 +22,17 @@ db = GovernmentDatabase()
 scraping_agent = ScrapingAgent(db=db)
 query_graph = build_query_retrieval_graph()
 ingestion_graph = build_ingestion_graph()
+
+
+def verify_admin_key(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) -> str:
+    """Protects administrative ingestion endpoints from unauthorized trigger."""
+    expected_key = os.getenv("ADMIN_API_KEY", "nagarik-admin-secret-key-2026")
+    if not x_api_key or x_api_key.strip() != expected_key:
+        raise HTTPException(
+            status_code=401,
+            detail="Unauthorized: Valid X-API-Key header required for admin ingestion operations."
+        )
+    return x_api_key
 
 
 # Request / Response Models matching Section 19 & Multilingual Upgrades
@@ -123,11 +134,12 @@ async def chat_endpoint(request: ChatRequest):
     )
 
 
-@router.post("/ingest", response_model=IngestResponse)
+@router.post("/ingest", response_model=IngestResponse, dependencies=[Depends(verify_admin_key)])
 async def ingest_database_documents():
     """
     Triggers the reusable document ingestion workflow over all documents in the SQLite database.
     Loads HTML, splits chunks, generates SentenceTransformer embeddings, and updates FAISS HNSW + BM25.
+    Requires admin X-API-Key header.
     """
     initial_state = RAGState(original_query="Ingest all database documents")
     res = await asyncio.to_thread(ingestion_graph.invoke, initial_state)
@@ -139,11 +151,11 @@ async def ingest_database_documents():
     )
 
 
-@router.post("/ingest/url")
+@router.post("/ingest/url", dependencies=[Depends(verify_admin_key)])
 async def ingest_url(request: IngestUrlRequest, background_tasks: BackgroundTasks):
     """
     Scrapes a new official government URL, stores it in the database,
-    and runs the ingestion pipeline.
+    and runs the ingestion pipeline. Requires admin X-API-Key header.
     """
     doc = scraping_agent.scrape_direct_url(request.url)
     if not doc:
@@ -232,8 +244,12 @@ async def health_check():
                 "bm25_count": 0
             }
 
+    from app.ingestion.embeddings import EmbeddingService
+    emb_svc = EmbeddingService.get_instance()
+    embedding_degraded = emb_svc.is_degraded_mode
+
     return {
-        "status": "healthy",
+        "status": "healthy" if not embedding_degraded else "degraded",
         "service": "Government Information Multilingual RAG",
         "hosting": "Render Free Tier",
         "vector_engine": _cached_stats.get("vector_engine", settings.VECTOR_DB_TYPE),
@@ -242,6 +258,8 @@ async def health_check():
         "faiss_hnsw_vectors": _cached_stats.get("vectors", 0),
         "bm25_documents_indexed": _cached_stats.get("bm25_count", 0),
         "embedding_model": settings.EMBEDDING_MODEL_NAME,
+        "embedding_mode": "degraded_fallback" if embedding_degraded else "production_neural",
+        "is_degraded": embedding_degraded,
         "reranker_model": settings.RERANKING_MODEL_NAME if not settings.LOW_MEMORY_MODE else "RRF-Cosine-Fallback (Low Memory Mode)",
         "low_memory_mode": settings.LOW_MEMORY_MODE,
         "supported_languages": settings.SUPPORTED_LANGUAGES

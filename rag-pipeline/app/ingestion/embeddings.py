@@ -29,6 +29,13 @@ class EmbeddingService:
         self.chunk_hashes: Dict[str, str] = self._load_hash_cache()
         self._query_cache: Dict[Tuple[str, bool], np.ndarray] = {}
         self._max_query_cache = 128
+        self.is_degraded: bool = False
+
+    @property
+    def is_degraded_mode(self) -> bool:
+        """Returns True if operating in deterministic fallback mode rather than native neural model."""
+        _ = self.model
+        return bool(getattr(self, "is_degraded", False) or getattr(self._model, "is_degraded", False))
 
     @property
     def model(self):
@@ -44,8 +51,16 @@ class EmbeddingService:
                     self.dimension = self._model.get_embedding_dimension()
                 else:
                     self.dimension = self._model.get_sentence_embedding_dimension()
-            except (ImportError, Exception):
+                self.is_degraded = False
+            except (ImportError, Exception) as exc:
+                import logging
+                logging.warning(
+                    f"[EmbeddingService] SentenceTransformer model '{self.model_name}' could not be initialized ({exc}). "
+                    "Operating in transparent DEGRADED fallback mode with deterministic hashing embeddings."
+                )
+                self.is_degraded = True
                 class DeterministicEmbeddingFallback:
+                    is_degraded = True
                     def encode(self, texts, **kwargs):
                         vectors = []
                         for t in texts:

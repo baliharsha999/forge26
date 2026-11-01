@@ -16,7 +16,11 @@
     "scripting"
   ],
   "host_permissions": [
-    "<all_urls>"
+    "*://*.gov.in/*",
+    "*://*.nic.in/*",
+    "*://*.mygov.in/*",
+    "*://localhost/*",
+    "*://127.0.0.1/*"
   ],
   "background": {
     "service_worker": "background/service_worker.js"
@@ -30,7 +34,11 @@
   "content_scripts": [
     {
       "matches": [
-        "<all_urls>"
+        "*://*.gov.in/*",
+        "*://*.nic.in/*",
+        "*://*.mygov.in/*",
+        "*://localhost/*",
+        "*://127.0.0.1/*"
       ],
       "js": [
         "content/adapters/base_adapter.js",

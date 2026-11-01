@@ -4,6 +4,8 @@
  * Always supports any webpage on desktop with real-time DOM analysis, auto-healing, and form autofill.
  */
 (() => {
+  if (typeof window !== "undefined" && window.__nagarikContentLoaded) return;
+  if (typeof window !== "undefined") window.__nagarikContentLoaded = true;
   let activeBanner = null;
 
   // Civic Concept Synonym Graph for High-Precision Dropdown and Department Matching
@@ -354,10 +356,12 @@
     // 3. Substring match (strictly excluding unwanted registration/forgot links)
     const matched = allInteractive.find(el => {
       if (isUnwantedButtonOrLink(el)) return false;
+      const id = (el.id || "").toLowerCase();
+      const name = (el.name || "").toLowerCase();
       const txt = (el.innerText || el.value || "").toLowerCase();
       const href = (el.getAttribute("href") || "").toLowerCase();
       const aria = (el.getAttribute("aria-label") || "").toLowerCase();
-      return txt.includes(targetLower) || href.includes(targetLower) || aria.includes(targetLower);
+      return id === targetLower || id.includes(targetLower) || name.includes(targetLower) || txt.includes(targetLower) || href.includes(targetLower) || aria.includes(targetLower);
     });
     if (matched) return matched;
 
@@ -467,37 +471,33 @@
       return keywords.some(k => combined.includes(k.toLowerCase()));
     }
 
-    // Auto-select "OTP Authentication" radio button if present on page (e.g. UIDAI)
-    const otpRadio = allInputs.find(el => (el.type === "radio" || el.type === "checkbox") && matchesKeywords(el, ["otp authentication", "login with otp", "otp"]));
-    if (otpRadio && !otpRadio.checked) {
-      try {
-        otpRadio.click();
-        otpRadio.checked = true;
-        otpRadio.dispatchEvent(new Event("change", { bubbles: true }));
-      } catch (e) {}
-    }
+    // NOTE: OTP radio auto-selection strictly removed for citizen security and choice.
 
     // Explicit Mappings with Multilingual Tokens (EN, HI, TE) and Tag Preferences
     const mappings = [
       {
         fieldKeys: ["uid", "aadhaar", "aadhar", "aadhaar_number", "aadhar_number", "id_number", "identity_no"],
         domKeywords: ["uid", "aadhaar", "aadhar", "adharnumber", "aadhaarno", "aadharno", "uidai", "id_number", "identity_no", "identity", "enter aadhaar", "enter aadhaar number", "आधार", "ఆధార్"],
+        negativeKeywords: ["father", "spouse", "nominee", "officer", "bank"],
         isIdentity: true,
         preferTag: "INPUT"
       },
       {
         fieldKeys: ["citizen_name", "name", "fullname", "applicant_name", "first_name", "applicant"],
         domKeywords: ["citizen-name", "citizen_name", "applicant_name", "candidate_name", "name", "fullname", "first_name", "fname", "txtname", "नाम", "పేరు"],
+        negativeKeywords: ["father", "mother", "spouse", "husband", "nominee", "officer", "bank", "witness", "guardian", "department", "user_id", "login"],
         preferTag: "INPUT"
       },
       {
         fieldKeys: ["citizen_phone", "phone", "mobile", "contact_number", "contact"],
         domKeywords: ["citizen-phone", "citizen_phone", "mobile", "phone", "contact", "cell", "tel", "contact_no", "मोबाइल", "ఫోన్"],
+        negativeKeywords: ["landline_std", "fax", "officer"],
         preferTag: "INPUT"
       },
       {
         fieldKeys: ["citizen_email", "email"],
         domKeywords: ["email", "mail", "e-mail", "email_id", "ईमेल", "ఈమెయిల్"],
+        negativeKeywords: ["officer_email", "admin"],
         preferTag: "INPUT"
       },
       {
@@ -521,6 +521,7 @@
       {
         fieldKeys: ["location", "address", "city", "ward", "landmark", "street", "district"],
         domKeywords: ["location-input", "location", "address", "ward", "landmark", "street", "city", "village", "district", "locality", "colony", "पता", "स्थान", "చిరునామా", "ప్రాంతం"],
+        negativeKeywords: ["email", "ip_address", "mac_address", "web_address", "url"],
         preferTag: "INPUT"
       },
       {
@@ -531,29 +532,37 @@
       {
         fieldKeys: ["application_no", "app_no", "reg_no", "registration_no", "application_number", "roll_no", "user_id", "username"],
         domKeywords: ["txtregno", "application no", "application_no", "applicationno", "regno", "registration no", "appno", "rollno", "user id", "userid", "username", "पंजीकरण", "రిజిస్ట్రేషన్"],
-        preferTag: "INPUT"
-      },
-      {
-        fieldKeys: ["password", "pwd", "user_password"],
-        domKeywords: ["txtpassword", "password", "passwd", "pwd", "पासवर्ड", "పాస్‌వర్డ్"],
+        negativeKeywords: ["password", "otp", "pin", "code"],
         preferTag: "INPUT"
       },
       {
         fieldKeys: ["pincode", "pin_code", "zip", "postal_code"],
         domKeywords: ["pincode", "pin_code", "postal_code", "zip", "पिनकोड", "పిన్‌కోడ్"],
         preferTag: "INPUT"
-      },
-      {
-        fieldKeys: ["otp", "one_time_password", "passcode"],
-        domKeywords: ["otp", "one time password", "passcode", "security token", "verification_code"],
-        preferTag: "INPUT"
       }
     ];
 
-    function isSecPinOrCaptcha(el) {
+    function isSecPinOrCaptcha(el) { return isSensitiveOrAuthControl(el); }
+
+    function isSensitiveOrAuthControl(el) {
       if (!el) return false;
-      const c = `${el.id} ${el.name} ${el.placeholder || ""} ${el.getAttribute("aria-label") || ""} ${el.title || ""}`.toLowerCase();
-      return c.includes("captcha") || c.includes("secpin") || c.includes("securitypin") || c.includes("security_pin") || c.includes("security pin") || c.includes("txtsecpin") || c.includes("captchacode");
+      const t = (el.type || "").toLowerCase();
+      if (t === "password") return true;
+      const combined = `${el.id} ${el.name} ${el.placeholder || ""} ${el.getAttribute("aria-label") || ""} ${el.title || ""} ${el.className || ""}`.toLowerCase();
+      return combined.includes("captcha") || 
+             combined.includes("secpin") || 
+             combined.includes("securitypin") || 
+             combined.includes("security_pin") || 
+             combined.includes("security pin") || 
+             combined.includes("txtsecpin") || 
+             combined.includes("captchacode") ||
+             combined.includes("otp") ||
+             combined.includes("passcode") ||
+             combined.includes("token") ||
+             combined.includes("secret") ||
+             combined.includes("fingerprint") ||
+             combined.includes("biometric") ||
+             combined.includes("password");
     }
 
     // Find and populate values using two-pass prioritization (preferTag -> general match)
@@ -601,7 +610,7 @@
       // UIDAI / Aadhaar Portal Specialized Fallback:
       // If filling identity (Aadhaar) on UIDAI / login page and no match found yet:
       if (!matchedEl && mapping.isIdentity && (/uidai/i.test(window.location.hostname) || /uidai/i.test(window.location.href) || /aadhaar|aadhar/i.test(document.title) || /aadhaar/i.test(document.body ? document.body.innerText.substring(0, 500) : ""))) {
-        matchedEl = allInputs.find(el => !filledInThisRun.has(el) && !isSecPinOrCaptcha(el) && el.tagName === "INPUT" && (el.type === "text" || el.type === "tel" || el.type === "number" || !el.type));
+        matchedEl = allInputs.find(el => !filledInThisRun.has(el) && !isSensitiveOrAuthControl(el) && el.tagName === "INPUT" && (el.type === "text" || el.type === "tel" || el.type === "number" || !el.type));
       }
 
       if (matchedEl) {
@@ -664,14 +673,11 @@
       !el.checked && 
       matchesKeywords(el, ["agree", "declaration", "terms", "declare", "certify", "accept", "consent", "confirm"])
     );
-    agreementCheckboxes.forEach(cb => {
-      try {
-        cb.checked = true;
-        cb.dispatchEvent(new Event("change", { bubbles: true }));
-        cb.classList.add("jansetu-highlight");
-        filledCount++;
-      } catch (e) {}
-    });
+    if (agreementCheckboxes.length > 0) {
+      setTimeout(() => {
+        highlightPageElement(agreementCheckboxes[0], "Citizen Action: Review & Accept Declaration");
+      }, 700);
+    }
 
     // Also handle any arbitrary keys passed directly in fieldsData
     for (const [key, rawVal] of Object.entries(fieldsData)) {
@@ -680,7 +686,7 @@
 
       for (const el of allInputs) {
         if (filledInThisRun.has(el)) continue;
-        if (isSecPinOrCaptcha(el)) continue; // STRICTLY PREVENT FILLING CAPTCHA / SECURITY PIN
+        if (isSensitiveOrAuthControl(el)) continue; // STRICTLY PREVENT FILLING CAPTCHA / SECURITY PIN
         if (matchesKeywords(el, [key])) {
           setNativeValue(el, val);
           filledInThisRun.add(el);
@@ -853,7 +859,17 @@
 
     // 6. CLICK_PAGE_ELEMENT
     if (message.action === "CLICK_PAGE_ELEMENT") {
-      const el = findTargetElement(message.target || "SUBMIT");
+      const targetStr = String(message.target || "").toUpperCase();
+      if (/SUBMIT|LOGIN|APPLY|LODGE|PAY|REGISTER|CONFIRM|SEND_OTP|FINAL/i.test(targetStr)) {
+        highlightPageElement(message.target || "SUBMIT", "Citizen Action Required: Click to Submit");
+        sendResponse({ 
+          success: false, 
+          blocked: true, 
+          reason: "Nagarik AI Safety Guard: Final form submission and login actions must be initiated by the citizen." 
+        });
+        return true;
+      }
+      const el = findTargetElement(message.target);
       if (el) {
         el.click();
         sendResponse({ success: true });

@@ -30,11 +30,22 @@ app = FastAPI(
 init_db()
 
 # Enable CORS for frontend and external calls
+ALLOWED_ORIGINS = [
+    "http://localhost:3000",
+    "http://localhost:8000",
+    "http://127.0.0.1:3000",
+    "http://127.0.0.1:8000",
+    "https://nagarik-ai.web.app",
+    "https://nagarik-ai.firebaseapp.com",
+    "https://cyugandharreddy08.github.io",
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=ALLOWED_ORIGINS,
+    allow_origin_regex=r"^chrome-extension://[a-z]{32}$",
     allow_credentials=True,
-    allow_methods=["*"],
+    allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 

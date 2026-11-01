@@ -6,11 +6,17 @@
 
 // Open side panel on extension action click
 if (chrome.sidePanel && typeof chrome.sidePanel.setPanelBehavior === "function") {
-  chrome.sidePanel
-    .setPanelBehavior({ openPanelOnActionClick: true })
-    .catch((error) => {
-      console.warn("Side panel config note:", error);
-    });
+  try {
+    chrome.sidePanel.setPanelBehavior({ openPanelOnActionClick: true }).catch(() => {});
+  } catch (e) {}
+}
+
+if (chrome.action && chrome.action.onClicked) {
+  chrome.action.onClicked.addListener((tab) => {
+    if (chrome.sidePanel && typeof chrome.sidePanel.open === "function" && tab && tab.id) {
+      chrome.sidePanel.open({ tabId: tab.id }).catch(() => {});
+    }
+  });
 }
 
 function canAccessTab(url) {
@@ -25,11 +31,10 @@ function canAccessTab(url) {
 
 function safeRuntimeSendMessage(msg) {
   try {
-    chrome.runtime.sendMessage(msg, () => {
-      if (chrome.runtime.lastError) {
-        const _ = chrome.runtime.lastError.message;
-      }
-    });
+    const p = chrome.runtime.sendMessage(msg);
+    if (p && typeof p.catch === "function") {
+      p.catch(() => {});
+    }
   } catch (e) {}
 }
 

@@ -8,6 +8,8 @@ import os
 import re
 import time
 import json
+import socket
+import ipaddress
 import urllib.request
 import urllib.parse
 import urllib.robotparser
@@ -18,6 +20,76 @@ import requests
 
 from app.config.settings import get_settings
 from app.ingestion.database import GovernmentDatabase
+
+
+class SSRFProtectionError(ValueError):
+    """Raised when an outbound URL target violates SSRF security boundaries."""
+    pass
+
+
+def is_ip_private_or_restricted(ip_str: str) -> bool:
+    """Verifies whether an IP address belongs to private, loopback, or metadata ranges."""
+    try:
+        ip = ipaddress.ip_address(ip_str)
+        return (
+            ip.is_private or
+            ip.is_loopback or
+            ip.is_link_local or
+            ip.is_multicast or
+            ip.is_reserved or
+            ip.is_unspecified
+        )
+    except Exception:
+        return True
+
+
+def validate_safe_target_url(url: str, trusted_domain_checker) -> str:
+    """
+    Strict SSRF validation:
+    1. Scheme must be HTTP or HTTPS (prevents file://, gopher://, dict://).
+    2. Hostname must pass trusted government domain verification.
+    3. Hostname must resolve to a public, non-private, non-loopback, non-metadata IP.
+    """
+    parsed = urllib.parse.urlparse(url)
+    if parsed.scheme.lower() not in ("http", "https"):
+        raise SSRFProtectionError(f"Disallowed scheme '{parsed.scheme}': only HTTP and HTTPS are permitted.")
+
+    host = parsed.hostname
+    if not host:
+        raise SSRFProtectionError("URL is missing a valid hostname.")
+
+    if not trusted_domain_checker(url):
+        raise SSRFProtectionError(f"Host '{host}' is not a trusted official government domain.")
+
+    try:
+        port = parsed.port or (443 if parsed.scheme.lower() == "https" else 80)
+        addrinfo = socket.getaddrinfo(host, port, proto=socket.IPPROTO_TCP)
+        for _, _, _, _, sockaddr in addrinfo:
+            ip_str = sockaddr[0]
+            if is_ip_private_or_restricted(ip_str):
+                raise SSRFProtectionError(f"DNS resolved host '{host}' to restricted or loopback IP: {ip_str}")
+    except socket.gaierror as e:
+        raise SSRFProtectionError(f"DNS resolution failed for '{host}': {e}")
+
+    return url
+
+
+class SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Custom HTTP redirect handler that revalidates destinations against SSRF rules."""
+
+    def __init__(self, trusted_domain_checker, max_redirects: int = 3):
+        super().__init__()
+        self.trusted_domain_checker = trusted_domain_checker
+        self.max_redirects = max_redirects
+        self.redirect_count = 0
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        self.redirect_count += 1
+        if self.redirect_count > self.max_redirects:
+            raise SSRFProtectionError(f"Maximum allowed redirects ({self.max_redirects}) exceeded.")
+        # Revalidate the redirect destination before following
+        validate_safe_target_url(newurl, self.trusted_domain_checker)
+        return super().redirect_request(req, fp, code, msg, headers, newurl)
 
 
 class GovernmentWebScraper:
@@ -145,7 +217,7 @@ class GovernmentWebScraper:
             if date_match:
                 pub_date = date_match.group(1).replace("/", "-").replace(".", "-")
             else:
-                pub_date = datetime.utcnow().strftime("%Y-%m-%d")
+                pub_date = None  # Accurately reflect undated document rather than manufacturing today's date
 
         # 3. Department
         department = "Government of India"
@@ -177,11 +249,19 @@ class GovernmentWebScraper:
 
     def scrape_url(self, url: str) -> Optional[Dict[str, Any]]:
         """
-        Scrapes a government webpage, extracts metadata and cleaned HTML,
-        and saves it to the SQLite database.
+        Scrapes a government webpage with strict SSRF defense, redirects validation,
+        robots.txt compliance, and bounded memory reads.
         """
-        if not self.is_trusted_government_url(url):
-            print(f"[Scraper] Warning: URL '{url}' is not in the trusted government domains list. Skipping.")
+        # 1. Robots.txt check
+        if not self.is_url_allowed_by_robots(url):
+            print(f"[Scraper] Warning: URL '{url}' is disallowed by robots.txt. Skipping.")
+            return None
+
+        # 2. SSRF Pre-flight validation (Scheme, Host, and DNS Resolution)
+        try:
+            validate_safe_target_url(url, self.is_trusted_government_url)
+        except SSRFProtectionError as e:
+            print(f"[Scraper] SSRF Guard blocked request to '{url}': {e}")
             return None
 
         domain = urllib.parse.urlparse(url).netloc.lower()
@@ -189,9 +269,11 @@ class GovernmentWebScraper:
 
         try:
             req = urllib.request.Request(url, headers=self.headers)
-            with urllib.request.urlopen(req, timeout=4) as resp:
+            opener = urllib.request.build_opener(SafeRedirectHandler(self.is_trusted_government_url, max_redirects=3))
+            with opener.open(req, timeout=5) as resp:
                 content_type = resp.headers.get("Content-Type", "")
-                raw_bytes = resp.read()
+                # Bounded read: Enforce 2 MB maximum response size to prevent memory exhaustion attacks
+                raw_bytes = resp.read(2 * 1024 * 1024)
                 raw_html = raw_bytes.decode("utf-8", errors="replace")
 
             meta = self.extract_metadata(raw_html, url)
@@ -231,11 +313,16 @@ class GovernmentWebScraper:
         last_modified: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Scrapes a government webpage with HTTP 304 conditional validation.
+        Scrapes a government webpage with HTTP 304 conditional validation and SSRF redirect defense.
         Supports If-None-Match and If-Modified-Since headers.
         """
-        if not self.is_trusted_government_url(url):
-            return {"status": "error", "error": "untrusted_domain", "url": url}
+        if not self.is_url_allowed_by_robots(url):
+            return {"status": "error", "error": "robots_disallowed", "url": url}
+
+        try:
+            validate_safe_target_url(url, self.is_trusted_government_url)
+        except SSRFProtectionError as e:
+            return {"status": "error", "error": f"ssrf_blocked: {e}", "url": url}
 
         domain = urllib.parse.urlparse(url).netloc.lower()
         self._respect_rate_limit(domain)
@@ -248,10 +335,11 @@ class GovernmentWebScraper:
 
         try:
             req = urllib.request.Request(url, headers=request_headers)
-            with urllib.request.urlopen(req, timeout=4) as resp:
+            opener = urllib.request.build_opener(SafeRedirectHandler(self.is_trusted_government_url, max_redirects=3))
+            with opener.open(req, timeout=5) as resp:
                 resp_etag = resp.headers.get("ETag")
                 resp_lm = resp.headers.get("Last-Modified")
-                raw_bytes = resp.read()
+                raw_bytes = resp.read(2 * 1024 * 1024)
                 raw_html = raw_bytes.decode("utf-8", errors="replace")
 
             meta = self.extract_metadata(raw_html, url)

@@ -814,9 +814,10 @@ describe('Chrome Extension Test Audit', () => {
       assert.strictEqual(responseData.actionButtons[0].text, 'Submit Application');
     });
 
-    test('executeUniversalFill: auto-selects OTP radio, fills UID, masks identity in telemetry', () => {
+    test('executeUniversalFill: fills UID safely, leaves auth radio to user, masks identity in telemetry', () => {
       const otpRadio = env.document.createElement('input');
       otpRadio.type = 'radio';
+      otpRadio.checked = false;
       otpRadio.setAttribute('aria-label', 'Login with OTP');
       env.document.body.appendChild(otpRadio);
 
@@ -837,69 +838,79 @@ describe('Chrome Extension Test Audit', () => {
       assert.ok(responseData);
       assert.strictEqual(responseData.success, true);
       assert.strictEqual(responseData.filledCount, 1);
-      assert.strictEqual(otpRadio.checked, true);
+      assert.strictEqual(otpRadio.checked, false); // Authentication method choice is strictly citizen-controlled
       assert.strictEqual(uidInput.value, '228654705324');
       // Zero-knowledge masking check in response payload
       assert.strictEqual(responseData.filledItems[0].maskedValue, 'XXXXXXXX5324');
     });
 
-    test('Spotlight and Element Click: finds target by intent and executes highlight/click', () => {
+    test('Submission Safety & Element Click: blocks automated submission clicks while permitting safe UI toggles', () => {
       const submitBtn = env.document.createElement('button');
       submitBtn.id = 'lodge-complaint-btn';
       submitBtn.innerText = 'Lodge Grievance';
       env.document.body.appendChild(submitBtn);
 
-      let clickRes = null;
+      const navTab = env.document.createElement('button');
+      navTab.id = 'view-tab';
+      navTab.innerText = 'View Details';
+      env.document.body.appendChild(navTab);
+
+      let submitClickRes = null;
+      let safeClickRes = null;
       let highlightRes = null;
 
       for (const listener of env.messageListeners) {
         listener({ action: 'HIGHLIGHT_PAGE_ELEMENT', target: 'SUBMIT' }, {}, (r) => { highlightRes = r; });
-        listener({ action: 'CLICK_PAGE_ELEMENT', target: 'LODGE' }, {}, (r) => { clickRes = r; });
+        listener({ action: 'CLICK_PAGE_ELEMENT', target: 'SUBMIT' }, {}, (r) => { submitClickRes = r; });
+        listener({ action: 'CLICK_PAGE_ELEMENT', target: 'view-tab' }, {}, (r) => { safeClickRes = r; });
       }
 
       assert.strictEqual(highlightRes.success, true);
-      assert.strictEqual(clickRes.success, true);
-      assert.strictEqual(submitBtn.clicked, true);
+      // Automated submit click must be blocked for citizen protection
+      assert.strictEqual(submitClickRes.success, false);
+      assert.strictEqual(submitClickRes.blocked, true);
+      // Safe non-submission UI click is allowed
+      assert.strictEqual(safeClickRes.success, true);
+      assert.strictEqual(navTab.clicked, true);
+    });
+
+    test('Sensitive Field Protection: strictly rejects filling passwords, OTPs, and does NOT auto-check consent', () => {
+      const pwdInput = env.document.createElement('input');
+      pwdInput.type = 'password';
+      pwdInput.name = 'password';
+      env.document.body.appendChild(pwdInput);
+
+      const otpInput = env.document.createElement('input');
+      otpInput.name = 'otp_code';
+      env.document.body.appendChild(otpInput);
+
+      const consentBox = env.document.createElement('input');
+      consentBox.type = 'checkbox';
+      consentBox.name = 'declaration_agree';
+      consentBox.checked = false;
+      env.document.body.appendChild(consentBox);
+
+      for (const listener of env.messageListeners) {
+        listener({
+          action: 'FILL_FIELDS',
+          fields: {
+            password: 'secret_password_123',
+            otp: '123456'
+          }
+        }, {}, () => {});
+      }
+
+      assert.strictEqual(pwdInput.value, '');
+      assert.strictEqual(otpInput.value, '');
+      assert.strictEqual(consentBox.checked, false); // Citizen consent must NOT be automated!
     });
   });
 
   describe('7. Zero-Knowledge Privacy & Security Audit', () => {
-    // Audit sidepanel citizen input parser and privacy handlers
+    // Audit real production citizen input parser directly from citizen_parser.js
+    const { parseCitizenInput } = require('../sidepanel/citizen_parser.js');
+
     test('parseCitizenInput: regex-extracts Aadhaar UID (12 digits, grouped or continuous) with 0 network leakage', () => {
-      // Re-create parseCitizenInput from sidepanel.js
-      function parseCitizenInput(text) {
-        const res = {
-          rawText: text || '',
-          extractedAadhaar: null,
-          extractedPhone: null,
-          extractedPin: null,
-          extractedEmail: null,
-          extractedName: null
-        };
-        if (!text) return res;
-
-        const aadhaarMatch = text.match(/(?:aadhaar|aadhar|uid|uidai)[\s:=]*([0-9]{4}\s?[0-9]{4}\s?[0-9]{4})\b/i) ||
-                             text.match(/\b([0-9]{4}\s[0-9]{4}\s[0-9]{4})\b/) ||
-                             text.match(/\b([0-9]{12})\b/);
-        if (aadhaarMatch) {
-          res.extractedAadhaar = aadhaarMatch[1].replace(/\s+/g, '');
-        }
-
-        const phoneMatch = text.match(/(?:phone|mobile|contact|cell)[\s:=]*([6-9][0-9]{9})\b/i) ||
-                           text.match(/\b([6-9][0-9]{9})\b/);
-        if (phoneMatch) res.extractedPhone = phoneMatch[1];
-
-        const pinMatch = text.match(/(?:pin|pincode|postal)[\s:=]*([1-9][0-9]{5})\b/i);
-        if (pinMatch) res.extractedPin = pinMatch[1];
-
-        const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
-        if (emailMatch) res.extractedEmail = emailMatch[1];
-
-        const nameMatch = text.match(/(?:my name is|i am|myself|citizen:?)\s+([^.,\n]+?)(?=\s+(?:and|who|from|need|residing|with|my)\b|[.,\n]|$)/i);
-        if (nameMatch) res.extractedName = nameMatch[1].trim();
-
-        return res;
-      }
 
       // Grouped 4-4-4
       const p1 = parseCitizenInput('Please link my aadhaar 2286 5470 5324 to mobile 9876543210');
