@@ -4,18 +4,15 @@ import { marked } from 'marked';
 import {
   Send, Mic, MicOff, Volume2, VolumeX, Copy, Check,
   ExternalLink, Plus, MessageSquare, Trash2, Search, Menu, X,
-  ShieldCheck, Compass, ArrowRight,
-  Globe, Radio, Sparkles, Square, Headphones, Monitor, Download,
-  Settings, ChevronsLeft, ChevronsRight, Sliders, User, FileText,
-  ShieldAlert, Phone, Bookmark
+  ShieldCheck, ArrowRight,
+  Globe, Sparkles, Monitor, Download,
+  Settings, ChevronsLeft, ChevronsRight, FileText
 } from 'lucide-react';
 import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
 import { AISaathiExtensionModal } from './components/AISaathiExtensionModal';
 import { CivicSettingsModal, type SettingsLanguage } from './components/CivicSettingsModal';
 import { CivicChatSummarizerModal } from './components/CivicChatSummarizerModal';
-import { CivicFactCheckModal } from './components/CivicFactCheckModal';
-import { CivicHelplineModal } from './components/CivicHelplineModal';
-import { CivicSchemeLockerModal } from './components/CivicSchemeLockerModal';
+import { speakCivicText, stopAllSpeech } from './utils/civicAudioEngine';
 
 // Civic Language Support
 export type CivicLanguage = 'en' | 'hi' | 'te' | 'ta';
@@ -145,19 +142,9 @@ export function App() {
   const [speakingId, setSpeakingId] = useState<string | null>(null);
 
   // Modals
-  const [voiceAgentOpen, setVoiceAgentOpen] = useState(false);
-  const [voiceAgentState, setVoiceAgentState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
-  const [voiceTranscript, setVoiceTranscript] = useState('');
-  const [voiceAssistantReply, setVoiceAssistantReply] = useState('');
-  const [autoVoiceLoop, setAutoVoiceLoop] = useState(true);
-  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
-
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
   const [showSummarizerModal, setShowSummarizerModal] = useState(false);
-  const [showFactCheckModal, setShowFactCheckModal] = useState(false);
-  const [showHelplineModal, setShowHelplineModal] = useState(false);
-  const [showSchemeLockerModal, setShowSchemeLockerModal] = useState(false);
   const [incognito, setIncognito] = useState<boolean>(() => {
     return sessionStorage.getItem('nagarik_incognito') === 'true';
   });
@@ -188,8 +175,6 @@ export function App() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
-  const voiceAgentRecognitionRef = useRef<any>(null);
-  const voiceSilenceTimerRef = useRef<any>(null);
 
   // Active thread
   const currentThread = threads.find(t => t.id === activeThreadId) || threads[0];
@@ -205,17 +190,6 @@ export function App() {
     }
   }, [threads, incognito]);
 
-  // Load SpeechSynthesis Voices
-  useEffect(() => {
-    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-      const loadVoices = () => {
-        setAvailableVoices(window.speechSynthesis.getVoices());
-      };
-      loadVoices();
-      window.speechSynthesis.onvoiceschanged = loadVoices;
-    }
-  }, []);
-
   // Rock-Solid, Zero-Jitter Scroll: ONLY scrolls the chat container, NEVER scrolls the page
   const scrollToBottomIfNear = (force: boolean = false) => {
     if (!messagesContainerRef.current) return;
@@ -230,21 +204,15 @@ export function App() {
     scrollToBottomIfNear();
   }, [messages, generationStep]);
 
-  // Keyboard shortcut Alt+N for new chat, Alt+T for sidebar, Alt+V for Voice Agent, Alt+E for Extension
+  // Keyboard shortcut Alt+N for new chat, Alt+S for sidebar toggle, Alt+E for Extension
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && e.key.toLowerCase() === 'n') {
         e.preventDefault();
         handleCreateNewThread();
-      } else if (e.altKey && e.key.toLowerCase() === 't') {
+      } else if (e.altKey && (e.key.toLowerCase() === 's' || e.key.toLowerCase() === 't')) {
         e.preventDefault();
         toggleSidebarCollapsed();
-      } else if (e.altKey && e.key.toLowerCase() === 's') {
-        e.preventDefault();
-        setShowSettingsModal(prev => !prev);
-      } else if (e.altKey && e.key.toLowerCase() === 'v') {
-        e.preventDefault();
-        setVoiceAgentOpen(prev => !prev);
       } else if (e.altKey && e.key.toLowerCase() === 'e') {
         e.preventDefault();
         setShowExtensionModal(prev => !prev);
@@ -254,86 +222,12 @@ export function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [threads]);
 
-  // Clean Markdown/URL symbols for natural spoken speech
-  const sanitizeTextForSpeech = (text: string) => {
-    return text
-      .replace(/https?:\/\/\S+/g, 'link provided below')
-      .replace(/[*_#`[\]()~>]/g, ' ')
-      .replace(/\|.*\|/g, '')
-      .replace(/\s+/g, ' ')
-      .trim();
-  };
-
-  // Speak Text Function with Robust Multilingual Regional Voice Matching
+  // Speak Text Function with Robust Multilingual Regional Voice Matching (Telugu, Hindi, English)
   const speakText = (text: string, onEnd?: () => void, targetLang?: CivicLanguage) => {
-    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
-      if (onEnd) onEnd();
-      return;
-    }
-    window.speechSynthesis.cancel();
-
-    const clean = sanitizeTextForSpeech(text);
-    if (!clean) {
-      if (onEnd) onEnd();
-      return;
-    }
-
-    const utterance = new SpeechSynthesisUtterance(clean);
-    const activeLang = targetLang || selectedLanguage;
-    const langCode = activeLang === 'hi' ? 'hi-IN' : activeLang === 'te' ? 'te-IN' : activeLang === 'ta' ? 'ta-IN' : 'en-IN';
-    utterance.lang = langCode;
-
-    if (activeLang === 'hi') {
-      const hiVoice = availableVoices.find(v => v.lang.toLowerCase() === 'hi-in' || v.lang.toLowerCase().startsWith('hi')) ||
-                      availableVoices.find(v => {
-                        const n = v.name.toLowerCase();
-                        return n.includes('hindi') || n.includes('kalpana') || n.includes('hemant') || n.includes('swara');
-                      });
-      if (hiVoice) {
-        utterance.voice = hiVoice;
-      }
-    } else if (activeLang === 'te') {
-      const teVoice = availableVoices.find(v => v.lang.toLowerCase() === 'te-in' || v.lang.toLowerCase().startsWith('te')) ||
-                      availableVoices.find(v => {
-                        const n = v.name.toLowerCase();
-                        return n.includes('telugu') || n.includes('chitra') || n.includes('shruti') || n.includes('mohan');
-                      });
-      if (teVoice) {
-        utterance.voice = teVoice;
-      }
-    } else if (activeLang === 'ta') {
-      const taVoice = availableVoices.find(v => v.lang.toLowerCase() === 'ta-in' || v.lang.toLowerCase().startsWith('ta')) ||
-                      availableVoices.find(v => {
-                        const n = v.name.toLowerCase();
-                        return n.includes('tamil') || n.includes('valluvar');
-                      });
-      if (taVoice) {
-        utterance.voice = taVoice;
-      }
-    } else {
-      const enVoice = availableVoices.find(v => v.lang.toLowerCase() === 'en-in') ||
-                      availableVoices.find(v => v.lang.toLowerCase().startsWith('en') && (v.name.toLowerCase().includes('india') || v.lang.toLowerCase().includes('in'))) ||
-                      availableVoices.find(v => v.lang.toLowerCase() === 'en-gb') ||
-                      availableVoices.find(v => v.lang.toLowerCase().startsWith('en'));
-      if (enVoice) {
-        utterance.voice = enVoice;
-      }
-    }
-
-    utterance.rate = 1.0;
-    utterance.pitch = 1.0;
-
-    utterance.onend = () => {
+    speakCivicText(text, targetLang || selectedLanguage, () => {
       setSpeakingId(null);
       if (onEnd) onEnd();
-    };
-    utterance.onerror = (e) => {
-      console.warn('SpeechSynthesis error:', e);
-      setSpeakingId(null);
-      if (onEnd) onEnd();
-    };
-
-    window.speechSynthesis.speak(utterance);
+    });
   };
 
   // Create New Thread
@@ -413,147 +307,17 @@ export function App() {
     }
   };
 
-  // Dedicated Voice Agent: Start Listening with targetLang and Continuous Capture
-  const startVoiceAgentListening = (targetLang?: CivicLanguage) => {
-    const activeLang = targetLang || selectedLanguage;
-    window.speechSynthesis.cancel();
-    setSpeakingId(null);
-    setVoiceAgentState('listening');
-    setVoiceTranscript('');
-
-    if (voiceSilenceTimerRef.current) {
-      clearTimeout(voiceSilenceTimerRef.current);
-      voiceSilenceTimerRef.current = null;
-    }
-
-    if (voiceAgentRecognitionRef.current) {
-      try {
-        voiceAgentRecognitionRef.current.abort();
-      } catch {
-        // ignore
-      }
-    }
-
-    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-      alert('Speech Recognition is not available in this browser. Please use Chrome, Edge, or Safari.');
-      setVoiceAgentState('idle');
-      return;
-    }
-
-    try {
-      const rec = new SpeechRecognition();
-      // Continuous mode allows regional speakers (Hindi, Telugu) to speak complete multi-sentence queries without early cutoff
-      rec.continuous = true;
-      rec.interimResults = true;
-      rec.maxAlternatives = 1;
-      rec.lang = activeLang === 'hi' ? 'hi-IN' : activeLang === 'te' ? 'te-IN' : activeLang === 'ta' ? 'ta-IN' : 'en-IN';
-
-      let capturedText = '';
-
-      rec.onstart = () => {
-        setVoiceAgentState('listening');
-      };
-
-      rec.onresult = (event: any) => {
-        let current = '';
-        for (let i = 0; i < event.results.length; i++) {
-          current += event.results[i][0].transcript;
-        }
-        capturedText = current;
-        setVoiceTranscript(current);
-
-        // Reset silence debounce: 2.2s of natural pause after speaking concludes input
-        if (voiceSilenceTimerRef.current) {
-          clearTimeout(voiceSilenceTimerRef.current);
-        }
-        voiceSilenceTimerRef.current = setTimeout(() => {
-          if (capturedText.trim()) {
-            try {
-              rec.stop();
-            } catch {
-              // ignore
-            }
-          }
-        }, 2200);
-      };
-
-      rec.onerror = (e: any) => {
-        console.warn('Voice agent speech error:', e);
-        if (e.error !== 'no-speech') {
-          setVoiceAgentState(prev => (prev === 'listening' ? 'idle' : prev));
-        }
-      };
-
-      rec.onend = () => {
-        if (voiceSilenceTimerRef.current) {
-          clearTimeout(voiceSilenceTimerRef.current);
-          voiceSilenceTimerRef.current = null;
-        }
-        if (capturedText.trim()) {
-          setVoiceAgentState('thinking');
-          handleSendChat(capturedText.trim(), true, activeLang);
-        } else {
-          setVoiceAgentState(prev => (prev === 'listening' ? 'idle' : prev));
-        }
-      };
-
-      voiceAgentRecognitionRef.current = rec;
-      rec.start();
-    } catch (err) {
-      console.warn('Failed to start voice recognition:', err);
-      setVoiceAgentState('idle');
-    }
-  };
-
-  const handleVoiceDoneSpeaking = () => {
-    if (voiceSilenceTimerRef.current) {
-      clearTimeout(voiceSilenceTimerRef.current);
-      voiceSilenceTimerRef.current = null;
-    }
-    if (voiceAgentRecognitionRef.current) {
-      try {
-        voiceAgentRecognitionRef.current.stop();
-      } catch {
-        // ignore
-      }
-    }
-  };
-
-  const stopVoiceAgent = () => {
-    if (voiceSilenceTimerRef.current) {
-      clearTimeout(voiceSilenceTimerRef.current);
-      voiceSilenceTimerRef.current = null;
-    }
-    if (voiceAgentRecognitionRef.current) {
-      try {
-        voiceAgentRecognitionRef.current.abort();
-      } catch {
-        // ignore
-      }
-    }
-    window.speechSynthesis.cancel();
-    setSpeakingId(null);
-    setVoiceAgentState('idle');
-  };
-
-  useEffect(() => {
-    if (voiceAgentOpen) {
-      startVoiceAgentListening();
-    } else {
-      stopVoiceAgent();
-    }
-  }, [voiceAgentOpen]);
-
-  // Audio Playback Toggle for Individual Message with Language Support
+  // Audio Playback Toggle for Individual Message with Full Multilingual Regional Support
   const handleToggleSpeak = (msgId: string, text: string, lang?: CivicLanguage) => {
     if (speakingId === msgId) {
-      window.speechSynthesis.cancel();
+      stopAllSpeech();
       setSpeakingId(null);
       return;
     }
     setSpeakingId(msgId);
-    speakText(text, () => setSpeakingId(null), lang || selectedLanguage);
+    speakCivicText(text, lang || selectedLanguage, () => {
+      setSpeakingId(null);
+    });
   };
 
   // Copy Message to Clipboard
@@ -614,10 +378,7 @@ export function App() {
     }));
 
     setIsGenerating(true);
-    setGenerationStep('Searching 5,210 verified schemes...');
-    if (isVoiceAgentQuery) {
-      setVoiceAgentState('thinking');
-    }
+    setGenerationStep('Retrieving gazetted government welfare schemes...');
 
     // Immediate scroll on submission
     setTimeout(() => scrollToBottomIfNear(true), 50);
@@ -636,9 +397,6 @@ export function App() {
 
     const appendChunk = (chunk: string, citations?: SchemeCitation[], followups?: string[]) => {
       fullBotText += chunk;
-      if (isVoiceAgentQuery) {
-        setVoiceAssistantReply(fullBotText);
-      }
       setThreads(prevThreads => prevThreads.map(t => {
         if (t.id === activeThreadId) {
           const msgs = t.messages.map(m => {
@@ -790,21 +548,9 @@ export function App() {
     setIsGenerating(false);
     setGenerationStep('');
     setTimeout(() => scrollToBottomIfNear(true), 100);
-
-    // If in Voice Agent Mode, speak the reply aloud automatically
-    if (isVoiceAgentQuery && fullBotText) {
-      setVoiceAgentState('speaking');
-      speakText(fullBotText, () => {
-        if (autoVoiceLoop && voiceAgentOpen) {
-          setTimeout(() => {
-            startVoiceAgentListening(activeLang);
-          }, 800);
-        } else {
-          setVoiceAgentState('idle');
-        }
-      }, activeLang);
-    }
   };
+
+  const [savedSchemeToast, setSavedSchemeToast] = useState<string | null>(null);
 
   const handleSaveCitationToBasta = (cite: SchemeCitation) => {
     try {
@@ -822,9 +568,10 @@ export function App() {
         });
         localStorage.setItem('nagarik_saved_schemes', JSON.stringify(list));
       }
-      setShowSchemeLockerModal(true);
+      setSavedSchemeToast(cite.name);
+      setTimeout(() => setSavedSchemeToast(null), 2500);
     } catch {
-      setShowSchemeLockerModal(true);
+      // ignore
     }
   };
 
@@ -875,17 +622,21 @@ export function App() {
   return (
     <div className="fixed inset-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-full overflow-hidden bg-[#0c0e11] text-[#e2e2e6] font-sans antialiased">
       {/* ================================================================= */}
-      {/* 1. LEFT SIDEBAR (SOVEREIGN PRECISION DARK)                        */}
+      {/* 1. LEFT SIDEBAR (COLLAPSIBLE / EXTENDABLE CONVERSATION HISTORY)   */}
       {/* ================================================================= */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-72 bg-[#121418] border-r border-[#22262f] transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
-          sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col bg-[#121418] border-r border-[#22262f] sidebar-transition md:static ${
+          sidebarOpen ? 'translate-x-0 w-72' : '-translate-x-full w-72'
+        } ${
+          sidebarCollapsed
+            ? 'md:w-0 md:opacity-0 md:border-none md:p-0 md:overflow-hidden md:pointer-events-none'
+            : 'md:w-72 md:opacity-100 md:translate-x-0'
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#22262f] bg-[#16191f]">
+        <div className="flex items-center justify-between p-4 border-b border-[#22262f] bg-[#16191f] shrink-0">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#1a1d24] border border-[#B8643A]/50 shadow-inner p-0.5">
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#1a1d24] border border-[#f2ca50]/40 shadow-inner p-0.5">
               <NagarikEmblem className="w-8 h-8 rounded-full" size={32} />
             </div>
             <div>
@@ -897,19 +648,36 @@ export function App() {
                   Sovereign
                 </span>
               </div>
-              <p className="text-[11px] text-[#8F93B5]">Civic Intelligence</p>
+              <p className="text-[11px] text-[#8F93B5]">Civic Intelligence Copilot</p>
             </div>
           </div>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="md:hidden p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#22262f]"
-          >
-            <X className="w-5 h-5" />
-          </button>
+
+          <div className="flex items-center gap-1">
+            {/* Desktop Collapse Button */}
+            <button
+              onClick={() => {
+                setSidebarCollapsed(true);
+                try { localStorage.setItem('nagarik_sidebar_collapsed', 'true'); } catch {}
+              }}
+              className="hidden md:flex p-1.5 rounded-lg text-[#8F93B5] hover:text-[#f2ca50] hover:bg-[#22262f] transition-colors"
+              title="Collapse conversation history (Alt+S)"
+              aria-label="Collapse History"
+            >
+              <ChevronsLeft className="w-4 h-4" />
+            </button>
+
+            {/* Mobile Close Button */}
+            <button
+              onClick={() => setSidebarOpen(false)}
+              className="md:hidden p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#22262f]"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         {/* Start Fresh Conversation */}
-        <div className="p-3">
+        <div className="p-3 shrink-0">
           <button
             onClick={handleCreateNewThread}
             className="hover-pop-btn-orange w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] font-bold text-sm shadow-md hover:opacity-95 transition-all"
@@ -920,7 +688,7 @@ export function App() {
         </div>
 
         {/* Search Past Conversations */}
-        <div className="px-3 pb-2">
+        <div className="px-3 pb-2 shrink-0">
           <div className="relative">
             <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-[#8F93B5]" />
             <input
@@ -933,10 +701,13 @@ export function App() {
           </div>
         </div>
 
-        {/* Conversation Threads List */}
+        {/* Conversation Threads List (Simplified & Clean) */}
         <div className="flex-1 overflow-y-auto px-2 space-y-1 scrollbar-thin">
-          <div className="px-2 pt-2 pb-1 text-[11px] font-semibold text-[#8F93B5] uppercase tracking-wider">
-            History ({filteredThreads.length})
+          <div className="px-2 pt-2 pb-1 text-[11px] font-semibold text-[#8F93B5] uppercase tracking-wider flex items-center justify-between">
+            <span>Conversations</span>
+            <span className="text-[10px] bg-[#1a1d24] px-1.5 py-0.5 rounded text-[#8F93B5] font-mono">
+              {filteredThreads.length}
+            </span>
           </div>
 
           {filteredThreads.map(thread => {
@@ -948,31 +719,32 @@ export function App() {
                   setActiveThreadId(thread.id);
                   setSidebarOpen(false);
                 }}
-                className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer text-xs transition-colors ${
+                className={`group flex items-center justify-between px-3 py-2.5 rounded-lg cursor-pointer text-xs transition-all ${
                   isActive
-                    ? 'bg-[#1a1d24] text-white font-medium border border-[#3f3a2f]'
+                    ? 'bg-[#1a1d24] text-white font-medium border border-[#f2ca50]/40 shadow-sm'
                     : 'text-[#8F93B5] hover:bg-[#16191f] hover:text-[#e2e2e6]'
                 }`}
               >
                 <div className="flex items-center gap-2.5 truncate">
                   <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#f2ca50]' : 'text-[#8F93B5]'}`} />
-                  <span className="truncate">{thread.title || 'Untitled'}</span>
+                  <span className="truncate">{thread.title || 'Civic Consultation'}</span>
                 </div>
-                <button
-                  onClick={(e) => handleDeleteThread(e, thread.id)}
-                  title="Delete conversation"
-                  className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 rounded transition-opacity"
-                >
-                  <Trash2 className="w-3.5 h-3.5" />
-                </button>
+                {threads.length > 1 && (
+                  <button
+                    onClick={(e) => handleDeleteThread(e, thread.id)}
+                    title="Delete conversation"
+                    className="opacity-0 group-hover:opacity-100 p-1 hover:text-red-400 rounded transition-opacity"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                  </button>
+                )}
               </div>
             );
           })}
         </div>
 
-        {/* Sidebar Bottom Quick Links */}
-        <div className="p-3 border-t border-[#22262f] space-y-1.5 bg-[#101216]">
-          {/* AI Saathi Extension Button */}
+        {/* Simplified Sidebar Footer */}
+        <div className="p-3 border-t border-[#22262f] space-y-2 bg-[#101216] shrink-0">
           <button
             onClick={() => {
               setSidebarOpen(false);
@@ -987,85 +759,26 @@ export function App() {
             <span className="text-[10px] bg-[#f2ca50]/20 px-1.5 py-0.5 rounded text-[#f2ca50] font-mono">Chrome</span>
           </button>
 
-          {/* Voice Agent Button */}
-          <button
-            onClick={() => {
-              setSidebarOpen(false);
-              setVoiceAgentOpen(true);
-            }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold bg-[#1a1d24] border border-[#ffb692]/30 text-[#ffb692] hover:bg-[#22262f] transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <Headphones className="w-4 h-4 text-[#ffb692]" />
-              <span>Voice Agent Mode</span>
-            </div>
-            <span className="text-[10px] bg-[#ffb692]/20 px-1.5 py-0.5 rounded text-[#ffb692]">Live</span>
-          </button>
+          {threads.length > 1 && (
+            <button
+              onClick={() => {
+                if (window.confirm('Clear all conversation history?')) {
+                  handleClearAllHistory();
+                }
+              }}
+              className="w-full flex items-center gap-2 px-3 py-1.5 rounded-lg text-[11px] text-[#8F93B5] hover:text-red-400 hover:bg-[#16191f] transition-colors"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+              <span>Clear History</span>
+            </button>
+          )}
 
-          {/* Satya Setu Fact Checker */}
-          <button
-            onClick={() => {
-              setSidebarOpen(false);
-              setShowFactCheckModal(true);
-            }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <ShieldAlert className="w-4 h-4 text-red-400" />
-              <span>Satya Setu (Fact-Check)</span>
-            </div>
-            <span className="text-[10px] bg-red-500/20 px-1.5 py-0.5 rounded text-red-300 font-mono">PIB</span>
-          </button>
-
-          {/* Nagarik Sahayata SOS & Helplines */}
-          <button
-            onClick={() => {
-              setSidebarOpen(false);
-              setShowHelplineModal(true);
-            }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <Phone className="w-4 h-4 text-emerald-400" />
-              <span>Civic Helplines (SOS)</span>
-            </div>
-            <span className="text-[10px] bg-emerald-500/20 px-1.5 py-0.5 rounded text-emerald-400 font-mono">112/1930</span>
-          </button>
-
-          {/* Nagarik Basta Saved Schemes & Docs Locker */}
-          <button
-            onClick={() => {
-              setSidebarOpen(false);
-              setShowSchemeLockerModal(true);
-            }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <Bookmark className="w-4 h-4 text-[#f2ca50]" />
-              <span>Nagarik Basta (Saved Schemes)</span>
-            </div>
-            <span className="text-[10px] bg-[#f2ca50]/20 px-1.5 py-0.5 rounded text-[#f2ca50] font-mono">Dossier</span>
-          </button>
-
-          <a
-            href="./host.html"
-            target="_blank"
-            rel="noreferrer"
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
-          >
-            <div className="flex items-center gap-2.5">
-              <Compass className="w-4 h-4 text-[#f2ca50]" />
-              <span>Host Verification Portal</span>
-            </div>
-            <ExternalLink className="w-3 h-3 text-[#8F93B5]" />
-          </a>
-
-          <div className="pt-2 px-1 flex items-center justify-between text-[10px] text-[#8F93B5]">
+          <div className="pt-1 px-1 flex items-center justify-between text-[10px] text-[#8F93B5] border-t border-[#22262f]/60">
             <span className="flex items-center gap-1">
               <ShieldCheck className="w-3 h-3 text-emerald-400" />
-              UIDAI Compliant
+              Zero-Knowledge Architecture
             </span>
-            <span>5,210 Schemes</span>
+            <span className="text-[#f2ca50] font-mono">Sovereign AI</span>
           </div>
         </div>
       </aside>
@@ -1085,16 +798,34 @@ export function App() {
         {/* Top Minimal Sovereign Header - Fully Responsive on Mobile (< 640px) */}
         <header className="flex items-center justify-between h-14 px-2 sm:px-4 border-b border-[#22262f] bg-[#101216]/90 backdrop-blur-xl shrink-0 overflow-hidden">
           <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
+            {/* Sidebar Toggle Button (Mobile & Desktop) */}
             <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#16191f] transition-colors md:hidden shrink-0"
-              title="Open History"
-              aria-label="Open History"
+              onClick={() => {
+                if (window.innerWidth < 768) {
+                  setSidebarOpen(prev => !prev);
+                } else {
+                  toggleSidebarCollapsed();
+                }
+              }}
+              className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
+                sidebarCollapsed
+                  ? 'bg-[#1a1d24] border-[#f2ca50]/50 text-[#f2ca50] shadow-sm hover:border-[#f2ca50] hover:bg-[#22262f]'
+                  : 'text-[#8F93B5] hover:text-white hover:bg-[#16191f] border-transparent md:hidden'
+              }`}
+              title="Toggle Conversation History (Alt+S)"
+              aria-label="Toggle Conversation History"
             >
-              <Menu className="w-5 h-5" />
+              <ChevronsRight className="w-4 h-4 text-[#f2ca50]" />
+              <span className="hidden sm:inline text-xs text-[#e2e2e6]">History</span>
+              {threads.length > 0 && (
+                <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#f2ca50]/20 text-[#f2ca50] font-mono">
+                  {threads.length}
+                </span>
+              )}
             </button>
+
             <div className="flex items-center gap-2 min-w-0">
-              <span className="font-semibold text-xs sm:text-sm text-[#e2e2e6] truncate max-w-[85px] xs:max-w-[130px] sm:max-w-xs md:max-w-md">
+              <span className="font-semibold text-xs sm:text-sm text-[#e2e2e6] truncate max-w-[120px] xs:max-w-[180px] sm:max-w-xs md:max-w-md">
                 {currentThread?.title || 'Nagarik AI Copilot'}
               </span>
             </div>
@@ -1111,17 +842,6 @@ export function App() {
             >
               <Monitor className="w-3.5 h-3.5 text-[#f2ca50]" />
               <span className="hidden md:inline">AI Saathi</span>
-            </button>
-
-            {/* Dedicated Voice Agent Button */}
-            <button
-              onClick={() => setVoiceAgentOpen(true)}
-              className="hover-pop-btn-slate flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-[#1a1d24] border border-[#ffb692]/40 text-[#ffb692] hover:border-[#ffb692] text-xs font-semibold shadow-sm transition-all shrink-0"
-              title="Open Hands-Free Voice Agent (Alt+V)"
-              aria-label="Voice Agent"
-            >
-              <Mic className="w-3.5 h-3.5 text-[#ffb692]" />
-              <span className="hidden md:inline">Voice Agent</span>
             </button>
 
             {/* Consultation Summarizer Button */}
@@ -1191,23 +911,14 @@ export function App() {
                   </h1>
                   <p className="text-sm text-[#8F93B5] max-w-lg mx-auto leading-relaxed">
                     {selectedLanguage === 'hi'
-                      ? '5,210+ प्रमाणित केंद्रीय व राज्य योजनाओं, पात्रता नियमों और आधिकारिक पोर्टलों की सीधी जानकारी।'
+                      ? 'प्रमाणित केंद्रीय व राज्य योजनाओं, पात्रता नियमों और आधिकारिक सरकारी पोर्टलों की सटीक जानकारी।'
                       : selectedLanguage === 'te'
-                      ? '5,210+ కేంద్ర మరియు రాష్ట్ర సంక్షేమ పథకాలు, అర్హతలు మరియు అధికారిక పోర్టల్ సమాచారం.'
-                      : 'Verified guidance across 5,210 Central & State welfare schemes, eligibility rules, and official portals.'}
+                      ? 'అధికారిక కేంద్ర మరియు రాష్ట్ర సంక్షేమ పథకాలు, అర్హత నిబంధనలు మరియు ప్రత్యక్ష ప్రయోజనాల సమాచారం.'
+                      : 'Official Central & State Welfare Schemes, Eligibility Criteria & Direct Benefit Access.'}
                   </p>
 
                   {/* Quick Feature Pills */}
                   <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
-                    <button
-                      onClick={() => setVoiceAgentOpen(true)}
-                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#16191f] border border-[#ffb692]/40 text-xs font-semibold text-[#ffb692] hover:bg-[#22262f] shadow-sm transition-all"
-                    >
-                      <Radio className="w-3.5 h-3.5 text-[#ffb692] animate-pulse" />
-                      <span>Hands-Free Voice Agent</span>
-                      <ArrowRight className="w-3 h-3 text-[#ffb692]" />
-                    </button>
-
                     <button
                       onClick={() => setShowExtensionModal(true)}
                       className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#16191f] border border-[#f2ca50]/40 text-xs font-semibold text-[#f2ca50] hover:bg-[#22262f] shadow-sm transition-all"
@@ -1215,6 +926,15 @@ export function App() {
                       <Monitor className="w-3.5 h-3.5 text-[#f2ca50]" />
                       <span>AI Saathi Browser Extension</span>
                       <ArrowRight className="w-3 h-3 text-[#f2ca50]" />
+                    </button>
+
+                    <button
+                      onClick={() => setShowSummarizerModal(true)}
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#16191f] border border-emerald-500/40 text-xs font-semibold text-emerald-400 hover:bg-[#22262f] shadow-sm transition-all"
+                    >
+                      <FileText className="w-3.5 h-3.5 text-emerald-400" />
+                      <span>Consultation Summarizer</span>
+                      <ArrowRight className="w-3 h-3 text-emerald-400" />
                     </button>
                   </div>
                 </div>
@@ -1341,18 +1061,26 @@ export function App() {
                         <div className="flex items-center gap-3 pt-2 text-xs text-[#8F93B5]">
                           <button
                             onClick={() => handleToggleSpeak(msg.id, msg.content, msg.language)}
-                            className="flex items-center gap-1 hover:text-white transition-colors"
-                            title="Listen"
+                            className={`flex items-center gap-1.5 px-2 py-1 rounded-md transition-all ${
+                              speakingId === msg.id
+                                ? 'bg-[#f2ca50]/15 text-[#f2ca50] border border-[#f2ca50]/30 shadow-sm'
+                                : 'hover:text-white hover:bg-[#16191f]'
+                            }`}
+                            title={speakingId === msg.id ? "Stop voice audio" : "Listen in authentic Telugu / Hindi / English"}
                           >
                             {speakingId === msg.id ? (
                               <>
-                                <VolumeX className="w-3.5 h-3.5 text-[#f2ca50]" />
-                                <span className="text-[#f2ca50]">Stop</span>
+                                <div className="flex items-center gap-0.5 px-0.5 h-3.5">
+                                  <div className="w-0.5 bg-[#f2ca50] rounded-full animate-soundwave-1" />
+                                  <div className="w-0.5 bg-[#f2ca50] rounded-full animate-soundwave-2" />
+                                  <div className="w-0.5 bg-[#f2ca50] rounded-full animate-soundwave-3" />
+                                </div>
+                                <span className="text-[#f2ca50] font-medium text-[11px]">Stop</span>
                               </>
                             ) : (
                               <>
                                 <Volume2 className="w-3.5 h-3.5" />
-                                <span>Listen</span>
+                                <span className="text-[11px]">Listen</span>
                               </>
                             )}
                           </button>
@@ -1466,206 +1194,7 @@ export function App() {
       </main>
 
       {/* ================================================================= */}
-      {/* 4. DEDICATED FULL VOICE AGENT MODAL                               */}
-      {/* ================================================================= */}
-      {voiceAgentOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in overflow-y-auto">
-          <div className="relative w-full max-w-lg bg-[#121418] border border-[#f2ca50]/40 rounded-3xl p-5 sm:p-7 text-center shadow-2xl space-y-5 my-auto">
-            {/* Top Close Bar */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
-                <span className="text-xs font-bold uppercase tracking-wider text-[#f2ca50]">Nagarik Voice Agent</span>
-              </div>
-              <button
-                onClick={() => setVoiceAgentOpen(false)}
-                className="p-1.5 rounded-full text-[#8F93B5] hover:text-white hover:bg-[#22262f] transition-colors"
-                title="Close Voice Agent"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            {/* Dedicated Real-Time Language Selector at Top */}
-            <div className="flex flex-col items-center gap-1.5">
-              <div className="inline-flex items-center p-1 rounded-xl bg-[#16191f] border border-[#22262f] shadow-inner gap-1">
-                {([
-                  { code: 'en' as const, label: 'English', short: 'EN' },
-                  { code: 'hi' as const, label: 'हिंदी', short: 'हिंदी' },
-                  { code: 'te' as const, label: 'తెలుగు', short: 'తెలుగు' },
-                ]).map(item => {
-                  const isActive = selectedLanguage === item.code;
-                  return (
-                    <button
-                      key={item.code}
-                      type="button"
-                      onClick={() => {
-                        setSelectedLanguage(item.code);
-                        startVoiceAgentListening(item.code);
-                      }}
-                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
-                        isActive
-                          ? 'bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] font-bold shadow-md scale-105'
-                          : 'text-[#8F93B5] hover:text-white hover:bg-[#22262f]'
-                      }`}
-                      title={`Switch voice agent to ${item.label}`}
-                    >
-                      <Globe className={`w-3.5 h-3.5 ${isActive ? 'text-[#241a00]' : 'text-[#8F93B5]'}`} />
-                      <span>{item.short}</span>
-                    </button>
-                  );
-                })}
-              </div>
-              <span className="text-[11px] text-[#8F93B5]">
-                {selectedLanguage === 'hi'
-                  ? 'सक्रिय भाषा: हिंदी (हिंदी व हिंग्लिश में विस्तृत प्रश्न पूछें)'
-                  : selectedLanguage === 'te'
-                  ? 'సక్రియ భాష: తెలుగు (వివరణాత్మక ప్రశ్నలు మాట్లాడండి)'
-                  : 'Active Language: English (Indian Accent & Regional Schemes)'}
-              </span>
-            </div>
-
-            {/* Central Animated Civic Aura */}
-            <div className="py-3 sm:py-5 flex flex-col items-center justify-center relative">
-              <div className="relative flex items-center justify-center">
-                <div
-                  className={`absolute w-36 h-36 sm:w-44 sm:h-44 rounded-full border-2 transition-all duration-700 ${
-                    voiceAgentState === 'listening'
-                      ? 'border-[#ffb692]/60 animate-ping opacity-60'
-                      : voiceAgentState === 'speaking'
-                      ? 'border-[#f2ca50]/60 animate-pulse opacity-70'
-                      : voiceAgentState === 'thinking'
-                      ? 'border-[#d4af37]/60 animate-spin opacity-50'
-                      : 'border-transparent'
-                  }`}
-                />
-
-                <div
-                  className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 ${
-                    voiceAgentState === 'listening'
-                      ? 'bg-gradient-to-tr from-[#d4af37] to-[#ffb692] shadow-[#ffb692]/40 scale-105'
-                      : voiceAgentState === 'speaking'
-                      ? 'bg-gradient-to-tr from-[#d4af37] to-[#f2ca50] shadow-[#f2ca50]/40 scale-105'
-                      : voiceAgentState === 'thinking'
-                      ? 'bg-gradient-to-tr from-[#883800] to-[#f2ca50] shadow-[#f2ca50]/40 animate-pulse'
-                      : 'bg-[#16191f] border border-[#22262f]'
-                  }`}
-                >
-                  <NagarikEmblem className="w-14 h-14 sm:w-16 sm:h-16" size={64} />
-                </div>
-              </div>
-
-              <div className="mt-5 space-y-1">
-                <h3 className="text-sm sm:text-base font-bold text-white">
-                  {voiceAgentState === 'listening'
-                    ? (selectedLanguage === 'hi' ? 'सुन रहा हूँ... पूरा प्रश्न बोलिए' : selectedLanguage === 'te' ? 'వింటున్నాను... పూర్తి ప్రశ్న మాట్లాడండి' : 'Listening... Speak your question')
-                    : voiceAgentState === 'thinking'
-                    ? (selectedLanguage === 'hi' ? 'सरकारी गजट में खोज रहा हूँ...' : selectedLanguage === 'te' ? 'సమాచారం సేకరిస్తున్నాను...' : 'Searching 5,210 gazette schemes...')
-                    : voiceAgentState === 'speaking'
-                    ? (selectedLanguage === 'hi' ? 'उत्तर सुना रहा हूँ...' : selectedLanguage === 'te' ? 'సమాధానం వివరిస్తున్నాను...' : 'Speaking answer out loud...')
-                    : (selectedLanguage === 'hi' ? 'पूछने के लिए माइक दबाएँ' : selectedLanguage === 'te' ? 'ప్రశ్నించడానికి మైక్ నొక్కండి' : 'Tap mic below to speak')}
-                </h3>
-                <p className="text-xs text-[#8F93B5]">
-                  {selectedLanguage === 'hi'
-                    ? 'बिना रुके पूरा वाक्य बोलें — 5,210 सरकारी योजनाएँ समर्थित हैं'
-                    : selectedLanguage === 'te'
-                    ? 'మీ సమస్య లేదా అర్హత గురించి వివరంగా చెప్పండి'
-                    : 'Speak naturally — continuous capture with natural pauses'}
-                </p>
-              </div>
-            </div>
-
-            {/* Live Transcript Display */}
-            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0c0e11] border border-[#22262f] text-left text-xs min-h-[85px] max-h-36 overflow-y-auto space-y-2 scrollbar-thin">
-              {voiceTranscript ? (
-                <div>
-                  <span className="font-semibold text-[#f2ca50]">You: </span>
-                  <span className="text-[#e2e2e6]">{voiceTranscript}</span>
-                </div>
-              ) : null}
-
-              {voiceAssistantReply ? (
-                <div>
-                  <span className="font-semibold text-[#ffb692]">Nagarik AI: </span>
-                  <span className="text-[#c5cfdb] line-clamp-3">{voiceAssistantReply}</span>
-                </div>
-              ) : null}
-
-              {!voiceTranscript && !voiceAssistantReply && (
-                <div className="text-center text-[#8F93B5] italic pt-4">
-                  {selectedLanguage === 'hi'
-                    ? 'उदा: "पीएम किसान योजना की अगली किस्त कब आएगी?" या "ड्राइविंग लाइसेंस ऑनलाइन कैसे बनाएं?"'
-                    : selectedLanguage === 'te'
-                    ? 'ఉదా: "రైతు బంధు అర్హతలు ఏమిటి?" లేదా "ఆధార్ కార్డులో అడ్రస్ ఎలా మార్చాలి?"'
-                    : 'Try asking: "What are the rules for PM-KISAN?" or "How to apply for Ayushman Bharat card?"'}
-                </div>
-              )}
-            </div>
-
-            {/* Voice Control Buttons */}
-            <div className="flex items-center justify-center gap-3 pt-1">
-              {voiceAgentState === 'listening' ? (
-                <>
-                  <button
-                    onClick={stopVoiceAgent}
-                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30 font-semibold text-xs transition-all"
-                  >
-                    <Square className="w-3.5 h-3.5 fill-current" />
-                    <span>Cancel</span>
-                  </button>
-                  <button
-                    onClick={handleVoiceDoneSpeaking}
-                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] font-bold text-xs shadow-lg hover:opacity-95 transition-all"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Done Speaking</span>
-                  </button>
-                </>
-              ) : voiceAgentState === 'speaking' ? (
-                <button
-                  onClick={() => {
-                    window.speechSynthesis.cancel();
-                    setVoiceAgentState('idle');
-                  }}
-                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 font-semibold text-xs transition-all"
-                >
-                  <VolumeX className="w-4 h-4" />
-                  <span>Stop Speaking</span>
-                </button>
-              ) : (
-                <button
-                  onClick={() => startVoiceAgentListening()}
-                  className="hover-pop-btn-orange flex items-center gap-2 px-8 py-3 rounded-2xl bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] font-bold text-sm shadow-lg hover:opacity-95 transition-all"
-                >
-                  <Mic className="w-4 h-4" />
-                  <span>Speak Now</span>
-                </button>
-              )}
-            </div>
-
-            {/* Continuous Mode Toggle */}
-            <div className="flex items-center justify-between pt-2 border-t border-[#22262f] text-xs">
-              <div className="flex items-center gap-1.5 text-[#8F93B5]">
-                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
-                <span>Hands-free conversational loop</span>
-              </div>
-
-              <label className="flex items-center gap-1.5 text-[#8F93B5] cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={autoVoiceLoop}
-                  onChange={(e) => setAutoVoiceLoop(e.target.checked)}
-                  className="rounded border-[#22262f] text-[#f2ca50] focus:ring-[#f2ca50] bg-[#16191f]"
-                />
-                <span className="text-xs">Continuous Loop</span>
-              </label>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* ================================================================= */}
-      {/* 5. MODALS: AI SAATHI EXTENSION, ELIGIBILITY, WHATSAPP             */}
+      {/* 4. MODALS: AI SAATHI EXTENSION & CONSULTATION SUMMARIZER          */}
       {/* ================================================================= */}
 
       {/* AI Saathi Browser Extension Modal */}
@@ -1683,26 +1212,13 @@ export function App() {
         currentLanguage={selectedLanguage}
       />
 
-      {/* Satya Setu Fact Checker & Mythbuster Modal */}
-      <CivicFactCheckModal
-        isOpen={showFactCheckModal}
-        onClose={() => setShowFactCheckModal(false)}
-        currentLanguage={selectedLanguage}
-      />
-
-      {/* Nagarik Sahayata Emergency SOS & Civic Helplines Modal */}
-      <CivicHelplineModal
-        isOpen={showHelplineModal}
-        onClose={() => setShowHelplineModal(false)}
-        currentLanguage={selectedLanguage}
-      />
-
-      {/* Nagarik Basta Saved Schemes & Document Locker Modal */}
-      <CivicSchemeLockerModal
-        isOpen={showSchemeLockerModal}
-        onClose={() => setShowSchemeLockerModal(false)}
-        currentLanguage={selectedLanguage}
-      />
+      {/* Toast Notification for Bookmarked Scheme */}
+      {savedSchemeToast && (
+        <div className="fixed bottom-20 left-1/2 -translate-x-1/2 z-50 flex items-center gap-2 px-4 py-2 rounded-xl bg-[#16191f] border border-[#f2ca50]/50 text-white text-xs font-semibold shadow-2xl animate-slide-smooth">
+          <Check className="w-4 h-4 text-[#f2ca50]" />
+          <span>Saved to your civic dossier: <strong>{savedSchemeToast}</strong></span>
+        </div>
+      )}
     </div>
   );
 }
