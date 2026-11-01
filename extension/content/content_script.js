@@ -36,12 +36,32 @@
     }
   }
 
+  function querySelectorAllDeep(selector, root = document) {
+    let results = [];
+    try {
+      results = Array.from(root.querySelectorAll(selector));
+    } catch (e) {}
+    try {
+      const treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+      let currentNode = treeWalker.nextNode();
+      while (currentNode) {
+        if (currentNode.shadowRoot) {
+          results = results.concat(querySelectorAllDeep(selector, currentNode.shadowRoot));
+        }
+        currentNode = treeWalker.nextNode();
+      }
+    } catch (e) {}
+    return results;
+  }
+
   /**
    * Safe native setter to bypass React 16+, Vue, Angular proxy overrides
    */
   function setNativeValue(element, value) {
     if (!element) return false;
-    element.focus();
+    try {
+      element.focus();
+    } catch (e) {}
 
     const inputProto = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
     const textareaProto = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
@@ -57,10 +77,39 @@
       element.value = value;
     }
 
-    element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
-    element.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
-    element.dispatchEvent(new Event("blur", { bubbles: true, composed: true }));
+    try {
+      element.dispatchEvent(new Event("focus", { bubbles: true }));
+      element.dispatchEvent(new Event("keydown", { bubbles: true, key: "Enter" }));
+      element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+      element.dispatchEvent(new Event("keyup", { bubbles: true }));
+      element.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+      element.dispatchEvent(new Event("blur", { bubbles: true }));
+    } catch (e) {}
+
     element.classList.add("jansetu-highlight");
+    element.style.outline = "3px solid #F06A25";
+    element.style.boxShadow = "0 0 16px rgba(240, 106, 37, 0.55)";
+
+    try {
+      const rect = element.getBoundingClientRect();
+      const badge = document.createElement("div");
+      badge.className = "nagarik-field-autofilled-tag";
+      badge.innerText = "✓ Nagarik AI: Auto-Filled";
+      badge.style.position = "absolute";
+      badge.style.background = "#10B981";
+      badge.style.color = "#0B0C1E";
+      badge.style.padding = "2px 8px";
+      badge.style.borderRadius = "10px";
+      badge.style.fontSize = "10px";
+      badge.style.fontWeight = "bold";
+      badge.style.zIndex = "9999999";
+      badge.style.pointerEvents = "none";
+      badge.style.top = Math.max(0, (window.scrollY + rect.top - 18)) + "px";
+      badge.style.left = Math.max(0, (window.scrollX + rect.left + 4)) + "px";
+      document.body.appendChild(badge);
+      setTimeout(() => { badge.remove(); }, 6000);
+    } catch (e) {}
+
     return true;
   }
 
@@ -78,8 +127,8 @@
     const h3 = document.querySelector("h3");
     const mainHeading = h1 ? h1.innerText.trim() : (h2 ? h2.innerText.trim() : (h3 ? h3.innerText.trim() : title));
 
-    // Discover form inputs, textareas, selects
-    const inputs = Array.from(document.querySelectorAll("input:not([type='hidden']):not([type='submit']):not([type='button']), textarea, select"));
+    // Discover form inputs, textareas, selects (using deep traversal across Shadow DOM)
+    const inputs = querySelectorAllDeep("input:not([type='hidden']):not([type='submit']):not([type='button']), textarea, select");
     const fields = inputs.map((el, idx) => {
       let label = "";
       if (el.id) {
@@ -109,8 +158,8 @@
 
     const hasForm = fields.length > 0 || !!document.querySelector("form");
 
-    // Discover actionable buttons
-    const actionButtons = Array.from(document.querySelectorAll("button, input[type='submit'], input[type='button'], a.btn, a.button, [role='button']"))
+    // Discover actionable buttons (including shadow DOM buttons)
+    const actionButtons = querySelectorAllDeep("button, input[type='submit'], input[type='button'], a.btn, a.button, [role='button']")
       .filter(el => {
         const rect = el.getBoundingClientRect();
         return rect.width > 0 && rect.height > 0 && el.style.display !== "none" && el.style.visibility !== "hidden";
@@ -136,7 +185,7 @@
   }
 
   /**
-   * Target Element Finder (by intent, selector, or text)
+   * Target Element Finder (by intent, selector, or text, with Shadow DOM support)
    */
   function findTargetElement(target) {
     if (!target) return null;
@@ -144,21 +193,26 @@
     const targetUpper = raw.toUpperCase();
     const targetLower = raw.toLowerCase();
 
-    // 1. Exact CSS selector
+    // 1. Exact CSS selector (deep query)
     if (raw.startsWith(".") || raw.startsWith("#") || raw.startsWith("[") || (raw.includes("[") && raw.includes("]"))) {
       try {
-        const found = document.querySelector(raw);
+        const found = querySelectorAllDeep(raw)[0];
         if (found) return found;
       } catch (e) {}
     }
 
-    const allInteractive = Array.from(document.querySelectorAll("a, button, input[type='submit'], input[type='button'], [role='button'], .btn, .button"));
+    const allInteractive = querySelectorAllDeep("a, button, input[type='submit'], input[type='button'], [role='button'], .btn, .button");
 
-    // 2. Specific intent mappings
-    if (targetUpper === "SUBMIT" || targetUpper === "SAVE" || targetUpper === "LODGE" || targetUpper === "APPLY") {
+    // 2. Specific intent mappings (supports UIDAI, CPGRAMS, state portals)
+    if (targetUpper === "SUBMIT" || targetUpper === "SAVE" || targetUpper === "LODGE" || targetUpper === "APPLY" || targetUpper === "LOGIN" || targetUpper === "OTP") {
       const found = allInteractive.find(el => {
         const txt = (el.innerText || el.value || "").toLowerCase();
-        return txt.includes("submit") || txt.includes("lodge") || txt.includes("apply") || txt.includes("save") || txt.includes("proceed") || txt.includes("register");
+        const id = (el.id || "").toLowerCase();
+        const name = (el.name || "").toLowerCase();
+        return id === "login-btn" || id.includes("login") || id.includes("submit") || name.includes("login") ||
+               txt.includes("login with otp") || txt.includes("send otp") || txt.includes("get otp") ||
+               txt.includes("login") || txt.includes("submit") || txt.includes("lodge") ||
+               txt.includes("apply") || txt.includes("save") || txt.includes("proceed") || txt.includes("register");
       });
       if (found) return found;
     }
@@ -167,7 +221,8 @@
       const found = allInteractive.find(el => {
         const txt = (el.innerText || el.value || "").toLowerCase();
         const href = (el.getAttribute("href") || "").toLowerCase();
-        return (txt.includes("sign in") || txt.includes("signin") || txt.includes("login") || href.includes("login")) && !txt.includes("officer");
+        const id = (el.id || "").toLowerCase();
+        return (id.includes("login") || txt.includes("sign in") || txt.includes("signin") || txt.includes("login") || href.includes("login")) && !txt.includes("officer");
       });
       if (found) return found;
     }
@@ -235,17 +290,19 @@
 
   /**
    * Universal fuzzy DOM auto-filling across all inputs, textareas, selects
+   * Supports Shadow DOM and portal-specific identity fields (UIDAI / CPGRAMS / State Portals)
    */
   function executeUniversalFill(fieldsData) {
     if (!fieldsData || typeof fieldsData !== "object") {
-      return { success: false, filledCount: 0 };
+      return { success: false, filledCount: 0, filledItems: [] };
     }
 
     showBanner("Nagarik AI: Scanning and Populating Form Fields...");
 
-    const allInputs = Array.from(document.querySelectorAll("input:not([type='hidden']), select, textarea"));
+    const allInputs = querySelectorAllDeep("input:not([type='hidden']), select, textarea");
     let filledCount = 0;
     const filledKeys = [];
+    const filledItems = [];
 
     // Helper to test if element matches keyword pattern
     function matchesKeywords(el, keywords) {
@@ -267,8 +324,23 @@
       return keywords.some(k => combined.includes(k.toLowerCase()));
     }
 
+    // Auto-select "OTP Authentication" radio button if present on page (e.g. UIDAI)
+    const otpRadio = allInputs.find(el => (el.type === "radio" || el.type === "checkbox") && matchesKeywords(el, ["otp authentication", "login with otp", "otp"]));
+    if (otpRadio && !otpRadio.checked) {
+      try {
+        otpRadio.click();
+        otpRadio.checked = true;
+        otpRadio.dispatchEvent(new Event("change", { bubbles: true }));
+      } catch (e) {}
+    }
+
     // Process specific standard citizen fields
     const mappings = [
+      {
+        fieldKeys: ["uid", "aadhaar", "aadhar", "aadhaar_number", "aadhar_number", "id_number", "identity_no"],
+        domKeywords: ["uid", "aadhaar", "aadhar", "adharnumber", "aadhaarno", "aadharno", "uidai", "id_number", "identity_no", "identity"],
+        isIdentity: true
+      },
       {
         fieldKeys: ["citizen_name", "name", "fullname", "applicant_name", "first_name", "applicant"],
         domKeywords: ["name", "citizen", "applicant", "fullname", "candidate", "user", "first_name", "fname"]
@@ -296,6 +368,10 @@
       {
         fieldKeys: ["pincode", "pin_code", "zip", "postal_code"],
         domKeywords: ["pincode", "pin_code", "postal_code", "zip", "pin"]
+      },
+      {
+        fieldKeys: ["otp", "one_time_password", "passcode"],
+        domKeywords: ["otp", "one time password", "passcode", "security token", "verification_code"]
       }
     ];
 
@@ -310,10 +386,9 @@
       }
       if (!val) return;
 
-      // Privacy Shielding: Mask Aadhaar if 12 consecutive digits detected
-      if (typeof val === "string" && /^\d{12}$/.test(val.replace(/\s+/g, ""))) {
-        const digits = val.replace(/\s+/g, "");
-        val = "XXXXXXXX" + digits.slice(8);
+      // Clean value if digits
+      if (mapping.isIdentity && typeof val === "string") {
+        val = val.replace(/\s+/g, "");
       }
 
       for (const el of allInputs) {
@@ -329,6 +404,11 @@
               el.classList.add("jansetu-highlight");
               filledCount++;
               filledKeys.push(mapping.fieldKeys[0]);
+              filledItems.push({
+                key: mapping.fieldKeys[0],
+                label: el.placeholder || el.name || el.id || mapping.fieldKeys[0],
+                maskedValue: mapping.isIdentity && String(val).length >= 8 ? "XXXXXXXX" + String(val).slice(-4) : String(val)
+              });
               break;
             }
           } else {
@@ -336,6 +416,11 @@
             el.dataset.nagarikFilled = "true";
             filledCount++;
             filledKeys.push(mapping.fieldKeys[0]);
+            filledItems.push({
+              key: mapping.fieldKeys[0],
+              label: el.placeholder || el.name || el.id || mapping.fieldKeys[0],
+              maskedValue: mapping.isIdentity && String(val).length >= 8 ? "XXXXXXXX" + String(val).slice(-4) : String(val)
+            });
             break;
           }
         }
@@ -346,9 +431,6 @@
     for (const [key, rawVal] of Object.entries(fieldsData)) {
       if (filledKeys.includes(key) || !rawVal) continue;
       let val = rawVal;
-      if (typeof val === "string" && /^\d{12}$/.test(val.replace(/\s+/g, ""))) {
-        val = "XXXXXXXX" + val.replace(/\s+/g, "").slice(8);
-      }
 
       for (const el of allInputs) {
         if (el.dataset.nagarikFilled) continue;
@@ -356,18 +438,36 @@
           setNativeValue(el, val);
           el.dataset.nagarikFilled = "true";
           filledCount++;
+          filledItems.push({
+            key: key,
+            label: el.placeholder || el.name || el.id || key,
+            maskedValue: typeof val === "string" && val.length === 12 && /^\d+$/.test(val) ? "XXXXXXXX" + val.slice(8) : String(val)
+          });
           break;
         }
       }
     }
 
+    // Check if Captcha is present on the page and spotlight it
+    let hasCaptcha = false;
+    const captchaEl = allInputs.find(el => matchesKeywords(el, ["captcha", "security code", "security_code", "captchacode"]));
+    if (captchaEl) {
+      hasCaptcha = true;
+      setTimeout(() => {
+        highlightPageElement(captchaEl, "Enter Security Captcha");
+      }, 500);
+    }
+
     // Visual floating banner on the page as required
-    showBanner("Nagarik AI: Form Populated & Aadhaar Shielded!", true);
+    showBanner(`Nagarik AI: Form Populated (${filledCount} Fields) & Aadhaar Shielded!`, true);
 
     return {
-      success: true,
+      success: filledCount > 0,
       filledCount,
-      notice: "Nagarik AI: Form Populated & Aadhaar Shielded!"
+      filledKeys,
+      filledItems,
+      hasCaptcha,
+      notice: `Nagarik AI: Populated ${filledCount} field${filledCount === 1 ? '' : 's'}.`
     };
   }
 

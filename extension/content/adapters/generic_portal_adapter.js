@@ -3,6 +3,24 @@
  * Universal adapter utilizing semantic heuristics to inspect and fill any
  * municipal, state, central public service portal, or any website on desktop.
  */
+function querySelectorAllDeep(selector, root = document) {
+  let results = [];
+  try {
+    results = Array.from(root.querySelectorAll(selector));
+  } catch (e) {}
+  try {
+    const treeWalker = document.createTreeWalker(root, NodeFilter.SHOW_ELEMENT);
+    let currentNode = treeWalker.nextNode();
+    while (currentNode) {
+      if (currentNode.shadowRoot) {
+        results = results.concat(querySelectorAllDeep(selector, currentNode.shadowRoot));
+      }
+      currentNode = treeWalker.nextNode();
+    }
+  } catch (e) {}
+  return results;
+}
+
 class GenericCivicAdapter extends BasePortalAdapter {
   constructor() {
     super("Universal Web Portal", [".*"]);
@@ -16,11 +34,11 @@ class GenericCivicAdapter extends BasePortalAdapter {
   }
 
   /**
-   * Helper to find an input element by fuzzy label/attribute match
+   * Helper to find an input element by fuzzy label/attribute match (supports Shadow DOM)
    */
   findElementByKeywords(keywords, tagTypes = ["input", "textarea", "select"]) {
     // 1. Search by label text association
-    const labels = Array.from(document.querySelectorAll("label"));
+    const labels = querySelectorAllDeep("label");
     for (const label of labels) {
       const text = (label.innerText || "").toLowerCase();
       if (keywords.some(k => text.includes(k))) {
@@ -28,14 +46,16 @@ class GenericCivicAdapter extends BasePortalAdapter {
           const target = document.getElementById(label.htmlFor);
           if (target) return target;
         }
-        const nested = label.querySelector(tagTypes.join(", "));
-        if (nested) return nested;
+        for (const t of tagTypes) {
+          const nested = label.querySelector(t);
+          if (nested) return nested;
+        }
       }
     }
 
-    // 2. Search by input attributes (id, name, placeholder, aria-label, title)
+    // 2. Search by input attributes (id, name, placeholder, aria-label, title) across regular and shadow DOM
     for (const tag of tagTypes) {
-      const elements = Array.from(document.querySelectorAll(tag));
+      const elements = querySelectorAllDeep(tag);
       for (const el of elements) {
         if (el.type === "hidden" || el.style.display === "none") continue;
         const attrStr = `${el.id} ${el.name} ${el.placeholder || ""} ${el.getAttribute("aria-label") || ""} ${el.title || ""}`.toLowerCase();
@@ -50,6 +70,48 @@ class GenericCivicAdapter extends BasePortalAdapter {
 
   async inspect() {
     const fields = [];
+
+    // Aadhaar / UID / Identity
+    const uidEl = this.findElementByKeywords(["uid", "aadhaar", "aadhar", "adharnumber", "aadhaarno", "aadharno", "uidai", "id_number", "identity_no"], ["input"]);
+    if (uidEl) {
+      fields.push({
+        key: 'uid',
+        label: 'Aadhaar / UID Number',
+        selector: uidEl.id ? `#${uidEl.id}` : 'input[name*="uid" i]',
+        required: true,
+        exists: true,
+        value: (uidEl.value || '').trim(),
+        isFilled: (uidEl.value || '').trim().length > 0
+      });
+    }
+
+    // Captcha Code
+    const captchaEl = this.findElementByKeywords(["captcha", "security code", "security_code", "captchacode"], ["input"]);
+    if (captchaEl) {
+      fields.push({
+        key: 'captcha',
+        label: 'Security Captcha Code',
+        selector: captchaEl.id ? `#${captchaEl.id}` : 'input[name*="captcha" i]',
+        required: true,
+        exists: true,
+        value: (captchaEl.value || '').trim(),
+        isFilled: (captchaEl.value || '').trim().length > 0
+      });
+    }
+
+    // OTP Code
+    const otpEl = this.findElementByKeywords(["otp", "one time password", "passcode", "security token", "verification_code"], ["input"]);
+    if (otpEl) {
+      fields.push({
+        key: 'otp',
+        label: 'One-Time Password (OTP)',
+        selector: otpEl.id ? `#${otpEl.id}` : 'input[name*="otp" i]',
+        required: true,
+        exists: true,
+        value: (otpEl.value || '').trim(),
+        isFilled: (otpEl.value || '').trim().length > 0
+      });
+    }
 
     // Description / Grievance / Problem
     const descEl = this.findElementByKeywords(["grievance", "complaint", "description", "details", "problem", "issue", "petition", "remarks", "message", "comments", "query"], ["textarea", "input"]);
@@ -199,7 +261,11 @@ class GenericCivicAdapter extends BasePortalAdapter {
     if (!value && key !== 'photo') return { success: false, error: 'Empty value' };
 
     let el = null;
-    if (key === 'description' || key === 'grievance' || key === 'problem') {
+    if (key === 'uid' || key === 'aadhaar' || key === 'aadhar' || key === 'id_number') {
+      el = this.findElementByKeywords(["uid", "aadhaar", "aadhar", "adharnumber", "aadhaarno", "aadharno", "uidai", "id_number", "identity_no"], ["input"]);
+    } else if (key === 'otp' || key === 'one_time_password' || key === 'passcode') {
+      el = this.findElementByKeywords(["otp", "one time password", "passcode", "security token", "verification_code"], ["input"]);
+    } else if (key === 'description' || key === 'grievance' || key === 'problem') {
       el = this.findElementByKeywords(["grievance", "complaint", "description", "details", "problem", "issue", "petition", "remarks", "message"], ["textarea", "input"]);
     } else if (key === 'citizen_name' || key === 'name' || key === 'fullname') {
       el = this.findElementByKeywords(["name", "citizen", "applicant", "fullname", "candidate"], ["input"]);
@@ -257,6 +323,16 @@ class GenericCivicAdapter extends BasePortalAdapter {
 
     report("Scanning page form fields...");
     let filledCount = 0;
+
+    if (formData.uid || formData.aadhaar || formData.aadhar || formData.id_number) {
+      const uidVal = formData.uid || formData.aadhaar || formData.aadhar || formData.id_number;
+      const uidEl = this.findElementByKeywords(["uid", "aadhaar", "aadhar", "adharnumber", "aadhaarno", "aadharno", "uidai", "id_number", "identity_no"], ["input"]);
+      if (uidEl) {
+        this.setValueWithEvents(uidEl, uidVal);
+        filledCount++;
+        report("Filled Aadhaar / UID number");
+      }
+    }
 
     if (formData.description || formData.problem_raw) {
       const descEl = this.findElementByKeywords(["grievance", "complaint", "description", "problem", "details"], ["textarea", "input"]);

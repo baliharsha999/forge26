@@ -458,9 +458,79 @@ document.addEventListener("DOMContentLoaded", () => {
     }, 1800);
   }
 
+  let lastFillResult = null;
+
+  function parseCitizenInput(text) {
+    const res = {
+      rawText: text || "",
+      extractedAadhaar: null,
+      extractedPhone: null,
+      extractedPin: null,
+      extractedEmail: null,
+      extractedName: null
+    };
+    if (!text) return res;
+
+    // 1. Aadhaar / UID (12 digits, with or without spaces, e.g. "228654705324" or "2286 5470 5324")
+    const aadhaarMatch = text.match(/(?:aadhaar|aadhar|uid|uidai)[\s:=]*([0-9]{4}\s?[0-9]{4}\s?[0-9]{4})\b/i) ||
+                         text.match(/\b([0-9]{4}\s[0-9]{4}\s[0-9]{4})\b/) ||
+                         text.match(/\b([0-9]{12})\b/);
+    if (aadhaarMatch) {
+      res.extractedAadhaar = aadhaarMatch[1].replace(/\s+/g, "");
+    }
+
+    // 2. Phone / Mobile (10 digits starting with 6-9)
+    const phoneMatch = text.match(/(?:phone|mobile|contact|cell)[\s:=]*([6-9][0-9]{9})\b/i) ||
+                       text.match(/\b([6-9][0-9]{9})\b/);
+    if (phoneMatch) {
+      res.extractedPhone = phoneMatch[1];
+    }
+
+    // 3. Pincode (6 digits starting 1-9)
+    const pinMatch = text.match(/(?:pin|pincode|postal)[\s:=]*([1-9][0-9]{5})\b/i);
+    if (pinMatch) {
+      res.extractedPin = pinMatch[1];
+    }
+
+    // 4. Email
+    const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    if (emailMatch) {
+      res.extractedEmail = emailMatch[1];
+    }
+
+    // 5. Citizen Name
+    const nameMatch = text.match(/(?:my name is|i am|myself|citizen:?)\s+([A-Za-z\s]{2,25})/i);
+    if (nameMatch) {
+      res.extractedName = nameMatch[1].trim();
+    }
+
+    return res;
+  }
+
   function synthesizeCustomPlan(userProblem, options = {}) {
     const loc = LOCALES[currentLang] || LOCALES.en;
     const tasks = [];
+    const parsed = parseCitizenInput(userProblem);
+
+    // Prepare payload combining profile with extracted entities
+    const payload = {
+      ...citizenProfile,
+      description: userProblem,
+      grievance: userProblem,
+      problem_raw: userProblem,
+      category: "General Public Grievance"
+    };
+
+    if (parsed.extractedAadhaar) {
+      payload.uid = parsed.extractedAadhaar;
+      payload.aadhaar = parsed.extractedAadhaar;
+      payload.aadhar = parsed.extractedAadhaar;
+      payload.id_number = parsed.extractedAadhaar;
+    }
+    if (parsed.extractedPhone) payload.citizen_phone = parsed.extractedPhone;
+    if (parsed.extractedPin) payload.pincode = parsed.extractedPin;
+    if (parsed.extractedEmail) payload.citizen_email = parsed.extractedEmail;
+    if (parsed.extractedName) payload.citizen_name = parsed.extractedName;
 
     // Task 1: DOM Semantic Analysis & Problem Formulation
     tasks.push({
@@ -470,52 +540,67 @@ document.addEventListener("DOMContentLoaded", () => {
       desc: `Mapped to "${activeTabInfo.domain}" targeting ${activeTabInfo.fields.length || 'interactive'} elements.`,
       status: "pending",
       run: async () => {
-        await new Promise(r => setTimeout(r, 600));
+        await new Promise(r => setTimeout(r, 400));
         return true;
       }
     });
 
     // Task 2: Zero-Knowledge Privacy & Aadhaar Shield
+    const shieldDesc = parsed.extractedAadhaar 
+      ? `Aadhaar UID XXXXXXXX${parsed.extractedAadhaar.slice(-4)} masked with zero-knowledge privacy.`
+      : loc.task_shield_desc;
+
     tasks.push({
       id: "task_shield",
       icon: "🛡️",
       title: loc.task_shield_title,
-      desc: loc.task_shield_desc,
+      desc: shieldDesc,
       status: "pending",
       run: async () => {
-        await new Promise(r => setTimeout(r, 500));
+        await new Promise(r => setTimeout(r, 350));
         return true;
       }
     });
 
     // Task 3: Form Autofill (if page has inputs or fields requested)
+    const autofillDesc = parsed.extractedAadhaar
+      ? `Populating official UID input and selecting OTP verification on ${activeTabInfo.domain}.`
+      : `Injecting description, citizen identity, contact, and address.`;
+
     tasks.push({
       id: "task_autofill",
       icon: "⚡",
       title: loc.task_autofill_title,
-      desc: `Injecting description, citizen identity, contact, and address.`,
+      desc: autofillDesc,
       status: "pending",
       run: async () => {
-        const payload = {
-          ...citizenProfile,
-          description: userProblem,
-          grievance: userProblem,
-          problem_raw: userProblem,
-          category: "General Public Grievance"
-        };
-
         return new Promise((resolve) => {
           chrome.tabs.sendMessage(activeTabInfo.id, {
             action: "FILL_FIELDS",
             fields: payload
           }, (res) => {
-            resolve(res || { success: true });
+            if (chrome.runtime.lastError || !res) {
+              chrome.runtime.sendMessage({
+                action: "TRIGGER_FILL_FIELDS",
+                fields: payload
+              }, (bgRes) => {
+                lastFillResult = bgRes || { success: false, filledCount: 0 };
+                resolve(lastFillResult);
+              });
+            } else {
+              lastFillResult = res;
+              resolve(res);
+            }
           });
         });
       }
     });
 
     // Task 4: Visual Spotlight on Submit / Action button
+    const isLoginPortal = activeTabInfo.domain.includes("uidai") || activeTabInfo.title.toLowerCase().includes("login");
+    const spotlightTarget = isLoginPortal ? "LOGIN" : "SUBMIT";
+    const spotlightLabel = isLoginPortal ? "Login with OTP / Proceed" : "Review & Submit";
+
     tasks.push({
       id: "task_spotlight",
       icon: "🎯",
@@ -526,8 +611,8 @@ document.addEventListener("DOMContentLoaded", () => {
         return new Promise((resolve) => {
           chrome.tabs.sendMessage(activeTabInfo.id, {
             action: "HIGHLIGHT_PAGE_ELEMENT",
-            target: "SUBMIT",
-            label: "Review & Submit"
+            target: spotlightTarget,
+            label: spotlightLabel
           }, () => resolve(true));
         });
       }
@@ -604,10 +689,36 @@ document.addEventListener("DOMContentLoaded", () => {
     planStatusBadge.style.color = "#34d399";
     planStatusBadge.style.borderColor = "#10b981";
 
-    // Show Completion Results Card
+    const resultsInstructionEl = document.getElementById("results-instruction");
+
+    // Show Completion Results Card with HONEST, verified feedback
     setTimeout(() => {
       resultsCard.classList.remove("hidden");
-      resFieldsCount.innerText = `${activeTabInfo.fields.length || 4} Populated`;
+      
+      const count = (lastFillResult && typeof lastFillResult.filledCount === "number") ? lastFillResult.filledCount : 0;
+      
+      if (count > 0) {
+        resFieldsCount.innerText = `${count} Populated`;
+        resFieldsCount.style.color = "#34d399";
+        
+        let detailHtml = `<strong>Form populated successfully (${count} field${count === 1 ? '' : 's'}).</strong>`;
+        if (lastFillResult.filledItems && lastFillResult.filledItems.length > 0) {
+          const names = lastFillResult.filledItems.map(i => `${i.label} (${i.maskedValue})`).join(", ");
+          detailHtml += `<br/><span style="color:#94a3b8; font-size:11px;">Populated: ${names}</span>`;
+        }
+        if (lastFillResult.hasCaptcha) {
+          detailHtml += `<br/><span style="color:#f59e0b; font-weight:bold;">⚠️ Captcha Detected: Please type the security code from the image into the highlighted captcha box.</span>`;
+        }
+        detailHtml += `<br/>Please review and click the spotlighted button to complete your official dispatch.`;
+        if (resultsInstructionEl) resultsInstructionEl.innerHTML = detailHtml;
+      } else {
+        resFieldsCount.innerText = `0 Populated`;
+        resFieldsCount.style.color = "#f59e0b";
+        if (resultsInstructionEl) {
+          resultsInstructionEl.innerHTML = `<strong>Page Inspected:</strong> Nagarik AI found ${activeTabInfo.fields.length} inputs on this webpage (${activeTabInfo.fields.map(f => f.label || f.name).join(", ")}). No matching fields for the provided input. Click 'Spotlight Submit Button' or tap a field to fill manually.`;
+        }
+      }
+
       resultsCard.scrollIntoView({ behavior: "smooth", block: "nearest" });
     }, 400);
   }
