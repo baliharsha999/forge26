@@ -411,9 +411,9 @@ Nagarik-AI/
 ---
 
 ## 👥 Team
-- **[@cyugandharreddy08](https://github.com/cyugandharreddy08)** — System Architecture, Autonomous Browser Automation & RAG Pipeline
-- **[@baliharsha999](https://github.com/baliharsha999)** — Chrome Extension Manifest V3, Side Panel UX & Content Scripts
-- **[@Raghavendra-Kasireddy](https://github.com/Raghavendra-Kasireddy)** — myScheme Data Pipeline, Portal Adapters & Test Automation
+- **[@cyugandharreddy08](https://github.com/cyugandharreddy08)** — Autonomous Browser Automation ,chrome Extension Manifest V3, Side Panel UX & Content Scripts,Portal Adapters & Test Automation
+- **[@baliharsha999](https://github.com/baliharsha999)** —  myScheme Data Pipeline,RAG Pipeline, , langsmith integration model evalution
+- **[@Raghavendra-Kasireddy](https://github.com/Raghavendra-Kasireddy)** — UI/UX and full stack , deployment , video editing
 
 ---
 
