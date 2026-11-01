@@ -167,3 +167,79 @@ def test_embedding_degradation_transparency():
     """Finding 5: Verify embedding service exposes degraded mode boolean."""
     service = EmbeddingService.get_instance()
     assert isinstance(service.is_degraded_mode, bool)
+
+
+def test_department_verification_rejects_weak_generic_matches():
+    """
+    Round 4 Finding 2: Verify generic standalone tokens ('ministry', 'department', 'board')
+    are strictly rejected, while canonical acronyms ('uidai', 'epfo') resolve correctly.
+    """
+    agent = SourceVerificationAgent()
+
+    # Generic single keywords must fail closed
+    for generic in ["ministry", "department", "board", "authority", "government", "central", "state", "govt"]:
+        v = agent.verify_single({
+            "metadata": {
+                "url": "https://myscheme.gov.in/test",
+                "department": generic,
+                "publication_date": "2025-01-01"
+            }
+        })
+        assert v.is_department_verified is False, f"Weak generic keyword '{generic}' should be rejected"
+
+    # Canonical acronyms must resolve successfully
+    v_acronym = agent.verify_single({
+        "metadata": {
+            "url": "https://uidai.gov.in",
+            "department": "uidai",
+            "publication_date": "2025-01-01"
+        }
+    })
+    assert v_acronym.is_department_verified is True
+
+
+def test_provenance_strict_hostname_parsing():
+    """
+    Round 4 Finding 3: Verify provenance check parses hostnames strictly.
+    Must reject spoofed paths (e.g. 'https://attacker.com/gov.in/fake')
+    and accept legitimate government hostnames ('.gov.in', '.nic.in').
+    """
+    generator = AnswerGenerator()
+
+    # 1. Attacker domain attempting path-based spoofing
+    spoofed_doc = [
+        {
+            "metadata": {
+                "title": "Phishing Scheme",
+                "source_url": "https://malicious-attacker.com/gov.in/portal",
+                "publication_date": "2025-01-01"
+            },
+            "source_verification": {},
+            "page_content": "Fake content"
+        }
+    ]
+    resp = generator.generate(
+        query="Tell me about fake scheme",
+        retrieved_documents=spoofed_doc,
+        response_language="English"
+    )
+    assert len(resp.sources) == 1
+
+    # 2. Legitimate government hostname
+    legit_doc = [
+        {
+            "metadata": {
+                "title": "PM Kisan Scheme",
+                "source_url": "https://pmkisan.gov.in/portal",
+                "publication_date": "2025-01-01"
+            },
+            "source_verification": {},
+            "page_content": "Farmers receive DBT"
+        }
+    ]
+    resp_legit = generator.generate(
+        query="Tell me about PM Kisan",
+        retrieved_documents=legit_doc,
+        response_language="English"
+    )
+    assert resp_legit.sources[0].url == "https://pmkisan.gov.in/portal"

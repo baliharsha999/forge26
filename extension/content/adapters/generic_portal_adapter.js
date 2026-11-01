@@ -31,15 +31,49 @@ class GenericCivicAdapter extends BasePortalAdapter {
    */
   isSupported(url) {
     if (!url) return false;
-    const target = String(url).toLowerCase();
-    return target.includes(".gov.in") ||
-           target.includes(".nic.in") ||
-           target.includes(".mygov.in") ||
-           target.includes("localhost") ||
-           target.includes("127.0.0.1") ||
-           target.includes("portal") ||
-           target.includes("grievance") ||
-           target.includes("citizen") || target.includes("municipal") || target.startsWith("http");
+    try {
+      let host = "";
+      let path = "";
+      if (typeof URL !== "undefined") {
+        const parsed = new URL(url, "http://localhost");
+        host = (parsed.hostname || "").toLowerCase();
+        path = (parsed.pathname || "").toLowerCase();
+      } else {
+        const target = String(url).toLowerCase();
+        const parts = target.replace(/^[a-z]+:\/\//i, '').split('/');
+        host = parts[0].split(':')[0];
+        path = '/' + parts.slice(1).join('/');
+      }
+
+      // Explicit government and National Informatics Centre domains
+      if (host.endsWith(".gov.in") || host.endsWith(".nic.in") || host.endsWith(".mygov.in")) {
+        return true;
+      }
+
+      // Local development and sandboxed verification environments
+      if (host === "localhost" || host === "127.0.0.1") {
+        return true;
+      }
+
+      // Explicit municipal corporation, urban local body, or civic grievance subdomains
+      const isCivicHost = host.includes("municipal") || 
+                          host.includes("corporation") || 
+                          host.includes("panchayat") || 
+                          host.includes("ghmc") || 
+                          host.includes("bbmp") || 
+                          host.includes("mcgm") || 
+                          host.includes("civic");
+
+      const isCivicPath = path.includes("grievance") || 
+                          path.includes("citizen") || 
+                          path.includes("portal") || 
+                          path.includes("service") || 
+                          path.includes("complaint");
+
+      return Boolean(isCivicHost && isCivicPath);
+    } catch (e) {
+      return false;
+    }
   }
 
   isCaptchaField(el) {

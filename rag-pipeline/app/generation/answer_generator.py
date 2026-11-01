@@ -93,7 +93,21 @@ class AnswerGenerator:
             dept = meta.get("department", "Government of India")
             raw_url = meta.get("source_url") or meta.get("url")
             url = raw_url.strip() if raw_url else "Unknown Source"
-            is_provenance_verified = bool(raw_url and ("gov.in" in raw_url or "nic.in" in raw_url))
+            # Finding 3 Fix: Strict URL hostname parsing prevents path/query spoofing
+            parsed_host = ""
+            if raw_url:
+                try:
+                    parsed_host = (urllib.parse.urlparse(raw_url).hostname or "").lower()
+                except Exception:
+                    parsed_host = ""
+            is_provenance_verified = bool(
+                parsed_host and (
+                    parsed_host.endswith(".gov.in") or
+                    parsed_host.endswith(".nic.in") or
+                    parsed_host.endswith(".mygov.in") or
+                    parsed_host in ("localhost", "127.0.0.1")
+                )
+            )
             
             raw_date = meta.get("publication_date") or meta.get("last_updated")
             pub_date = str(raw_date)[:10] if raw_date else "Unknown"

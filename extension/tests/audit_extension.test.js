@@ -396,6 +396,7 @@ function createMockEnvironment() {
     Number: Number,
     RegExp: RegExp,
     Buffer: Buffer,
+    URL: URL,
     MutationObserver: class MockMutationObserver {
       observe() {}
       disconnect() {}
@@ -682,11 +683,21 @@ describe('Chrome Extension Test Audit', () => {
   });
 
   describe('4. GenericCivicAdapter Audit', () => {
-    test('Universal support: returns true for all domains', () => {
+    test('Strict civic & government domain scoping (Finding 1 Remediation)', () => {
       const adapter = new env.window.GenericCivicAdapter();
-      assert.strictEqual(adapter.isSupported('https://uidai.gov.in'), true);
+      // Legitimate government and public identity portals
+      assert.strictEqual(adapter.isSupported('https://tathya.uidai.gov.in/login'), true);
+      assert.strictEqual(adapter.isSupported('https://myscheme.gov.in/schemes/pmkisan'), true);
       assert.strictEqual(adapter.isSupported('https://karnataka.gov.in/sevasindhu'), true);
-      assert.strictEqual(adapter.isSupported('https://random-municipal-site.org/form'), true);
+      assert.strictEqual(adapter.isSupported('http://localhost:8000/portal'), true);
+
+      // Explicit municipal / civic subdomains and paths
+      assert.strictEqual(adapter.isSupported('https://ghmc-municipal.org/citizen/portal'), true);
+
+      // Commercial and attacker domains MUST strictly fail closed
+      assert.strictEqual(adapter.isSupported('https://google.com'), false);
+      assert.strictEqual(adapter.isSupported('https://attacker.com/fake'), false);
+      assert.strictEqual(adapter.isSupported('https://malicious.com/stealer'), false);
     });
 
     test('Deep Query Selector & Keyword Match across input attributes', () => {

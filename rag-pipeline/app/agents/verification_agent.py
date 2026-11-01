@@ -89,12 +89,34 @@ class SourceVerificationAgent:
             "national health authority", "nha", "municipal corporation"
         }
 
-        # 2. Department legitimacy check against authoritative registry
+        # 2. Department legitimacy check against authoritative registry (Strict Finding 2 Remediation)
         dept_clean = dept.strip().lower()
-        is_dept_verified = any(
-            dept_clean == entry or entry in dept_clean or dept_clean in entry
-            for entry in OFFICIAL_MINISTRIES_REGISTRY
-        ) and len(dept_clean) >= 4
+        generic_tokens = {"ministry", "department", "board", "authority", "government", "central", "state", "dept", "govt", "corporation"}
+        
+        # Standalone generic tokens are strictly rejected
+        if dept_clean in generic_tokens or len(dept_clean) < 4:
+            is_dept_verified = False
+        else:
+            # Authoritative acronyms resolved to canonical registry names
+            ACRONYM_MAP = {
+                "uidai": "unique identification authority of india",
+                "epfo": "employees provident fund organisation",
+                "nic": "national informatics centre",
+                "nha": "national health authority",
+                "fssai": "food safety and standards authority of india",
+                "esic": "employees state insurance corporation",
+                "cbic": "central board of indirect taxes and customs",
+                "cbdt": "central board of direct taxes",
+                "pwd": "public works department",
+                "ghmc": "greater hyderabad municipal corporation",
+                "bbmp": "bruhat bengaluru mahanagara palike",
+                "mcgm": "municipal corporation of greater mumbai"
+            }
+            resolved_dept = ACRONYM_MAP.get(dept_clean, dept_clean)
+            is_dept_verified = (
+                resolved_dept in OFFICIAL_MINISTRIES_REGISTRY or 
+                any(resolved_dept == entry or (len(resolved_dept) >= 15 and resolved_dept in entry) for entry in OFFICIAL_MINISTRIES_REGISTRY)
+            )
 
         # Provenance verification separates domain ownership from document validity
         is_provenance_verified = bool(is_gov_domain and is_dept_verified and url and url != "Unknown Source")

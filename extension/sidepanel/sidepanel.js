@@ -457,7 +457,11 @@ document.addEventListener("DOMContentLoaded", () => {
   function handleActionChipClick(action) {
     if (action === "AUTOFILL") {
       if (!citizenProblemInput.value.trim()) {
-        citizenProblemInput.value = "Severe water pipeline leakage on main road near bus stand since yesterday, flooding the lane. Please inspect and repair.";
+        if (activeTabInfo.pageType === "IDENTITY_PORTAL" || (activeTabInfo.domain && activeTabInfo.domain.includes("uidai"))) {
+          citizenProblemInput.value = `Sign in to Aadhaar portal with verified UID ${currentCitizenState.aadhaar}`;
+        } else {
+          citizenProblemInput.value = "Severe water pipeline leakage on main road near bus stand since yesterday, flooding the lane. Please inspect and repair.";
+        }
       }
       executeDynamicTaskPlan();
     } else if (action === "SPOTLIGHT_SUBMIT" || action === "SPOTLIGHT_APPLY") {
