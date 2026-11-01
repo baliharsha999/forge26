@@ -308,7 +308,9 @@ document.addEventListener("DOMContentLoaded", () => {
       // Ask content script for real DOM inspection
       chrome.tabs.sendMessage(tab.id, { action: "INSPECT_PAGE_FORM" }, (res) => {
         if (chrome.runtime.lastError || !res) {
+          const _ = chrome.runtime.lastError ? chrome.runtime.lastError.message : null;
           chrome.runtime.sendMessage({ action: "TRIGGER_INSPECT_PAGE" }, (bgRes) => {
+            if (chrome.runtime.lastError) { const __ = chrome.runtime.lastError.message; }
             if (bgRes && bgRes.supported) {
               applyInspectionResults(bgRes);
             } else {
@@ -849,10 +851,12 @@ Submitted in good faith by ${name}, Contact: ${phone}.`.trim();
         fields: currentCitizenState
       }, (res) => {
         if (chrome.runtime.lastError || !res) {
+          const _ = chrome.runtime.lastError ? chrome.runtime.lastError.message : null;
           chrome.runtime.sendMessage({
             action: "TRIGGER_FILL_FIELDS",
             fields: currentCitizenState
           }, (bgRes) => {
+            if (chrome.runtime.lastError) { const __ = chrome.runtime.lastError.message; }
             lastFillResult = bgRes || { success: false, filledCount: 0 };
             resolve(lastFillResult);
           });

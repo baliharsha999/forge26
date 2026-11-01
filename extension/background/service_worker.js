@@ -5,9 +5,33 @@
  */
 
 // Open side panel on extension action click
-chrome.sidePanel
-  .setPanelBehavior({ openPanelOnActionClick: true })
-  .catch((error) => console.error("Side panel config error:", error));
+if (chrome.sidePanel && typeof chrome.sidePanel.setPanelBehavior === "function") {
+  chrome.sidePanel
+    .setPanelBehavior({ openPanelOnActionClick: true })
+    .catch((error) => {
+      console.warn("Side panel config note:", error);
+    });
+}
+
+function canAccessTab(url) {
+  if (!url) return false;
+  return !url.startsWith("chrome://") && 
+         !url.startsWith("chrome-extension://") && 
+         !url.startsWith("edge://") && 
+         !url.startsWith("about:") && 
+         !url.startsWith("devtools://") &&
+         !url.startsWith("view-source:");
+}
+
+function safeRuntimeSendMessage(msg) {
+  try {
+    chrome.runtime.sendMessage(msg, () => {
+      if (chrome.runtime.lastError) {
+        const _ = chrome.runtime.lastError.message;
+      }
+    });
+  } catch (e) {}
+}
 
 // Helper: Ensure content script is injected into active tab if not already present
 function ensureContentScriptInjected(tabId, callback) {
@@ -16,45 +40,52 @@ function ensureContentScriptInjected(tabId, callback) {
     return;
   }
 
-  chrome.scripting.executeScript({
-    target: { tabId: tabId },
-    files: [
-      "content/adapters/base_adapter.js",
-      "content/adapters/mock_portal_adapter.js",
-      "content/adapters/cpgrams_adapter.js",
-      "content/adapters/generic_portal_adapter.js",
-      "content/adapters/index.js",
-      "content/content_script.js"
-    ]
-  }).then(() => {
-    chrome.scripting.insertCSS({
-      target: { tabId: tabId },
-      files: ["content/banner.css"]
-    }).catch(() => {});
-    setTimeout(() => {
+  chrome.tabs.get(tabId, (tab) => {
+    if (chrome.runtime.lastError || !tab || !canAccessTab(tab.url)) {
+      if (chrome.runtime.lastError) { const _ = chrome.runtime.lastError.message; }
       if (callback) callback();
-    }, 120);
-  }).catch((err) => {
-    // Some tabs like chrome:// cannot be injected
-    if (callback) callback(err);
+      return;
+    }
+
+    chrome.scripting.executeScript({
+      target: { tabId: tabId },
+      files: [
+        "content/adapters/base_adapter.js",
+        "content/adapters/mock_portal_adapter.js",
+        "content/adapters/cpgrams_adapter.js",
+        "content/adapters/generic_portal_adapter.js",
+        "content/adapters/index.js",
+        "content/content_script.js"
+      ]
+    }).then(() => {
+      chrome.scripting.insertCSS({
+        target: { tabId: tabId },
+        files: ["content/banner.css"]
+      }).catch(() => {});
+      setTimeout(() => {
+        if (callback) callback();
+      }, 120);
+    }).catch(() => {
+      if (callback) callback();
+    });
   });
 }
 
 // Tab change & URL change listeners for Zero-Touch Auto-Inspection
 chrome.tabs.onActivated.addListener((activeInfo) => {
-  chrome.runtime.sendMessage({
+  safeRuntimeSendMessage({
     action: "ACTIVE_TAB_CHANGED",
     tabId: activeInfo.tabId
-  }).catch(() => {});
+  });
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
   if (changeInfo.status === "complete") {
-    chrome.runtime.sendMessage({
+    safeRuntimeSendMessage({
       action: "ACTIVE_TAB_CHANGED",
       tabId: tabId,
-      url: tab.url
-    }).catch(() => {});
+      url: tab ? tab.url : ""
+    });
   }
 });
 
@@ -62,18 +93,18 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 1. Relay detected tracking ID to side panel
   if (message.action === "TRACKING_ID_DETECTED") {
-    chrome.runtime.sendMessage({
+    safeRuntimeSendMessage({
       action: "UPDATE_TRACKING_RECEIPT",
       trackingId: message.trackingId
-    }).catch(() => {});
+    });
     return false;
   }
 
   // 2. Relay dynamic DOM mutation to side panel
   if (message.action === "PAGE_DOM_MUTATED") {
-    chrome.runtime.sendMessage({
+    safeRuntimeSendMessage({
       action: "PAGE_DOM_MUTATED"
-    }).catch(() => {});
+    });
     return false;
   }
 
@@ -86,14 +117,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 4. Check active tab support (ALWAYS TRUE)
   if (message.action === "CHECK_ACTIVE_TAB_SUPPORT") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        sendResponse({ supported: true });
+      if (!tabs || tabs.length === 0 || !canAccessTab(tabs[0].url)) {
+        sendResponse({ supported: true, url: tabs && tabs[0] ? tabs[0].url : "" });
         return;
       }
       chrome.tabs.sendMessage(tabs[0].id, { action: "CHECK_PAGE_SUPPORT" }, (res) => {
         if (chrome.runtime.lastError) {
+          const _ = chrome.runtime.lastError.message;
           ensureContentScriptInjected(tabs[0].id, () => {
             chrome.tabs.sendMessage(tabs[0].id, { action: "CHECK_PAGE_SUPPORT" }, (retryRes) => {
+              if (chrome.runtime.lastError) { const __ = chrome.runtime.lastError.message; }
               sendResponse(retryRes || { supported: true, url: tabs[0].url });
             });
           });
@@ -108,14 +141,16 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 5. Forward inspection request to active tab
   if (message.action === "TRIGGER_INSPECT_PAGE") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        sendResponse({ supported: true, hasForm: false, fields: [] });
+      if (!tabs || tabs.length === 0 || !canAccessTab(tabs[0].url)) {
+        sendResponse({ supported: true, hasForm: false, fields: [], url: tabs && tabs[0] ? tabs[0].url : "" });
         return;
       }
       chrome.tabs.sendMessage(tabs[0].id, { action: "INSPECT_PAGE_FORM" }, (res) => {
         if (chrome.runtime.lastError) {
+          const _ = chrome.runtime.lastError.message;
           ensureContentScriptInjected(tabs[0].id, () => {
             chrome.tabs.sendMessage(tabs[0].id, { action: "INSPECT_PAGE_FORM" }, (retryRes) => {
+              if (chrome.runtime.lastError) { const __ = chrome.runtime.lastError.message; }
               sendResponse(retryRes || { supported: true, url: tabs[0].url, hasForm: false, fields: [] });
             });
           });
@@ -130,7 +165,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 6. Forward batch field fill request to active tab
   if (message.action === "TRIGGER_FILL_FIELDS") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
+      if (!tabs || tabs.length === 0 || !canAccessTab(tabs[0].url)) {
         sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
         return;
       }
@@ -139,11 +174,13 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         fields: message.fields
       }, (res) => {
         if (chrome.runtime.lastError) {
+          const _ = chrome.runtime.lastError.message;
           ensureContentScriptInjected(tabs[0].id, () => {
             chrome.tabs.sendMessage(tabs[0].id, {
               action: "FILL_FIELDS",
               fields: message.fields
             }, (retryRes) => {
+              if (chrome.runtime.lastError) { const __ = chrome.runtime.lastError.message; }
               sendResponse(retryRes || { success: true });
             });
           });
@@ -158,7 +195,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 7. Forward highlight request to active tab
   if (message.action === "TRIGGER_HIGHLIGHT_ELEMENT") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
+      if (!tabs || tabs.length === 0 || !canAccessTab(tabs[0].url)) {
         sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
         return;
       }
@@ -168,12 +205,14 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         label: message.label
       }, (res) => {
         if (chrome.runtime.lastError) {
+          const _ = chrome.runtime.lastError.message;
           ensureContentScriptInjected(tabs[0].id, () => {
             chrome.tabs.sendMessage(tabs[0].id, {
               action: "HIGHLIGHT_PAGE_ELEMENT",
               target: message.target || "SUBMIT",
               label: message.label
             }, (retryRes) => {
+              if (chrome.runtime.lastError) { const __ = chrome.runtime.lastError.message; }
               sendResponse(retryRes || { success: true });
             });
           });
@@ -188,7 +227,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   // 8. Forward click request to active tab
   if (message.action === "TRIGGER_CLICK_ELEMENT") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
+      if (!tabs || tabs.length === 0 || !canAccessTab(tabs[0].url)) {
         sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
         return;
       }
@@ -196,6 +235,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         action: "CLICK_PAGE_ELEMENT",
         target: message.target || "SUBMIT"
       }, (res) => {
+        if (chrome.runtime.lastError) { const _ = chrome.runtime.lastError.message; }
         sendResponse(res || { success: true });
       });
     });

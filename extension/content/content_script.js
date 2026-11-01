@@ -736,6 +736,16 @@
     };
   }
 
+  function safeRuntimeSendMessage(msg) {
+    try {
+      chrome.runtime.sendMessage(msg, () => {
+        if (chrome.runtime.lastError) {
+          const _ = chrome.runtime.lastError.message;
+        }
+      });
+    } catch (e) {}
+  }
+
   // Observe DOM for newly rendered tracking ID safely
   if (typeof MutationObserver !== "undefined" && document.body) {
     let lastReportedId = null;
@@ -748,10 +758,10 @@
             adapter.readTrackingId().then(trackingId => {
               if (trackingId && trackingId !== lastReportedId) {
                 lastReportedId = trackingId;
-                chrome.runtime.sendMessage({
+                safeRuntimeSendMessage({
                   action: "TRACKING_ID_DETECTED",
                   trackingId: trackingId
-                }).catch(() => {});
+                });
               }
             }).catch(() => {});
           }
@@ -785,7 +795,7 @@
       if (shouldNotify) {
         clearTimeout(mutationTimeout);
         mutationTimeout = setTimeout(() => {
-          chrome.runtime.sendMessage({ action: "PAGE_DOM_MUTATED" }).catch(() => {});
+          safeRuntimeSendMessage({ action: "PAGE_DOM_MUTATED" });
         }, 500);
       }
     });
