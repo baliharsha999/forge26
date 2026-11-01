@@ -1942,6 +1942,35 @@ Nagarik AI Grievance Escalation Studio`
                         Advice: {factResult.action_advice_for_citizens}
                       </div>
                     </div>
+
+                    <div className="mt-4 pt-3 border-t border-[rgba(255,255,255,0.08)] flex items-center justify-between flex-wrap gap-2">
+                      <span className="text-[11px] text-[#8F93B5]">Help stop civic misinformation:</span>
+                      <a
+                        href={`https://wa.me/?text=${encodeURIComponent(
+                          `*🏛️ Nagarik AI Fact-Check Advisory:*
+
+` +
+                          `*Claim:* "${factResult.claim}"
+` +
+                          `*Verdict:* ${factResult.verdict.toUpperCase()} (Confidence: ${factResult.truth_score}%)
+
+` +
+                          `*Official Summary:* ${factResult.summary}
+
+` +
+                          `*Statutory Source:* ${factResult.official_source_url}
+
+` +
+                          `_Verified against Government of India Gazette (Nagarik AI)_`
+                        )}`}
+                        target="_blank"
+                        rel="noreferrer"
+                        className="px-3.5 py-1.5 rounded-xl bg-[#25D366] hover:bg-[#20ba59] text-[#0B0C1E] font-black text-xs flex items-center gap-1.5 shadow-md shadow-[#25D366]/30 transition-all cursor-pointer"
+                        title="Share verified advisory to WhatsApp groups"
+                      >
+                        <Share2 className="w-3.5 h-3.5" /> Share Advisory to WhatsApp
+                      </a>
+                    </div>
                   </div>
                 </div>
               )}
