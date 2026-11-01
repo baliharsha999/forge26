@@ -1339,8 +1339,8 @@ export function App() {
       {/* 4. DEDICATED FULL VOICE AGENT MODAL                               */}
       {/* ================================================================= */}
       {voiceAgentOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-lg bg-[#121418] border border-[#f2ca50]/40 rounded-3xl p-6 sm:p-8 text-center shadow-2xl space-y-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/85 backdrop-blur-md animate-fade-in overflow-y-auto">
+          <div className="relative w-full max-w-lg bg-[#121418] border border-[#f2ca50]/40 rounded-3xl p-5 sm:p-7 text-center shadow-2xl space-y-5 my-auto">
             {/* Top Close Bar */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -1350,16 +1350,56 @@ export function App() {
               <button
                 onClick={() => setVoiceAgentOpen(false)}
                 className="p-1.5 rounded-full text-[#8F93B5] hover:text-white hover:bg-[#22262f] transition-colors"
+                title="Close Voice Agent"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
+            {/* Dedicated Real-Time Language Selector at Top */}
+            <div className="flex flex-col items-center gap-1.5">
+              <div className="inline-flex items-center p-1 rounded-xl bg-[#16191f] border border-[#22262f] shadow-inner gap-1">
+                {([
+                  { code: 'en' as const, label: 'English', short: 'EN' },
+                  { code: 'hi' as const, label: 'हिंदी', short: 'हिंदी' },
+                  { code: 'te' as const, label: 'తెలుగు', short: 'తెలుగు' },
+                ]).map(item => {
+                  const isActive = selectedLanguage === item.code;
+                  return (
+                    <button
+                      key={item.code}
+                      type="button"
+                      onClick={() => {
+                        setSelectedLanguage(item.code);
+                        startVoiceAgentListening(item.code);
+                      }}
+                      className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-lg text-xs font-semibold transition-all ${
+                        isActive
+                          ? 'bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] font-bold shadow-md scale-105'
+                          : 'text-[#8F93B5] hover:text-white hover:bg-[#22262f]'
+                      }`}
+                      title={`Switch voice agent to ${item.label}`}
+                    >
+                      <Globe className={`w-3.5 h-3.5 ${isActive ? 'text-[#241a00]' : 'text-[#8F93B5]'}`} />
+                      <span>{item.short}</span>
+                    </button>
+                  );
+                })}
+              </div>
+              <span className="text-[11px] text-[#8F93B5]">
+                {selectedLanguage === 'hi'
+                  ? 'सक्रिय भाषा: हिंदी (हिंदी व हिंग्लिश में विस्तृत प्रश्न पूछें)'
+                  : selectedLanguage === 'te'
+                  ? 'సక్రియ భాష: తెలుగు (వివరణాత్మక ప్రశ్నలు మాట్లాడండి)'
+                  : 'Active Language: English (Indian Accent & Regional Schemes)'}
+              </span>
+            </div>
+
             {/* Central Animated Civic Aura */}
-            <div className="py-6 flex flex-col items-center justify-center relative">
+            <div className="py-3 sm:py-5 flex flex-col items-center justify-center relative">
               <div className="relative flex items-center justify-center">
                 <div
-                  className={`absolute w-44 h-44 rounded-full border-2 transition-all duration-700 ${
+                  className={`absolute w-36 h-36 sm:w-44 sm:h-44 rounded-full border-2 transition-all duration-700 ${
                     voiceAgentState === 'listening'
                       ? 'border-[#ffb692]/60 animate-ping opacity-60'
                       : voiceAgentState === 'speaking'
@@ -1371,7 +1411,7 @@ export function App() {
                 />
 
                 <div
-                  className={`w-32 h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 ${
+                  className={`w-28 h-28 sm:w-32 sm:h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 ${
                     voiceAgentState === 'listening'
                       ? 'bg-gradient-to-tr from-[#d4af37] to-[#ffb692] shadow-[#ffb692]/40 scale-105'
                       : voiceAgentState === 'speaking'
@@ -1381,14 +1421,14 @@ export function App() {
                       : 'bg-[#16191f] border border-[#22262f]'
                   }`}
                 >
-                  <NagarikEmblem className="w-16 h-16" size={64} />
+                  <NagarikEmblem className="w-14 h-14 sm:w-16 sm:h-16" size={64} />
                 </div>
               </div>
 
-              <div className="mt-6 space-y-1">
-                <h3 className="text-base font-bold text-white">
+              <div className="mt-5 space-y-1">
+                <h3 className="text-sm sm:text-base font-bold text-white">
                   {voiceAgentState === 'listening'
-                    ? (selectedLanguage === 'hi' ? 'सुन रहा हूँ... बोलिए' : selectedLanguage === 'te' ? 'వింటున్నాను... మాట్లాడండి' : 'Listening to your question...')
+                    ? (selectedLanguage === 'hi' ? 'सुन रहा हूँ... पूरा प्रश्न बोलिए' : selectedLanguage === 'te' ? 'వింటున్నాను... పూర్తి ప్రశ్న మాట్లాడండి' : 'Listening... Speak your question')
                     : voiceAgentState === 'thinking'
                     ? (selectedLanguage === 'hi' ? 'सरकारी गजट में खोज रहा हूँ...' : selectedLanguage === 'te' ? 'సమాచారం సేకరిస్తున్నాను...' : 'Searching 5,210 gazette schemes...')
                     : voiceAgentState === 'speaking'
@@ -1396,13 +1436,17 @@ export function App() {
                     : (selectedLanguage === 'hi' ? 'पूछने के लिए माइक दबाएँ' : selectedLanguage === 'te' ? 'ప్రశ్నించడానికి మైక్ నొక్కండి' : 'Tap mic below to speak')}
                 </h3>
                 <p className="text-xs text-[#8F93B5]">
-                  {selectedLanguage === 'hi' ? 'हिंदी, अंग्रेज़ी व तेलुगु में स्पष्ट बोलें' : selectedLanguage === 'te' ? 'తెలుగు, ఇంగ్లీష్ లేదా హిందీలో మాట్లాడండి' : 'Speak naturally in English, Hindi, or Telugu'}
+                  {selectedLanguage === 'hi'
+                    ? 'बिना रुके पूरा वाक्य बोलें — 5,210 सरकारी योजनाएँ समर्थित हैं'
+                    : selectedLanguage === 'te'
+                    ? 'మీ సమస్య లేదా అర్హత గురించి వివరంగా చెప్పండి'
+                    : 'Speak naturally — continuous capture with natural pauses'}
                 </p>
               </div>
             </div>
 
             {/* Live Transcript Display */}
-            <div className="p-4 rounded-2xl bg-[#0c0e11] border border-[#22262f] text-left text-xs min-h-[90px] max-h-36 overflow-y-auto space-y-2 scrollbar-thin">
+            <div className="p-3.5 sm:p-4 rounded-2xl bg-[#0c0e11] border border-[#22262f] text-left text-xs min-h-[85px] max-h-36 overflow-y-auto space-y-2 scrollbar-thin">
               {voiceTranscript ? (
                 <div>
                   <span className="font-semibold text-[#f2ca50]">You: </span>
@@ -1418,36 +1462,49 @@ export function App() {
               ) : null}
 
               {!voiceTranscript && !voiceAssistantReply && (
-                <div className="text-center text-[#8F93B5] italic pt-5">
-                  Try asking: "What are the rules for PM-KISAN?" or "How to get a driving licence online?"
+                <div className="text-center text-[#8F93B5] italic pt-4">
+                  {selectedLanguage === 'hi'
+                    ? 'उदा: "पीएम किसान योजना की अगली किस्त कब आएगी?" या "ड्राइविंग लाइसेंस ऑनलाइन कैसे बनाएं?"'
+                    : selectedLanguage === 'te'
+                    ? 'ఉదా: "రైతు బంధు అర్హతలు ఏమిటి?" లేదా "ఆధార్ కార్డులో అడ్రస్ ఎలా మార్చాలి?"'
+                    : 'Try asking: "What are the rules for PM-KISAN?" or "How to apply for Ayushman Bharat card?"'}
                 </div>
               )}
             </div>
 
             {/* Voice Control Buttons */}
-            <div className="flex items-center justify-center gap-4 pt-2">
+            <div className="flex items-center justify-center gap-3 pt-1">
               {voiceAgentState === 'listening' ? (
-                <button
-                  onClick={stopVoiceAgent}
-                  className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30 font-semibold text-sm transition-all"
-                >
-                  <Square className="w-4 h-4 fill-current" />
-                  <span>Pause</span>
-                </button>
+                <>
+                  <button
+                    onClick={stopVoiceAgent}
+                    className="flex items-center gap-1.5 px-4 py-2.5 rounded-xl bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30 font-semibold text-xs transition-all"
+                  >
+                    <Square className="w-3.5 h-3.5 fill-current" />
+                    <span>Cancel</span>
+                  </button>
+                  <button
+                    onClick={handleVoiceDoneSpeaking}
+                    className="flex items-center gap-1.5 px-5 py-2.5 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] font-bold text-xs shadow-lg hover:opacity-95 transition-all"
+                  >
+                    <Send className="w-3.5 h-3.5" />
+                    <span>Done Speaking</span>
+                  </button>
+                </>
               ) : voiceAgentState === 'speaking' ? (
                 <button
                   onClick={() => {
                     window.speechSynthesis.cancel();
                     setVoiceAgentState('idle');
                   }}
-                  className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 font-semibold text-sm transition-all"
+                  className="flex items-center gap-2 px-6 py-2.5 rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 font-semibold text-xs transition-all"
                 >
                   <VolumeX className="w-4 h-4" />
                   <span>Stop Speaking</span>
                 </button>
               ) : (
                 <button
-                  onClick={startVoiceAgentListening}
+                  onClick={() => startVoiceAgentListening()}
                   className="hover-pop-btn-orange flex items-center gap-2 px-8 py-3 rounded-2xl bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] font-bold text-sm shadow-lg hover:opacity-95 transition-all"
                 >
                   <Mic className="w-4 h-4" />
@@ -1456,23 +1513,11 @@ export function App() {
               )}
             </div>
 
-            {/* Language & Continuous Mode Toggle */}
+            {/* Continuous Mode Toggle */}
             <div className="flex items-center justify-between pt-2 border-t border-[#22262f] text-xs">
-              <div className="flex items-center gap-1.5 bg-[#16191f] p-1 rounded-lg border border-[#22262f]">
-                {(['en', 'hi', 'te'] as CivicLanguage[]).map(lang => (
-                  <button
-                    key={lang}
-                    onClick={() => {
-                      setSelectedLanguage(lang);
-                      stopVoiceAgent();
-                    }}
-                    className={`px-2 py-0.5 rounded font-medium ${
-                      selectedLanguage === lang ? 'bg-[#f2ca50] text-[#241a00] font-bold' : 'text-[#8F93B5]'
-                    }`}
-                  >
-                    {lang === 'en' ? 'EN' : lang === 'hi' ? 'हिंदी' : 'తెలుగు'}
-                  </button>
-                ))}
+              <div className="flex items-center gap-1.5 text-[#8F93B5]">
+                <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" />
+                <span>Hands-free conversational loop</span>
               </div>
 
               <label className="flex items-center gap-1.5 text-[#8F93B5] cursor-pointer">
@@ -1480,9 +1525,9 @@ export function App() {
                   type="checkbox"
                   checked={autoVoiceLoop}
                   onChange={(e) => setAutoVoiceLoop(e.target.checked)}
-                  className="rounded bg-[#16191f] border-[#22262f] text-[#f2ca50] focus:ring-0"
+                  className="rounded border-[#22262f] text-[#f2ca50] focus:ring-[#f2ca50] bg-[#16191f]"
                 />
-                <span>Auto-listen loop</span>
+                <span className="text-xs">Continuous Loop</span>
               </label>
             </div>
           </div>

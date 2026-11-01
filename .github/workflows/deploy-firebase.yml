@@ -50,7 +50,7 @@ jobs:
             echo "Deploying using Service Account..."
             echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/sa.json
             export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
-            npx firebase-tools deploy --only hosting --project nagarik-ai-civic
+            npx firebase-tools deploy --only hosting --project nagarik-ai-civic-2026
           else
             echo "Notice: Neither FIREBASE_TOKEN nor FIREBASE_SERVICE_ACCOUNT_NAGARIK_AI_CIVIC is set in repository secrets."
             echo "To enable automated deployment, please add FIREBASE_TOKEN or FIREBASE_SERVICE_ACCOUNT_NAGARIK_AI_CIVIC to repo secrets."
