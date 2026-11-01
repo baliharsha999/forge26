@@ -2,10 +2,10 @@ import React, { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { marked } from 'marked';
 import {
-  Send, Mic, MicOff, Volume2, VolumeX, Copy, Check, RefreshCw,
+  Send, Mic, MicOff, Volume2, VolumeX, Copy, Check,
   ExternalLink, Plus, MessageSquare, Trash2, Search, Menu, X,
   ShieldCheck, Calculator, Smartphone, Compass, ArrowRight,
-  Globe, Sparkles
+  Globe, Radio, Sparkles, Play, Square, Headphones
 } from 'lucide-react';
 import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
 import { CivicEligibilityCalculator } from './components/CivicEligibilityCalculator';
@@ -126,6 +126,14 @@ export function App() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
 
+  // Voice Agent Dedicated Mode State
+  const [voiceAgentOpen, setVoiceAgentOpen] = useState(false);
+  const [voiceAgentState, setVoiceAgentState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
+  const [voiceTranscript, setVoiceTranscript] = useState('');
+  const [voiceAssistantReply, setVoiceAssistantReply] = useState('');
+  const [autoVoiceLoop, setAutoVoiceLoop] = useState(true);
+  const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
+
   // Modals for secondary tools
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
@@ -135,6 +143,7 @@ export function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const scrollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<any>(null);
+  const voiceAgentRecognitionRef = useRef<any>(null);
 
   // Active thread
   const currentThread = threads.find(t => t.id === activeThreadId) || threads[0];
@@ -149,6 +158,17 @@ export function App() {
     }
   }, [threads]);
 
+  // Load SpeechSynthesis Voices
+  useEffect(() => {
+    if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+      const loadVoices = () => {
+        setAvailableVoices(window.speechSynthesis.getVoices());
+      };
+      loadVoices();
+      window.speechSynthesis.onvoiceschanged = loadVoices;
+    }
+  }, []);
+
   // Throttled Auto-scroll
   useEffect(() => {
     if (scrollTimerRef.current) return;
@@ -158,7 +178,7 @@ export function App() {
     }, 120);
   }, [messages, generationStep]);
 
-  // Keyboard shortcut Alt+N for new chat, Alt+T for sidebar
+  // Keyboard shortcut Alt+N for new chat, Alt+T for sidebar, Alt+V for Voice Agent
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && e.key.toLowerCase() === 'n') {
@@ -167,11 +187,63 @@ export function App() {
       } else if (e.altKey && e.key.toLowerCase() === 't') {
         e.preventDefault();
         setSidebarOpen(prev => !prev);
+      } else if (e.altKey && e.key.toLowerCase() === 'v') {
+        e.preventDefault();
+        setVoiceAgentOpen(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [threads]);
+
+  // Clean Markdown/URL symbols for natural spoken speech
+  const sanitizeTextForSpeech = (text: string) => {
+    return text
+      .replace(/https?:\/\/\S+/g, 'link provided below')
+      .replace(/[*_#`[\]()~>]/g, ' ')
+      .replace(/\|.*\|/g, '')
+      .replace(/\s+/g, ' ')
+      .trim();
+  };
+
+  // Speak Text Function with Language and Voice Matching
+  const speakText = (text: string, onEnd?: () => void) => {
+    if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
+      if (onEnd) onEnd();
+      return;
+    }
+    window.speechSynthesis.cancel();
+
+    const clean = sanitizeTextForSpeech(text);
+    if (!clean) {
+      if (onEnd) onEnd();
+      return;
+    }
+
+    const utterance = new SpeechSynthesisUtterance(clean);
+    const langCode = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : 'en-IN';
+    utterance.lang = langCode;
+
+    // Pick best matching voice
+    const matched = availableVoices.find(v => v.lang.toLowerCase() === langCode.toLowerCase()) ||
+                    availableVoices.find(v => v.lang.startsWith(selectedLanguage)) ||
+                    availableVoices.find(v => v.lang.includes('IN'));
+    if (matched) utterance.voice = matched;
+
+    utterance.rate = 1.0;
+    utterance.pitch = 1.0;
+
+    utterance.onend = () => {
+      setSpeakingId(null);
+      if (onEnd) onEnd();
+    };
+    utterance.onerror = () => {
+      setSpeakingId(null);
+      if (onEnd) onEnd();
+    };
+
+    window.speechSynthesis.speak(utterance);
+  };
 
   // Create New Thread
   const handleCreateNewThread = () => {
@@ -206,7 +278,7 @@ export function App() {
     }
   };
 
-  // Speech Recognition (Voice typing)
+  // Input Bar Voice Typing (Speech Recognition)
   const toggleListening = () => {
     if (isListening) {
       if (recognitionRef.current) {
@@ -218,44 +290,122 @@ export function App() {
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
-      alert('Voice typing is not supported in this browser. Please try Google Chrome or Edge.');
+      alert('Voice typing is not supported in this browser. Please try Google Chrome, Microsoft Edge, or Safari.');
       return;
     }
 
-    const rec = new SpeechRecognition();
-    rec.continuous = false;
-    rec.interimResults = false;
-    rec.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : 'en-IN';
+    try {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : 'en-IN';
 
-    rec.onstart = () => setIsListening(true);
-    rec.onresult = (event: any) => {
-      const transcript = event.results[0][0].transcript;
-      setInputQuery(prev => (prev ? prev + ' ' : '') + transcript);
+      rec.onstart = () => setIsListening(true);
+      rec.onresult = (event: any) => {
+        let transcript = '';
+        for (let i = 0; i < event.results.length; i++) {
+          transcript += event.results[i][0].transcript;
+        }
+        setInputQuery(transcript);
+      };
+      rec.onerror = () => setIsListening(false);
+      rec.onend = () => setIsListening(false);
+
+      recognitionRef.current = rec;
+      rec.start();
+    } catch {
       setIsListening(false);
-    };
-    rec.onerror = () => setIsListening(false);
-    rec.onend = () => setIsListening(false);
-
-    recognitionRef.current = rec;
-    rec.start();
+    }
   };
 
-  // Text-to-Speech (Audio playback)
+  // Dedicated Voice Agent: Start Listening
+  const startVoiceAgentListening = () => {
+    window.speechSynthesis.cancel();
+    setSpeakingId(null);
+    setVoiceAgentState('listening');
+    setVoiceTranscript('');
+
+    const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+      alert('Speech Recognition is not available in this browser. Please use Chrome, Edge, or Safari.');
+      setVoiceAgentState('idle');
+      return;
+    }
+
+    try {
+      const rec = new SpeechRecognition();
+      rec.continuous = false;
+      rec.interimResults = true;
+      rec.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : 'en-IN';
+
+      let capturedText = '';
+
+      rec.onstart = () => {
+        setVoiceAgentState('listening');
+      };
+
+      rec.onresult = (event: any) => {
+        let current = '';
+        for (let i = 0; i < event.results.length; i++) {
+          current += event.results[i][0].transcript;
+        }
+        capturedText = current;
+        setVoiceTranscript(current);
+      };
+
+      rec.onerror = (e: any) => {
+        console.warn('Voice agent speech error:', e);
+        setVoiceAgentState('idle');
+      };
+
+      rec.onend = () => {
+        if (capturedText.trim()) {
+          setVoiceAgentState('thinking');
+          handleSendChat(capturedText.trim(), true);
+        } else {
+          setVoiceAgentState('idle');
+        }
+      };
+
+      voiceAgentRecognitionRef.current = rec;
+      rec.start();
+    } catch {
+      setVoiceAgentState('idle');
+    }
+  };
+
+  // Dedicated Voice Agent: Stop Listening / Cancel
+  const stopVoiceAgent = () => {
+    if (voiceAgentRecognitionRef.current) {
+      try {
+        voiceAgentRecognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+    }
+    window.speechSynthesis.cancel();
+    setSpeakingId(null);
+    setVoiceAgentState('idle');
+  };
+
+  // Trigger Voice Agent on modal open
+  useEffect(() => {
+    if (voiceAgentOpen) {
+      startVoiceAgentListening();
+    } else {
+      stopVoiceAgent();
+    }
+  }, [voiceAgentOpen]);
+
+  // Audio Playback Toggle for Individual Message
   const handleToggleSpeak = (msgId: string, text: string) => {
     if (speakingId === msgId) {
       window.speechSynthesis.cancel();
       setSpeakingId(null);
       return;
     }
-
-    window.speechSynthesis.cancel();
-    const cleanText = text.replace(/[*_#`[\]()]/g, '');
-    const utterance = new SpeechSynthesisUtterance(cleanText);
-    utterance.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : 'en-IN';
-    utterance.onend = () => setSpeakingId(null);
-    utterance.onerror = () => setSpeakingId(null);
     setSpeakingId(msgId);
-    window.speechSynthesis.speak(utterance);
+    speakText(text, () => setSpeakingId(null));
   };
 
   // Copy Message to Clipboard
@@ -265,8 +415,8 @@ export function App() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Send Chat Message
-  const handleSendChat = async (overrideQuery?: string) => {
+  // Send Chat Message (With optional voice agent auto-speaking)
+  const handleSendChat = async (overrideQuery?: string, isVoiceAgentQuery: boolean = false) => {
     const query = (overrideQuery || inputQuery).trim();
     if (!query || isGenerating) return;
 
@@ -309,9 +459,13 @@ export function App() {
 
     setIsGenerating(true);
     setGenerationStep('Searching 5,210 verified schemes...');
+    if (isVoiceAgentQuery) {
+      setVoiceAgentState('thinking');
+    }
 
     const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
     let streamSucceeded = false;
+    let fullBotText = '';
 
     // Build payload
     const payload = {
@@ -324,6 +478,10 @@ export function App() {
 
     // Helper: Append chunk to bot message
     const appendChunk = (chunk: string, citations?: SchemeCitation[], followups?: string[]) => {
+      fullBotText += chunk;
+      if (isVoiceAgentQuery) {
+        setVoiceAssistantReply(fullBotText);
+      }
       setThreads(prevThreads => prevThreads.map(t => {
         if (t.id === activeThreadId) {
           const msgs = t.messages.map(m => {
@@ -428,6 +586,11 @@ export function App() {
           const content = resp.data.answer || resp.data.content || 'Information retrieved.';
           const citations = resp.data.citations || [];
           const followups = resp.data.suggested_followups || [];
+          fullBotText = content;
+
+          if (isVoiceAgentQuery) {
+            setVoiceAssistantReply(content);
+          }
 
           setThreads(prevThreads => prevThreads.map(t => {
             if (t.id === activeThreadId) {
@@ -443,14 +606,14 @@ export function App() {
           }));
         }
       } catch {
-        // Ultimate fallback
+        fullBotText = 'Kindly check your internet connection or try again. You can also test all live services directly on the Host Verification Page.';
         setThreads(prevThreads => prevThreads.map(t => {
           if (t.id === activeThreadId) {
             const msgs = t.messages.map(m => {
               if (m.id === botMsgId) {
                 return {
                   ...m,
-                  content: 'Kindly check your internet connection or try again. You can also test all live services directly on the [Host Verification Page](./host.html).'
+                  content: fullBotText
                 };
               }
               return m;
@@ -464,6 +627,21 @@ export function App() {
 
     setIsGenerating(false);
     setGenerationStep('');
+
+    // If in Voice Agent Mode, speak the reply aloud automatically!
+    if (isVoiceAgentQuery && fullBotText) {
+      setVoiceAgentState('speaking');
+      speakText(fullBotText, () => {
+        if (autoVoiceLoop && voiceAgentOpen) {
+          // Continuous conversational loop: listen for next citizen question!
+          setTimeout(() => {
+            startVoiceAgentListening();
+          }, 800);
+        } else {
+          setVoiceAgentState('idle');
+        }
+      });
+    }
   };
 
   // Filtered threads for sidebar
@@ -607,6 +785,21 @@ export function App() {
 
         {/* Sidebar Bottom Quick Links */}
         <div className="p-3 border-t border-[#1E2638] space-y-1.5 bg-[#0C101A]">
+          {/* Dedicated Voice Agent Button in Sidebar */}
+          <button
+            onClick={() => {
+              setSidebarOpen(false);
+              setVoiceAgentOpen(true);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold bg-[#182032] border border-[#F59E0B]/30 text-[#F59E0B] hover:bg-[#1E293B] transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <Headphones className="w-4 h-4 text-[#F59E0B]" />
+              <span>Voice Agent Mode</span>
+            </div>
+            <span className="text-[10px] bg-[#F59E0B]/20 px-1.5 py-0.5 rounded text-[#F59E0B]">Live</span>
+          </button>
+
           <button
             onClick={() => setShowEligibilityModal(true)}
             className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-[#CBD5E1] hover:bg-[#161D2E] hover:text-white transition-colors"
@@ -669,14 +862,24 @@ export function App() {
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm text-[#F1F5F9] truncate max-w-[200px] sm:max-w-md">
+              <span className="font-semibold text-sm text-[#F1F5F9] truncate max-w-[150px] sm:max-w-md">
                 {currentThread?.title || 'Nagarik AI Copilot'}
               </span>
             </div>
           </div>
 
           {/* Right Header Controls */}
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* Dedicated Voice Agent Button */}
+            <button
+              onClick={() => setVoiceAgentOpen(true)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#EA580C]/20 to-[#F59E0B]/20 border border-[#F59E0B]/50 text-[#F59E0B] hover:border-[#F59E0B] text-xs font-semibold shadow-sm transition-all animate-pulse"
+              title="Open Hands-Free Voice Agent (Alt+V)"
+            >
+              <Mic className="w-3.5 h-3.5 text-[#F59E0B]" />
+              <span className="hidden xs:inline sm:inline">Voice Agent</span>
+            </button>
+
             {/* Language Switcher */}
             <div className="flex items-center bg-[#141B2D] border border-[#1E2638] rounded-lg p-0.5 text-xs">
               {(['en', 'hi', 'te'] as CivicLanguage[]).map(lang => (
@@ -728,6 +931,18 @@ export function App() {
                       ? '5,210+ కేంద్ర మరియు రాష్ట్ర సంక్షేమ పథకాలు, అర్హతలు మరియు అధికారిక పోర్టల్ సమాచారం.'
                       : 'Verified guidance across 5,210 Central & State welfare schemes, eligibility rules, and official portals.'}
                   </p>
+
+                  {/* Voice Agent Quick Launcher Pill */}
+                  <div className="pt-2">
+                    <button
+                      onClick={() => setVoiceAgentOpen(true)}
+                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#161D2E] border border-[#F59E0B]/40 text-xs font-semibold text-[#F59E0B] hover:bg-[#1E293B] shadow-sm transition-all"
+                    >
+                      <Radio className="w-3.5 h-3.5 text-[#F59E0B] animate-pulse" />
+                      <span>Try Hands-Free Voice Agent Mode</span>
+                      <ArrowRight className="w-3 h-3 text-[#F59E0B]" />
+                    </button>
+                  </div>
                 </div>
 
                 {/* 6 Clean Prompt Cards */}
@@ -905,11 +1120,13 @@ export function App() {
                 type="button"
                 onClick={toggleListening}
                 className={`p-3 rounded-l-2xl transition-colors ${
-                  isListening ? 'text-red-500 animate-pulse' : 'text-[#64748B] hover:text-[#E2E8F0]'
+                  isListening
+                    ? 'text-red-500 animate-pulse bg-red-500/10'
+                    : 'text-[#64748B] hover:text-[#E2E8F0]'
                 }`}
-                title={isListening ? 'Listening...' : 'Voice typing'}
+                title={isListening ? 'Listening... speak now' : 'Voice typing'}
               >
-                {isListening ? <MicOff className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+                {isListening ? <MicOff className="w-5 h-5 text-red-500" /> : <Mic className="w-5 h-5" />}
               </button>
 
               {/* Text Input */}
@@ -919,11 +1136,13 @@ export function App() {
                 value={inputQuery}
                 onChange={(e) => setInputQuery(e.target.value)}
                 placeholder={
-                  selectedLanguage === 'hi'
+                  isListening
+                    ? (selectedLanguage === 'hi' ? 'सुन रहा हूँ... बोलिए' : selectedLanguage === 'te' ? 'వింటున్నాను... మాట్లాడండి' : 'Listening... Speak now')
+                    : (selectedLanguage === 'hi'
                     ? 'सरकारी योजनाओं, पात्रता या सेवाओं के बारे में पूछें...'
                     : selectedLanguage === 'te'
                     ? 'ప్రభుత్వ పథకాలు లేదా సేవల గురించి అడగండి...'
-                    : 'Ask about any government scheme, eligibility, or civic service...'
+                    : 'Ask about any government scheme, eligibility, or civic service...')
                 }
                 disabled={isGenerating}
                 className="flex-1 bg-transparent py-3 px-2 text-sm text-[#F1F5F9] placeholder-[#64748B] focus:outline-none disabled:opacity-50"
@@ -944,8 +1163,9 @@ export function App() {
             </form>
 
             <div className="flex items-center justify-between px-2 text-[11px] text-[#64748B]">
-              <span className="truncate">
-                🔒 UIDAI Aadhaar PII Redacted • Free Public Citizen Knowledge Base
+              <span className="truncate flex items-center gap-1.5">
+                <ShieldCheck className="w-3 h-3 text-[#4ADE80]" />
+                UIDAI Aadhaar Redacted • Voice Enabled in 22 Official Languages
               </span>
               <span className="hidden sm:inline">Press Enter to send</span>
             </div>
@@ -954,7 +1174,175 @@ export function App() {
       </main>
 
       {/* ================================================================= */}
-      {/* 4. CLEAN MODALS FOR ELIGIBILITY & WHATSAPP                         */}
+      {/* 4. DEDICATED FULL VOICE AGENT MODAL (INTERACTIVE DIALOG)          */}
+      {/* ================================================================= */}
+      {voiceAgentOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
+          <div className="relative w-full max-w-lg bg-[#0E131F] border border-[#F59E0B]/30 rounded-3xl p-6 sm:p-8 text-center shadow-2xl space-y-6">
+            {/* Top Close Bar */}
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span className="w-2.5 h-2.5 rounded-full bg-[#4ADE80] animate-ping" />
+                <span className="text-xs font-bold uppercase tracking-wider text-[#F59E0B]">Nagarik Voice Agent</span>
+              </div>
+              <button
+                onClick={() => setVoiceAgentOpen(false)}
+                className="p-1.5 rounded-full text-[#94A3B8] hover:text-white hover:bg-[#1E2638] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Central Animated Civic Aura */}
+            <div className="py-6 flex flex-col items-center justify-center relative">
+              <div className="relative flex items-center justify-center">
+                {/* Outer Pulsating Ring */}
+                <div
+                  className={`absolute w-44 h-44 rounded-full border-2 transition-all duration-700 ${
+                    voiceAgentState === 'listening'
+                      ? 'border-[#EA580C]/60 animate-ping opacity-60'
+                      : voiceAgentState === 'speaking'
+                      ? 'border-[#38BDF8]/60 animate-pulse opacity-70'
+                      : voiceAgentState === 'thinking'
+                      ? 'border-[#F59E0B]/60 animate-spin opacity-50'
+                      : 'border-transparent'
+                  }`}
+                />
+
+                {/* Inner Glow Circle */}
+                <div
+                  className={`w-32 h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 ${
+                    voiceAgentState === 'listening'
+                      ? 'bg-gradient-to-tr from-[#EA580C] to-[#F59E0B] shadow-[#EA580C]/50 scale-105'
+                      : voiceAgentState === 'speaking'
+                      ? 'bg-gradient-to-tr from-[#0284C7] to-[#38BDF8] shadow-[#38BDF8]/50 scale-105'
+                      : voiceAgentState === 'thinking'
+                      ? 'bg-gradient-to-tr from-[#D97706] to-[#FBBF24] shadow-[#F59E0B]/40 animate-pulse'
+                      : 'bg-[#161D2E] border border-[#1E2638]'
+                  }`}
+                >
+                  <NagarikEmblem className="w-16 h-16" size={64} />
+                </div>
+              </div>
+
+              {/* Status Message */}
+              <div className="mt-6 space-y-1">
+                <h3 className="text-base font-bold text-white">
+                  {voiceAgentState === 'listening'
+                    ? (selectedLanguage === 'hi' ? 'सुन रहा हूँ... बोलिए' : selectedLanguage === 'te' ? 'వింటున్నాను... మాట్లాడండి' : 'Listening to your question...')
+                    : voiceAgentState === 'thinking'
+                    ? (selectedLanguage === 'hi' ? 'सरकारी गजट में खोज रहा हूँ...' : selectedLanguage === 'te' ? 'సమాచారం సేకరిస్తున్నాను...' : 'Searching 5,210 gazette schemes...')
+                    : voiceAgentState === 'speaking'
+                    ? (selectedLanguage === 'hi' ? 'उत्तर सुना रहा हूँ...' : selectedLanguage === 'te' ? 'సమాధానం వివరిస్తున్నాను...' : 'Speaking answer out loud...')
+                    : (selectedLanguage === 'hi' ? 'पूछने के लिए माइक दबाएँ' : selectedLanguage === 'te' ? 'ప్రశ్నించడానికి మైక్ నొక్కండి' : 'Tap mic below to speak')}
+                </h3>
+                <p className="text-xs text-[#94A3B8]">
+                  {selectedLanguage === 'hi' ? 'हिंदी, अंग्रेज़ी व तेलुगु में स्पष्ट बोलें' : selectedLanguage === 'te' ? 'తెలుగు, ఇంగ్లీష్ లేదా హిందీలో మాట్లాడండి' : 'Speak naturally in English, Hindi, or Telugu'}
+                </p>
+              </div>
+
+              {/* Animated Acoustic Bars (When Speaking or Listening) */}
+              {(voiceAgentState === 'listening' || voiceAgentState === 'speaking') && (
+                <div className="flex items-center gap-1.5 mt-3 h-5">
+                  <span className="w-1 bg-[#F59E0B] rounded-full animate-bounce h-3" />
+                  <span className="w-1 bg-[#EA580C] rounded-full animate-bounce h-5 delay-75" />
+                  <span className="w-1 bg-[#38BDF8] rounded-full animate-bounce h-4 delay-150" />
+                  <span className="w-1 bg-[#F59E0B] rounded-full animate-bounce h-5 delay-100" />
+                  <span className="w-1 bg-[#EA580C] rounded-full animate-bounce h-2 delay-200" />
+                </div>
+              )}
+            </div>
+
+            {/* Live Transcript Display */}
+            <div className="p-4 rounded-2xl bg-[#0A0D14] border border-[#1E2638] text-left text-xs min-h-[90px] max-h-36 overflow-y-auto space-y-2 scrollbar-thin">
+              {voiceTranscript ? (
+                <div>
+                  <span className="font-semibold text-[#F59E0B]">You: </span>
+                  <span className="text-[#F1F5F9]">{voiceTranscript}</span>
+                </div>
+              ) : null}
+
+              {voiceAssistantReply ? (
+                <div>
+                  <span className="font-semibold text-[#38BDF8]">Nagarik AI: </span>
+                  <span className="text-[#CBD5E1] line-clamp-3">{voiceAssistantReply}</span>
+                </div>
+              ) : null}
+
+              {!voiceTranscript && !voiceAssistantReply && (
+                <div className="text-center text-[#64748B] italic pt-5">
+                  Try asking: "What are the rules for PM-KISAN?" or "How to get a driving licence online?"
+                </div>
+              )}
+            </div>
+
+            {/* Voice Control Buttons */}
+            <div className="flex items-center justify-center gap-4 pt-2">
+              {voiceAgentState === 'listening' ? (
+                <button
+                  onClick={stopVoiceAgent}
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-red-500/20 text-red-400 border border-red-500/40 hover:bg-red-500/30 font-semibold text-sm transition-all"
+                >
+                  <Square className="w-4 h-4 fill-current" />
+                  <span>Pause</span>
+                </button>
+              ) : voiceAgentState === 'speaking' ? (
+                <button
+                  onClick={() => {
+                    window.speechSynthesis.cancel();
+                    setVoiceAgentState('idle');
+                  }}
+                  className="flex items-center gap-2 px-6 py-3 rounded-2xl bg-amber-500/20 text-amber-400 border border-amber-500/40 hover:bg-amber-500/30 font-semibold text-sm transition-all"
+                >
+                  <VolumeX className="w-4 h-4" />
+                  <span>Stop Speaking</span>
+                </button>
+              ) : (
+                <button
+                  onClick={startVoiceAgentListening}
+                  className="flex items-center gap-2 px-8 py-3 rounded-2xl bg-gradient-to-r from-[#EA580C] to-[#F59E0B] text-white font-bold text-sm shadow-lg hover:opacity-95 transition-all"
+                >
+                  <Mic className="w-4 h-4" />
+                  <span>Speak Now</span>
+                </button>
+              )}
+            </div>
+
+            {/* Language & Continuous Mode Toggle */}
+            <div className="flex items-center justify-between pt-2 border-t border-[#1E2638] text-xs">
+              <div className="flex items-center gap-1.5 bg-[#141B2D] p-1 rounded-lg border border-[#1E2638]">
+                {(['en', 'hi', 'te'] as CivicLanguage[]).map(lang => (
+                  <button
+                    key={lang}
+                    onClick={() => {
+                      setSelectedLanguage(lang);
+                      stopVoiceAgent();
+                    }}
+                    className={`px-2 py-0.5 rounded font-medium ${
+                      selectedLanguage === lang ? 'bg-[#F59E0B] text-black font-bold' : 'text-[#94A3B8]'
+                    }`}
+                  >
+                    {lang === 'en' ? 'EN' : lang === 'hi' ? 'हिंदी' : 'తెలుగు'}
+                  </button>
+                ))}
+              </div>
+
+              <label className="flex items-center gap-1.5 text-[#94A3B8] cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={autoVoiceLoop}
+                  onChange={(e) => setAutoVoiceLoop(e.target.checked)}
+                  className="rounded bg-[#141B2D] border-[#1E2638] text-[#F59E0B] focus:ring-0"
+                />
+                <span>Auto-listen loop</span>
+              </label>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* ================================================================= */}
+      {/* 5. CLEAN MODALS FOR ELIGIBILITY & WHATSAPP                         */}
       {/* ================================================================= */}
 
       {/* Eligibility Calculator Modal */}
