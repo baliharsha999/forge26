@@ -26,7 +26,7 @@ Citizens can express their grievance in their mother tongue (**Hindi, Telugu, Ta
 
 ---
 
-## ⚡ Key Highlights for Judges
+## ⚡ Key Highlights
 
 | Feature | Implementation | Real-World Advantage |
 |:---|:---|:---|
