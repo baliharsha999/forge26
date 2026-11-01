@@ -47,3 +47,6 @@ auth_info_baileys/
 
 scratch/
 Nagarik_AI_frontend/logo_data_uri.txt
+firebase-debug.log*
+.firebase/
+supabase/.temp/

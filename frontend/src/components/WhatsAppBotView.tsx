@@ -122,14 +122,68 @@ export const WhatsAppBotView: React.FC<WhatsAppBotViewProps> = ({
 
     try {
       const cleanPhone = phoneNumber.replace(/[^\d+]/g, '');
-      const response = await axios.post(`${API_BASE}/whatsapp/simulate`, {
-        from_number: cleanPhone || '+919553948740',
-        message: rawText || (mediaType === 'audio' ? 'Check Aadhaar DBT bank account seeding status' : 'Civic grievance water leakage issue'),
-        language: currentLanguage,
-        media_type: mediaType === 'audio' ? 'audio/ogg' : (mediaType === 'image' ? 'image/jpeg' : undefined)
-      });
+      const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+      let resData: any = null;
 
-      const resData = response.data;
+      if (isLocalhost) {
+        try {
+          const response = await axios.post(`${API_BASE}/whatsapp/simulate`, {
+            from_number: cleanPhone || '+919553948740',
+            message: rawText || (mediaType === 'audio' ? 'Check Aadhaar DBT bank account seeding status' : 'Civic grievance water leakage issue'),
+            language: currentLanguage,
+            media_type: mediaType === 'audio' ? 'audio/ogg' : (mediaType === 'image' ? 'image/jpeg' : undefined)
+          }, { timeout: 3000 });
+          resData = response.data;
+        } catch {
+          // fall through to Supabase Edge function
+        }
+      }
+
+      // Cloud Fallback: Use live Supabase Edge Function
+      if (!resData) {
+        const queryText = rawText || (mediaType === 'audio' ? 'Check Aadhaar DBT bank account seeding status' : 'How do I register a civic grievance for local drainage and roads?');
+        const edgeResp = await axios.post(
+          'https://ocplgpmsfwibjzjvxynv.supabase.co/functions/v1/chat',
+          {
+            query: queryText,
+            language: currentLanguage,
+            session_id: 'wa_' + Date.now()
+          },
+          {
+            headers: {
+              'Content-Type': 'application/json',
+              'apikey': 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im9jcGxncG1zZndpYmp6anZ4eW52Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTM1MDQyMDQsImV4cCI6MjEwOTA4MDIwNH0.ve2ATBpUVCOBYZ5FtexNu897vLLe3oGJgOYeccLv_zY'
+            },
+            timeout: 15000
+          }
+        );
+
+        const edgeData = edgeResp.data;
+        const rawAnswer = edgeData.answer || 'Official information retrieved from sovereign civic knowledge base.';
+        const waFormatted = rawAnswer
+          .replace(/###\s*(.*)/g, '*$1*')
+          .replace(/##\s*(.*)/g, '*$1*')
+          .replace(/#\s*(.*)/g, '*$1*');
+
+        resData = {
+          whatsapp_message: `🏛️ *Nagarik AI Official Response:*\n\n${waFormatted}\n\n_Reply with 1, 2, or your next query._`,
+          citations: edgeData.citations || [],
+          suggested_replies: (edgeData.suggested_followups || []).slice(0, 3).map((f: string, idx: number) => ({
+            id: String(idx + 1),
+            label: `${idx + 1}. ${f.slice(0, 24)}...`,
+            query: f
+          })),
+          twiml: `<?xml version="1.0" encoding="UTF-8"?>\n<Response>\n  <Message>\n    <Body>${waFormatted.slice(0, 250)}...</Body>\n  </Message>\n</Response>`,
+          meta_payload: {
+            messaging_product: "whatsapp",
+            recipient_type: "individual",
+            to: cleanPhone || "919553948740",
+            type: "text",
+            text: { body: waFormatted.slice(0, 400) }
+          }
+        };
+      }
+
       const botMsg: WhatsAppMsg = {
         id: `bot-${Date.now()}`,
         sender: 'bot',
@@ -147,7 +201,7 @@ export const WhatsAppBotView: React.FC<WhatsAppBotViewProps> = ({
       const fallbackMsg: WhatsAppMsg = {
         id: `err-${Date.now()}`,
         sender: 'bot',
-        text: '⚠️ *Nagarik AI Gateway Temporarily Unavailable*\nPlease ensure the backend service is running at http://localhost:8000',
+        text: '⚠️ *Nagarik AI Gateway Temporarily Unavailable*\nPlease verify your internet connection or use the main chat window.',
         time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
       };
       setMessages(prev => [...prev, fallbackMsg]);

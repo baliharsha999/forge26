@@ -87,25 +87,155 @@ export const CivicEligibilityCalculator: React.FC<CivicEligibilityCalculatorProp
     }
   };
 
+  const localEvaluate = (params: {
+    occupation: string;
+    annual_income: number;
+    gender: string;
+    age: number;
+    landholder: boolean;
+    state: string;
+    has_school_children: boolean;
+    caste: string;
+  }) => {
+    const matches: any[] = [];
+    const stateNorm = (params.state || '').toLowerCase();
+    const inc = params.annual_income;
+    const age = params.age;
+
+    // PM-KISAN
+    if (params.landholder || params.occupation === 'farmer') {
+      matches.push({
+        scheme_id: 'SCHEME-001',
+        scheme_name: 'Pradhan Mantri Kisan Samman Nidhi (PM-KISAN)',
+        official_url: 'https://pmkisan.gov.in',
+        reasons: ['Eligible as small/marginal landholder farmer family', 'Direct ₹6,000/year annual support via 3 DBT installments of ₹2,000'],
+        status: 'Likely Eligible',
+        next_step: 'Verify Aadhaar bank seeding and e-KYC on pmkisan.gov.in'
+      });
+    }
+
+    // Rythu Bharosa (Andhra Pradesh)
+    if ((params.state === 'Andhra Pradesh' || stateNorm.includes('andhra')) && (params.landholder || params.occupation === 'farmer')) {
+      matches.push({
+        scheme_id: 'SCHEME-009',
+        scheme_name: 'Rythu Bharosa - PM KISAN State Component',
+        official_url: 'https://ysrrythubharosa.ap.gov.in',
+        reasons: ['Andhra Pradesh farmer with Pattadar/CCRC passbook', '₹13,500/year agricultural input assistance'],
+        status: 'Likely Eligible',
+        next_step: 'Check village secretariat / Rythu Bharosa Kendra (RBK) register'
+      });
+    }
+
+    // Thalliki Vandanam (Andhra Pradesh)
+    if ((params.state === 'Andhra Pradesh' || stateNorm.includes('andhra')) && params.has_school_children) {
+      matches.push({
+        scheme_id: 'SCHEME-014',
+        scheme_name: 'Thalliki Vandanam (AP Education Support)',
+        official_url: 'https://jnanabhumi.ap.gov.in',
+        reasons: ['Mother with children enrolled in recognized AP school', '₹15,000 annual direct DBT for education'],
+        status: 'Likely Eligible',
+        next_step: 'Verify student attendance and Aadhaar seeding via school'
+      });
+    }
+
+    // Ayushman Bharat PM-JAY
+    if (inc <= 250000 || age >= 70) {
+      const reason = age >= 70
+        ? 'Senior Citizen (70+) Universal Cashless Cover under Ayushman Vay Vandana'
+        : 'Low income family eligible for ₹5 Lakh cashless annual hospital treatment';
+      matches.push({
+        scheme_id: 'SCHEME-002',
+        scheme_name: 'Ayushman Bharat - Pradhan Mantri Jan Arogya Yojana (PM-JAY)',
+        official_url: 'https://nha.gov.in/PM-JAY',
+        reasons: [reason],
+        status: 'Likely Eligible',
+        next_step: 'Generate Ayushman Golden Card at nearest empaneled hospital or CSC'
+      });
+    }
+
+    // Mudra Loan
+    if (params.occupation === 'entrepreneur' || params.occupation === 'artisan' || inc <= 600000) {
+      matches.push({
+        scheme_id: 'SCHEME-003',
+        scheme_name: 'Pradhan Mantri MUDRA Yojana (PMMY)',
+        official_url: 'https://www.mudra.org.in',
+        reasons: ['Collateral-free micro loans up to ₹20 Lakh (Shishu, Kishore, Tarun)'],
+        status: 'Likely Eligible',
+        next_step: 'Apply online via UdyamiMitra or approach local public sector bank'
+      });
+    }
+
+    // National Scholarship Portal
+    if (params.occupation === 'student' || params.has_school_children || (inc <= 250000 && age <= 28)) {
+      matches.push({
+        scheme_id: 'SCHEME-004',
+        scheme_name: 'National Scholarship Portal (Central Schemes)',
+        official_url: 'https://scholarships.gov.in',
+        reasons: ['Post-Matric and Pre-Matric financial assistance for education'],
+        status: 'Likely Eligible',
+        next_step: 'Complete One-Time Registration (OTR) on scholarships.gov.in'
+      });
+    }
+
+    // PM Awas Yojana
+    if (inc <= 300000) {
+      matches.push({
+        scheme_id: 'SCHEME-005',
+        scheme_name: 'Pradhan Mantri Awas Yojana (PMAY-Urban / Gramin)',
+        official_url: 'https://pmay-urban.gov.in',
+        reasons: ['Pukka housing subsidy for EWS/LIG families without permanent house'],
+        status: 'Likely Eligible',
+        next_step: 'Apply through municipal ward office or gram panchayat portal'
+      });
+    }
+
+    // PM Vishwakarma
+    if (params.occupation === 'artisan') {
+      matches.push({
+        scheme_id: 'SCHEME-011',
+        scheme_name: 'PM Vishwakarma Scheme',
+        official_url: 'https://pmvishwakarma.gov.in',
+        reasons: ['₹15,000 tool kit incentive & collateral-free credit at 5% interest'],
+        status: 'Likely Eligible',
+        next_step: 'Skill verification at nearest Common Service Centre'
+      });
+    }
+
+    return matches.slice(0, 6);
+  };
+
   const handleEvaluate = async () => {
     setEvaluating(true);
-    try {
-      const res = await axios.post(`${API_BASE}/schemes/eligibility`, {
-        occupation,
-        annual_income: Number(income),
-        gender,
-        age: Number(age),
-        landholder,
-        state,
-        has_school_children: hasSchoolChildren,
-        caste
-      });
-      setResults(res.data.likely_eligible_schemes || []);
-    } catch (err) {
-      console.warn('Eligibility evaluation error:', err);
-    } finally {
-      setEvaluating(false);
+    const evalParams = {
+      occupation,
+      annual_income: Number(income),
+      gender,
+      age: Number(age),
+      landholder,
+      state,
+      has_school_children: hasSchoolChildren,
+      caste
+    };
+
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+
+    if (isLocalhost) {
+      try {
+        const res = await axios.post(`${API_BASE}/schemes/eligibility`, evalParams, { timeout: 3000 });
+        if (res.data?.likely_eligible_schemes?.length > 0) {
+          setResults(res.data.likely_eligible_schemes);
+          setEvaluating(false);
+          return;
+        }
+      } catch {
+        // Fall back to client-side evaluation below
+      }
     }
+
+    // Sovereign client-side evaluation fallback
+    const localMatches = localEvaluate(evalParams);
+    setResults(localMatches);
+    setEvaluating(false);
   };
 
   return (
