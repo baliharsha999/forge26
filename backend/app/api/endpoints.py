@@ -1,5 +1,5 @@
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, StreamingResponse
 from typing import List, Optional, Dict, Any
 import os
 import re
@@ -317,6 +317,29 @@ async def api_schemes_chat(req: SchemesChatRequest):
     lang = req.language or "en"
     agent = STAIRCivicAgent.get_instance()
     return await agent.process_citizen_query(query=query, requested_lang=lang)
+
+
+@router.post("/chat/stream")
+@router.post("/schemes/chat/stream")
+async def api_schemes_chat_stream(req: SchemesChatRequest):
+    """
+    Server-Sent Events (SSE) Streaming Civic Chatbot Endpoint:
+    Progressively streams STAIR reasoning steps, official citations,
+    and tokenized answer chunks in real-time.
+    """
+    query = req.get_query_text()
+    lang = req.language or "en"
+    agent = STAIRCivicAgent.get_instance()
+    return StreamingResponse(
+        agent.stream_citizen_query(query=query, requested_lang=lang),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no"
+        }
+    )
+
 
 
 @router.get("/extension/download")

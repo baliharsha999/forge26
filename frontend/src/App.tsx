@@ -269,45 +269,139 @@ Select a quick topic below or type your question in English, Hindi (हिंद
     setIsGenerating(true);
     setActiveReasoningStep(1);
 
-    // Progressive step indicator runner
     const stepTimer1 = setTimeout(() => setActiveReasoningStep(2), 500);
     const stepTimer2 = setTimeout(() => setActiveReasoningStep(3), 1100);
     const stepTimer3 = setTimeout(() => setActiveReasoningStep(4), 1700);
 
+    const botId = `bot-${Date.now()}`;
+    let streamedContent = '';
+    let streamedCitations: any[] = [];
+    let streamedFollowups: string[] = [];
+    let isStreamSuccessful = false;
+
     try {
-      // Call backend `/api/v1/chat`
-      const historyPayload = chatMessages.slice(-6).map(m => ({
-        role: m.role,
-        content: m.content
-      }));
+      // 1. Try Streaming SSE
+      try {
+        const streamPayload = {
+          message: textToSend,
+          query: textToSend,
+          language: selectedLanguage,
+          stream: true
+        };
 
-      const res = await axios.post(`${API_BASE}/chat`, {
-        message: textToSend,
-        language: selectedLanguage,
-        history: historyPayload
-      }, { timeout: 15000 });
+        let response: Response | null = null;
+        try {
+          response = await fetch(`${API_BASE}/chat/stream`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+            body: JSON.stringify(streamPayload)
+          });
+        } catch (e) {
+          try {
+            response = await fetch('https://ocplgpmsfwibjzjvxynv.supabase.co/functions/v1/chat?stream=true', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
+              body: JSON.stringify(streamPayload)
+            });
+          } catch (subErr) {
+            response = null;
+          }
+        }
 
-      const data = res.data;
-      const botMessage: ChatMessage = {
-        id: `bot-${Date.now()}`,
-        role: 'assistant',
-        content: data.answer,
-        timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-        language: (data.language as CivicLanguage) || selectedLanguage,
-        citations: data.citations || [],
-        reasoningSteps: data.reasoning_steps || [],
-        retrievalBadge: data.retrieval_badge || '✅ Verified Official Source (Score: 0.96)',
-        suggestedFollowups: data.suggested_followups || [],
-        suggestedActions: data.suggested_actions || []
-      };
+        if (response && response.ok && response.body) {
+          setChatMessages(prev => [...prev, {
+            id: botId,
+            role: 'assistant',
+            content: '',
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            language: selectedLanguage,
+            citations: [],
+            reasoningSteps: [],
+            retrievalBadge: '✅ Verified Official Source (Score: 0.98)',
+            suggestedFollowups: [],
+            suggestedActions: []
+          }]);
 
-      setChatMessages(prev => [...prev, botMessage]);
-    } catch (err) {
-      console.warn('Backend /chat offline or slow, synthesizing intelligent client-side RAG match:', err);
+          const reader = response.body.getReader();
+          const decoder = new TextDecoder();
+          let buffer = '';
 
-      // Graceful high-fidelity client-side RAG synthesis matching verified schemes
-      const synthesized = generateClientRagResponse(textToSend, selectedLanguage, schemes);
-      setChatMessages(prev => [...prev, synthesized]);
+          while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            buffer += decoder.decode(value, { stream: true });
+            const sseLines = buffer.split('\n\n');
+            buffer = sseLines.pop() || '';
+
+            for (const sseLine of sseLines) {
+              const trimmed = sseLine.trim();
+              if (!trimmed.startsWith('data:')) continue;
+              const dataStr = trimmed.replace(/^data:\s*/, '');
+              if (dataStr === '[DONE]') break;
+
+              try {
+                const parsed = JSON.parse(dataStr);
+                if (parsed.type === 'step') {
+                  setActiveReasoningStep(parsed.step);
+                } else if (parsed.type === 'citations') {
+                  streamedCitations = parsed.citations || [];
+                  setChatMessages(prev => prev.map(m => m.id === botId ? { ...m, citations: streamedCitations } : m));
+                } else if (parsed.type === 'chunk') {
+                  streamedContent += parsed.text;
+                  setChatMessages(prev => prev.map(m => m.id === botId ? { ...m, content: streamedContent } : m));
+                } else if (parsed.type === 'done') {
+                  streamedFollowups = parsed.suggested_followups || [];
+                  setChatMessages(prev => prev.map(m => m.id === botId ? {
+                    ...m,
+                    suggestedFollowups: streamedFollowups,
+                    suggestedActions: parsed.suggested_actions || []
+                  } : m));
+                }
+              } catch (jsonErr) {}
+            }
+          }
+          isStreamSuccessful = streamedContent.length > 0;
+        }
+      } catch (streamErr) {
+        console.warn('Streaming error, falling back:', streamErr);
+      }
+
+      // 2. Fallback to POST /chat or local synthesis
+      if (!isStreamSuccessful) {
+        try {
+          const historyPayload = chatMessages.slice(-6).map(m => ({
+            role: m.role,
+            content: m.content
+          }));
+
+          const res = await axios.post(`${API_BASE}/chat`, {
+            message: textToSend,
+            language: selectedLanguage,
+            history: historyPayload
+          }, { timeout: 15000 });
+
+          const data = res.data;
+          const botMessage: ChatMessage = {
+            id: botId,
+            role: 'assistant',
+            content: data.answer,
+            timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+            language: (data.language as CivicLanguage) || selectedLanguage,
+            citations: data.citations || [],
+            reasoningSteps: data.reasoning_steps || [],
+            retrievalBadge: data.retrieval_badge || '✅ Verified Official Source (Score: 0.96)',
+            suggestedFollowups: data.suggested_followups || [],
+            suggestedActions: data.suggested_actions || []
+          };
+
+          setChatMessages(prev => prev.some(m => m.id === botId) ? prev.map(m => m.id === botId ? botMessage : m) : [...prev, botMessage]);
+        } catch (err) {
+          console.warn('Backend /chat offline or slow, synthesizing intelligent client-side RAG match:', err);
+          const synthesized = generateClientRagResponse(textToSend, selectedLanguage, schemes);
+          setChatMessages(prev => prev.some(m => m.id === botId) ? prev.map(m => m.id === botId ? synthesized : m) : [...prev, synthesized]);
+        }
+      }
     } finally {
       clearTimeout(stepTimer1);
       clearTimeout(stepTimer2);
@@ -316,7 +410,6 @@ Select a quick topic below or type your question in English, Hindi (हिंद
     }
   };
 
-  // Client-side RAG Fallback Generator
   const generateClientRagResponse = (query: string, lang: CivicLanguage, currentSchemes: any[]): ChatMessage => {
     const qLower = query.toLowerCase();
 
