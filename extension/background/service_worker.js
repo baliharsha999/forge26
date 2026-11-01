@@ -77,27 +77,10 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
-  // 3. Optional backend call for LLM analysis with fast timeout
+  // 3. Zero-Knowledge Local Processing Guarantee (Zero outbound network leakage)
   if (message.action === "CALL_BACKEND_ANALYZE") {
-    const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 2500);
-
-    fetch("http://localhost:8000/api/v1/grievance/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(message.payload),
-      signal: controller.signal
-    })
-      .then(res => res.json())
-      .then(data => {
-        clearTimeout(timeoutId);
-        sendResponse({ success: true, data: data });
-      })
-      .catch(err => {
-        clearTimeout(timeoutId);
-        sendResponse({ success: false, error: err.message });
-      });
-    return true; // Keep channel open
+    sendResponse({ success: false, error: "Zero-Knowledge Local Mode Enforced" });
+    return false;
   }
 
   // 4. Check active tab support (ALWAYS TRUE)

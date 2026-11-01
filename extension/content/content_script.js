@@ -446,59 +446,70 @@
       } catch (e) {}
     }
 
-    // Explicit Mappings with Multilingual Tokens (EN, HI, TE)
+    // Explicit Mappings with Multilingual Tokens (EN, HI, TE) and Tag Preferences
     const mappings = [
       {
         fieldKeys: ["uid", "aadhaar", "aadhar", "aadhaar_number", "aadhar_number", "id_number", "identity_no"],
         domKeywords: ["uid", "aadhaar", "aadhar", "adharnumber", "aadhaarno", "aadharno", "uidai", "id_number", "identity_no", "identity", "आधार", "ఆధార్"],
-        isIdentity: true
+        isIdentity: true,
+        preferTag: "INPUT"
       },
       {
         fieldKeys: ["citizen_name", "name", "fullname", "applicant_name", "first_name", "applicant"],
-        domKeywords: ["citizen-name", "citizen_name", "applicant_name", "candidate_name", "name", "fullname", "first_name", "fname", "txtname", "नाम", "పేరు"]
+        domKeywords: ["citizen-name", "citizen_name", "applicant_name", "candidate_name", "name", "fullname", "first_name", "fname", "txtname", "नाम", "పేరు"],
+        preferTag: "INPUT"
       },
       {
         fieldKeys: ["citizen_phone", "phone", "mobile", "contact_number", "contact"],
-        domKeywords: ["citizen-phone", "citizen_phone", "mobile", "phone", "contact", "cell", "tel", "contact_no", "मोबाइल", "ఫోన్"]
+        domKeywords: ["citizen-phone", "citizen_phone", "mobile", "phone", "contact", "cell", "tel", "contact_no", "मोबाइल", "ఫోన్"],
+        preferTag: "INPUT"
       },
       {
         fieldKeys: ["citizen_email", "email"],
-        domKeywords: ["email", "mail", "e-mail", "email_id", "ईमेल", "ఈమెయిల్"]
+        domKeywords: ["email", "mail", "e-mail", "email_id", "ईमेल", "ఈమెయిల్"],
+        preferTag: "INPUT"
       },
       {
         fieldKeys: ["department", "dept", "ministry", "authority", "board"],
         domKeywords: ["department-select", "department", "dept", "ministry", "authority", "board", "विभाग", "విభాగం"],
-        isDepartment: true
+        isDepartment: true,
+        preferTag: "SELECT"
       },
       {
         fieldKeys: ["category", "issue", "sub_category", "subject", "topic"],
-        domKeywords: ["category-select", "category", "issue", "sub_category", "topic", "subject", "वर्गीकरण", "వర్గం"],
-        isCategory: true
+        domKeywords: ["category-select", "category", "issue category", "sub_category", "topic", "subject", "वर्गीकरण", "వర్గం"],
+        isCategory: true,
+        preferTag: "INPUT"
       },
       {
         fieldKeys: ["urgency_level", "urgency", "priority", "severity"],
         domKeywords: ["urgency-select", "urgency", "urgency_level", "priority", "severity", "तात्कालिकता", "తీవ్రత"],
-        isUrgency: true
+        isUrgency: true,
+        preferTag: "SELECT"
       },
       {
         fieldKeys: ["location", "address", "city", "ward", "landmark", "street", "district"],
-        domKeywords: ["location-input", "location", "address", "ward", "landmark", "street", "city", "village", "district", "locality", "colony", "पता", "स्थान", "చిరునామా", "ప్రాంతం"]
+        domKeywords: ["location-input", "location", "address", "ward", "landmark", "street", "city", "village", "district", "locality", "colony", "पता", "स्थान", "చిరునామా", "ప్రాంతం"],
+        preferTag: "INPUT"
       },
       {
         fieldKeys: ["description", "grievance", "problem", "problem_raw", "details", "issue", "petition"],
-        domKeywords: ["description-textarea", "description", "grievance", "complaint", "details", "problem", "issue", "petition", "remarks", "message", "comments", "query", "विवरण", "समस्या", "शिकायत", "సమస్య", "ఫిర్యాదు", "వివరాలు"]
+        domKeywords: ["description-textarea", "description", "grievance", "complaint", "details", "problem", "petition", "remarks", "message", "comments", "query", "issue description", "issue details", "विवरण", "समस्या", "शिकायत", "సమస్య", "ఫిర్యాదు", "వివరాలు"],
+        preferTag: "TEXTAREA"
       },
       {
         fieldKeys: ["pincode", "pin_code", "zip", "postal_code", "pin"],
-        domKeywords: ["pincode", "pin_code", "postal_code", "zip", "pin", "पिनकोड", "పిన్‌కోడ్"]
+        domKeywords: ["pincode", "pin_code", "postal_code", "zip", "pin", "पिनकोड", "పిన్‌కోడ్"],
+        preferTag: "INPUT"
       },
       {
         fieldKeys: ["otp", "one_time_password", "passcode"],
-        domKeywords: ["otp", "one time password", "passcode", "security token", "verification_code"]
+        domKeywords: ["otp", "one time password", "passcode", "security token", "verification_code"],
+        preferTag: "INPUT"
       }
     ];
 
-    // Find and populate values
+    // Find and populate values using two-pass prioritization (preferTag -> general match)
     mappings.forEach(mapping => {
       let val = null;
       for (const fk of mapping.fieldKeys) {
@@ -530,59 +541,65 @@
         val = val.replace(/\s+/g, "");
       }
 
-      for (const el of allInputs) {
-        if (el.dataset.nagarikFilled) continue;
-        if (matchesKeywords(el, mapping.domKeywords)) {
-          if (el.tagName === "SELECT") {
-            const valStr = String(val).toLowerCase();
-            // 1. Direct substring search
-            let option = Array.from(el.options).find(o => {
+      // Pass 1: Try preferred tag match (e.g. TEXTAREA for description, INPUT for name/phone)
+      let matchedEl = null;
+      if (mapping.preferTag) {
+        matchedEl = allInputs.find(el => !el.dataset.nagarikFilled && el.tagName === mapping.preferTag && matchesKeywords(el, mapping.domKeywords));
+      }
+      // Pass 2: Any matching element
+      if (!matchedEl) {
+        matchedEl = allInputs.find(el => !el.dataset.nagarikFilled && matchesKeywords(el, mapping.domKeywords));
+      }
+
+      if (matchedEl) {
+        const el = matchedEl;
+        if (el.tagName === "SELECT") {
+          const valStr = String(val).toLowerCase();
+          // 1. Direct substring search
+          let option = Array.from(el.options).find(o => {
+            if (!o.value) return false;
+            const optLower = (o.text + " " + o.value).toLowerCase();
+            return optLower.includes(valStr) || valStr.includes(optLower);
+          });
+
+          // 2. Word-overlap search (if department or category)
+          if (!option) {
+            const words = valStr.split(/[\s\-_&,]+/).filter(w => w.length >= 4);
+            option = Array.from(el.options).find(o => {
               if (!o.value) return false;
               const optLower = (o.text + " " + o.value).toLowerCase();
-              return optLower.includes(valStr) || valStr.includes(optLower);
+              return words.some(w => optLower.includes(w));
             });
+          }
 
-            // 2. Word-overlap search (if department or category)
-            if (!option) {
-              const words = valStr.split(/[\s\-_&,]+/).filter(w => w.length >= 4);
-              option = Array.from(el.options).find(o => {
-                if (!o.value) return false;
-                const optLower = (o.text + " " + o.value).toLowerCase();
-                return words.some(w => optLower.includes(w));
-              });
-            }
+          // 3. Fallback for urgency
+          if (!option && mapping.isUrgency) {
+            option = Array.from(el.options).find(o => (o.value || "").toUpperCase() === "HIGH" || o.text.toUpperCase().includes("HIGH"));
+          }
 
-            // 3. Fallback for urgency
-            if (!option && mapping.isUrgency) {
-              option = Array.from(el.options).find(o => (o.value || "").toUpperCase() === "HIGH" || o.text.toUpperCase().includes("HIGH"));
-            }
-
-            if (option) {
-              el.value = option.value;
-              el.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
-              el.dataset.nagarikFilled = "true";
-              el.classList.add("jansetu-highlight");
-              filledCount++;
-              filledKeys.push(mapping.fieldKeys[0]);
-              filledItems.push({
-                key: mapping.fieldKeys[0],
-                label: el.placeholder || el.name || el.id || mapping.fieldKeys[0],
-                maskedValue: option.text || option.value
-              });
-              break;
-            }
-          } else {
-            setNativeValue(el, val);
+          if (option) {
+            el.value = option.value;
+            el.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
             el.dataset.nagarikFilled = "true";
+            el.classList.add("jansetu-highlight");
             filledCount++;
             filledKeys.push(mapping.fieldKeys[0]);
             filledItems.push({
               key: mapping.fieldKeys[0],
               label: el.placeholder || el.name || el.id || mapping.fieldKeys[0],
-              maskedValue: mapping.isIdentity && String(val).length >= 8 ? "XXXXXXXX" + String(val).slice(-4) : String(val)
+              maskedValue: option.text || option.value
             });
-            break;
           }
+        } else {
+          setNativeValue(el, val);
+          el.dataset.nagarikFilled = "true";
+          filledCount++;
+          filledKeys.push(mapping.fieldKeys[0]);
+          filledItems.push({
+            key: mapping.fieldKeys[0],
+            label: el.placeholder || el.name || el.id || mapping.fieldKeys[0],
+            maskedValue: mapping.isIdentity && String(val).length >= 8 ? "XXXXXXXX" + String(val).slice(-4) : String(val)
+          });
         }
       }
     });

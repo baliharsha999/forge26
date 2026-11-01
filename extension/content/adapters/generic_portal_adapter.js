@@ -99,22 +99,8 @@ class GenericCivicAdapter extends BasePortalAdapter {
       });
     }
 
-    // OTP Code
-    const otpEl = this.findElementByKeywords(["otp", "one time password", "passcode", "security token", "verification_code"], ["input"]);
-    if (otpEl) {
-      fields.push({
-        key: 'otp',
-        label: 'One-Time Password (OTP)',
-        selector: otpEl.id ? `#${otpEl.id}` : 'input[name*="otp" i]',
-        required: true,
-        exists: true,
-        value: (otpEl.value || '').trim(),
-        isFilled: (otpEl.value || '').trim().length > 0
-      });
-    }
-
     // Description / Grievance / Problem
-    const descEl = this.findElementByKeywords(["grievance", "complaint", "description", "details", "problem", "issue", "petition", "remarks", "message", "comments", "query"], ["textarea", "input"]);
+    const descEl = this.findElementByKeywords(["description-textarea", "description", "grievance", "complaint", "details", "problem", "issue", "petition", "remarks", "message", "comments", "query"], ["textarea", "input"]);
     if (descEl) {
       fields.push({
         key: 'description',
@@ -128,7 +114,7 @@ class GenericCivicAdapter extends BasePortalAdapter {
     }
 
     // Citizen Name
-    const nameEl = this.findElementByKeywords(["name", "citizen", "applicant", "fullname", "candidate", "user", "first_name", "fname"], ["input"]);
+    const nameEl = this.findElementByKeywords(["citizen-name", "citizen_name", "applicant_name", "candidate_name", "name", "citizen", "applicant", "fullname", "candidate", "user", "first_name", "fname"], ["input"]);
     if (nameEl) {
       fields.push({
         key: 'citizen_name',
@@ -142,7 +128,7 @@ class GenericCivicAdapter extends BasePortalAdapter {
     }
 
     // Mobile / Contact
-    const phoneEl = this.findElementByKeywords(["mobile", "phone", "contact", "cell", "tel"], ["input"]);
+    const phoneEl = this.findElementByKeywords(["citizen-phone", "citizen_phone", "mobile", "phone", "contact", "cell", "tel"], ["input"]);
     if (phoneEl) {
       fields.push({
         key: 'citizen_phone',
@@ -170,7 +156,7 @@ class GenericCivicAdapter extends BasePortalAdapter {
     }
 
     // Location / Address
-    const locEl = this.findElementByKeywords(["location", "address", "ward", "landmark", "street", "city", "village", "district", "state", "locality"], ["input", "textarea"]);
+    const locEl = this.findElementByKeywords(["location-input", "location", "address", "ward", "landmark", "street", "city", "village", "district", "state", "locality"], ["input", "textarea"]);
     if (locEl) {
       fields.push({
         key: 'location',
@@ -197,17 +183,45 @@ class GenericCivicAdapter extends BasePortalAdapter {
       });
     }
 
-    // Category / Department
-    const catEl = this.findElementByKeywords(["category", "department", "ministry", "service", "topic", "subject"], ["select", "input"]);
+    // Department
+    const deptEl = this.findElementByKeywords(["department-select", "department", "dept", "ministry", "authority", "board"], ["select", "input"]);
+    if (deptEl) {
+      fields.push({
+        key: 'department',
+        label: 'Responsible Department',
+        selector: deptEl.id ? `#${deptEl.id}` : 'select',
+        required: false,
+        exists: true,
+        value: (deptEl.value || '').trim(),
+        isFilled: (deptEl.value || '').trim().length > 0
+      });
+    }
+
+    // Category
+    const catEl = this.findElementByKeywords(["category-select", "category", "issue category", "sub_category", "topic", "subject"], ["input", "select"]);
     if (catEl) {
       fields.push({
         key: 'category',
-        label: 'Category / Department',
-        selector: catEl.id ? `#${catEl.id}` : 'select',
+        label: 'Category',
+        selector: catEl.id ? `#${catEl.id}` : 'input',
         required: false,
         exists: true,
         value: (catEl.value || '').trim(),
         isFilled: (catEl.value || '').trim().length > 0
+      });
+    }
+
+    // Urgency Level
+    const urgEl = this.findElementByKeywords(["urgency-select", "urgency", "urgency_level", "priority", "severity"], ["select", "input"]);
+    if (urgEl) {
+      fields.push({
+        key: 'urgency_level',
+        label: 'Urgency Level',
+        selector: urgEl.id ? `#${urgEl.id}` : 'select',
+        required: false,
+        exists: true,
+        value: (urgEl.value || '').trim(),
+        isFilled: (urgEl.value || '').trim().length > 0
       });
     }
 
@@ -266,36 +280,52 @@ class GenericCivicAdapter extends BasePortalAdapter {
     } else if (key === 'otp' || key === 'one_time_password' || key === 'passcode') {
       el = this.findElementByKeywords(["otp", "one time password", "passcode", "security token", "verification_code"], ["input"]);
     } else if (key === 'description' || key === 'grievance' || key === 'problem') {
-      el = this.findElementByKeywords(["grievance", "complaint", "description", "details", "problem", "issue", "petition", "remarks", "message"], ["textarea", "input"]);
+      el = this.findElementByKeywords(["description-textarea", "description", "grievance", "complaint", "details", "problem", "issue", "petition", "remarks", "message"], ["textarea", "input"]);
     } else if (key === 'citizen_name' || key === 'name' || key === 'fullname') {
-      el = this.findElementByKeywords(["name", "citizen", "applicant", "fullname", "candidate"], ["input"]);
+      el = this.findElementByKeywords(["citizen-name", "citizen_name", "applicant_name", "candidate_name", "name", "citizen", "applicant", "fullname", "candidate"], ["input"]);
     } else if (key === 'citizen_phone' || key === 'phone' || key === 'mobile') {
-      el = this.findElementByKeywords(["mobile", "phone", "contact", "cell", "tel"], ["input"]);
+      el = this.findElementByKeywords(["citizen-phone", "citizen_phone", "mobile", "phone", "contact", "cell", "tel"], ["input"]);
     } else if (key === 'citizen_email' || key === 'email') {
       el = this.findElementByKeywords(["email", "mail", "e-mail"], ["input"]);
     } else if (key === 'pincode' || key === 'pin_code' || key === 'zip') {
       el = this.findElementByKeywords(["pincode", "pin_code", "postal_code", "zip", "pin"], ["input"]);
-    } else if (key === 'location' || key === 'address') {
-      el = this.findElementByKeywords(["location", "address", "ward", "landmark", "street", "city", "village", "district"], ["input", "textarea"]);
-      if (!el) {
-        // Fallback: append to description textarea if no dedicated location input
-        const descEl = this.findElementByKeywords(["grievance", "complaint", "description"], ["textarea"]);
-        if (descEl) {
-          const current = descEl.value || '';
-          const updated = current.includes(value) ? current : `${current}\n\n[Location / Landmark: ${value}]`.trim();
-          this.setValueWithEvents(descEl, updated);
-          return { success: true, key };
-        }
-      }
-    } else if (key === 'category' || key === 'department') {
-      el = this.findElementByKeywords(["category", "department", "ministry", "service"], ["select", "input"]);
+    } else if (key === 'department') {
+      el = this.findElementByKeywords(["department-select", "department", "dept", "ministry", "authority", "board"], ["select", "input"]);
       if (el && el.tagName === "SELECT") {
         const valStr = String(value).toLowerCase();
-        const option = Array.from(el.options).find(o => o.text.toLowerCase().includes(valStr) || o.value.toLowerCase().includes(valStr));
+        let option = Array.from(el.options).find(o => o.text.toLowerCase().includes(valStr) || o.value.toLowerCase().includes(valStr));
+        if (!option) {
+          const words = valStr.split(/[\s\-_&,]+/).filter(w => w.length >= 4);
+          option = Array.from(el.options).find(o => words.some(w => (o.text + " " + o.value).toLowerCase().includes(w)));
+        }
         if (option) {
           el.value = option.value;
           el.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
           el.classList.add("jansetu-highlight");
+          return { success: true, key };
+        }
+      }
+    } else if (key === 'category') {
+      el = this.findElementByKeywords(["category-select", "category", "issue category", "sub_category", "topic", "subject"], ["input", "select"]);
+    } else if (key === 'urgency_level' || key === 'urgency') {
+      el = this.findElementByKeywords(["urgency-select", "urgency", "urgency_level", "priority", "severity"], ["select", "input"]);
+      if (el && el.tagName === "SELECT") {
+        let option = Array.from(el.options).find(o => o.value.toUpperCase() === "HIGH" || o.text.toUpperCase().includes("HIGH"));
+        if (option) {
+          el.value = option.value;
+          el.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+          el.classList.add("jansetu-highlight");
+          return { success: true, key };
+        }
+      }
+    } else if (key === 'location' || key === 'address') {
+      el = this.findElementByKeywords(["location-input", "location", "address", "ward", "landmark", "street", "city", "village", "district"], ["input", "textarea"]);
+      if (!el) {
+        const descEl = this.findElementByKeywords(["description-textarea", "grievance", "complaint", "description"], ["textarea"]);
+        if (descEl) {
+          const current = descEl.value || '';
+          const updated = current.includes(value) ? current : `${current}\n\n[Location / Landmark: ${value}]`.trim();
+          this.setValueWithEvents(descEl, updated);
           return { success: true, key };
         }
       }
@@ -334,17 +364,8 @@ class GenericCivicAdapter extends BasePortalAdapter {
       }
     }
 
-    if (formData.description || formData.problem_raw) {
-      const descEl = this.findElementByKeywords(["grievance", "complaint", "description", "problem", "details"], ["textarea", "input"]);
-      if (descEl) {
-        this.setValueWithEvents(descEl, formData.description || formData.problem_raw);
-        filledCount++;
-        report("Filled description");
-      }
-    }
-
     if (formData.citizen_name || formData.name) {
-      const nameEl = this.findElementByKeywords(["name", "citizen", "applicant", "fullname"], ["input"]);
+      const nameEl = this.findElementByKeywords(["citizen-name", "citizen_name", "applicant_name", "name", "citizen", "applicant", "fullname"], ["input"]);
       if (nameEl) {
         this.setValueWithEvents(nameEl, formData.citizen_name || formData.name);
         filledCount++;
@@ -353,11 +374,79 @@ class GenericCivicAdapter extends BasePortalAdapter {
     }
 
     if (formData.citizen_phone || formData.phone) {
-      const phoneEl = this.findElementByKeywords(["mobile", "phone", "contact"], ["input"]);
+      const phoneEl = this.findElementByKeywords(["citizen-phone", "citizen_phone", "mobile", "phone", "contact"], ["input"]);
       if (phoneEl) {
         this.setValueWithEvents(phoneEl, formData.citizen_phone || formData.phone);
         filledCount++;
         report("Filled contact number");
+      }
+    }
+
+    if (formData.department) {
+      const deptEl = this.findElementByKeywords(["department-select", "department", "dept"], ["select", "input"]);
+      if (deptEl) {
+        if (deptEl.tagName === "SELECT") {
+          const valStr = String(formData.department).toLowerCase();
+          let opt = Array.from(deptEl.options).find(o => o.text.toLowerCase().includes(valStr) || o.value.toLowerCase().includes(valStr));
+          if (!opt) {
+            const words = valStr.split(/[\s\-_&,]+/).filter(w => w.length >= 4);
+            opt = Array.from(deptEl.options).find(o => words.some(w => (o.text + " " + o.value).toLowerCase().includes(w)));
+          }
+          if (opt) {
+            deptEl.value = opt.value;
+            deptEl.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+            deptEl.classList.add("jansetu-highlight");
+            filledCount++;
+            report("Selected department");
+          }
+        } else {
+          this.setValueWithEvents(deptEl, formData.department);
+          filledCount++;
+          report("Filled department");
+        }
+      }
+    }
+
+    if (formData.category) {
+      const catEl = this.findElementByKeywords(["category-select", "category", "issue"], ["input", "select"]);
+      if (catEl) {
+        this.setValueWithEvents(catEl, formData.category);
+        filledCount++;
+        report("Filled category");
+      }
+    }
+
+    if (formData.urgency_level || formData.urgency) {
+      const urgEl = this.findElementByKeywords(["urgency-select", "urgency"], ["select", "input"]);
+      if (urgEl) {
+        if (urgEl.tagName === "SELECT") {
+          let opt = Array.from(urgEl.options).find(o => o.value.toUpperCase() === "HIGH" || o.text.toUpperCase().includes("HIGH"));
+          if (opt) {
+            urgEl.value = opt.value;
+            urgEl.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+            urgEl.classList.add("jansetu-highlight");
+            filledCount++;
+            report("Set urgency level");
+          }
+        }
+      }
+    }
+
+    if (formData.location || formData.address) {
+      const locEl = this.findElementByKeywords(["location-input", "location", "address", "ward", "landmark", "city"], ["input", "textarea"]);
+      if (locEl) {
+        this.setValueWithEvents(locEl, formData.location || formData.address);
+        filledCount++;
+        report("Filled location");
+      }
+    }
+
+    if (formData.description || formData.problem_raw) {
+      const descEl = this.findElementByKeywords(["description-textarea", "description", "grievance", "complaint", "problem", "details"], ["textarea", "input"]);
+      if (descEl) {
+        this.setValueWithEvents(descEl, formData.description || formData.problem_raw);
+        filledCount++;
+        report("Filled description");
       }
     }
 
@@ -367,15 +456,6 @@ class GenericCivicAdapter extends BasePortalAdapter {
         this.setValueWithEvents(emailEl, formData.citizen_email || formData.email);
         filledCount++;
         report("Filled email");
-      }
-    }
-
-    if (formData.location || formData.address) {
-      const locEl = this.findElementByKeywords(["location", "address", "ward", "landmark", "city"], ["input", "textarea"]);
-      if (locEl) {
-        this.setValueWithEvents(locEl, formData.location || formData.address);
-        filledCount++;
-        report("Filled location");
       }
     }
 
