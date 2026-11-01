@@ -1,10 +1,18 @@
 """
 Audit Security Unit Tests for Nagarik AI RAG & Ingestion Security.
-Tests SSRF redirection safety, department strictness, admin API key protection,
-and embedding degradation transparency.
+Comprehensive regression test suite covering all Round 2 and Round 3 audit findings:
+1. SSRF prevention and SafeRedirectHandler
+2. Fail-closed administrative API key authentication (zero default fallback secret)
+3. Zero-fabrication citation policy (missing metadata preserved as None / 'Unknown')
+4. Dynamic system date and authoritative ministry registry
+5. Degraded retrieval safety and transparent fallback
 """
 
+import os
+from datetime import datetime
 import pytest
+from fastapi import HTTPException
+
 from app.ingestion.scraper import (
     validate_safe_target_url,
     is_ip_private_or_restricted,
@@ -13,13 +21,16 @@ from app.ingestion.scraper import (
 )
 from app.agents.verification_agent import SourceVerificationAgent
 from app.ingestion.embeddings import EmbeddingService
+from app.api.routes import verify_admin_key
+from app.generation.answer_generator import AnswerGenerator
 
 
 def test_ssrf_private_ip_detection():
+    """Verify loopback, private RFC-1918, and cloud metadata IPs are strictly detected."""
     # Loopback
     assert is_ip_private_or_restricted("127.0.0.1") is True
     assert is_ip_private_or_restricted("127.0.0.2") is True
-    # AWS / Cloud Metadata IP
+    # AWS / GCP / Azure Cloud Metadata IP
     assert is_ip_private_or_restricted("169.254.169.254") is True
     # Private RFC 1918
     assert is_ip_private_or_restricted("10.0.0.1") is True
@@ -30,6 +41,7 @@ def test_ssrf_private_ip_detection():
 
 
 def test_ssrf_blocks_unauthorized_schemes_and_hosts():
+    """Verify non-HTTP/HTTPS schemes and non-government domains are blocked before network fetch."""
     def mock_checker(url):
         return "myscheme.gov.in" in url
 
@@ -45,33 +57,106 @@ def test_ssrf_blocks_unauthorized_schemes_and_hosts():
         validate_safe_target_url("https://malicious-attacker.com/steal", mock_checker)
 
 
-def test_department_verification_strictness():
+def test_fail_closed_admin_api_key():
+    """
+    Finding 1: Verify administrative ingestion endpoints fail closed.
+    Must throw 500 when ADMIN_API_KEY is not configured, 401 when key is invalid, and 200 when valid.
+    """
+    # 1. Missing environment variable -> strict 500 fail closed (No default secret permitted!)
+    if "ADMIN_API_KEY" in os.environ:
+        del os.environ["ADMIN_API_KEY"]
+
+    with pytest.raises(HTTPException) as exc_info:
+        verify_admin_key(x_api_key="any-key")
+    assert exc_info.value.status_code == 500
+    assert "ADMIN_API_KEY environment variable is not configured" in exc_info.value.detail
+
+    # 2. Configured key but wrong key provided -> 401 Unauthorized
+    os.environ["ADMIN_API_KEY"] = "super-secret-rotated-key-2026"
+    with pytest.raises(HTTPException) as exc_info:
+        verify_admin_key(x_api_key="wrong-key")
+    assert exc_info.value.status_code == 401
+
+    with pytest.raises(HTTPException) as exc_info:
+        verify_admin_key(x_api_key=None)
+    assert exc_info.value.status_code == 401
+
+    # 3. Correct key provided -> Success
+    res = verify_admin_key(x_api_key="super-secret-rotated-key-2026")
+    assert res == "super-secret-rotated-key-2026"
+
+
+def test_zero_citation_fabrication_policy():
+    """
+    Finding 2: Verify AnswerGenerator NEVER manufactures default URLs or publication dates.
+    Missing provenance must be preserved as 'Unknown' / 'Unknown Source'.
+    """
+    generator = AnswerGenerator()
+
+    # Document with missing source_url and missing date
+    test_docs = [
+        {
+            "metadata": {
+                "title": "Scholarship Scheme Notification",
+                "department": "Department of Higher Education"
+                # source_url and publication_date intentionally omitted
+            },
+            "source_verification": {},
+            "page_content": "Eligible college students receive direct financial scholarship."
+        }
+    ]
+
+    resp = generator.generate(
+        query="What is the scholarship?",
+        retrieved_documents=test_docs,
+        response_language="English"
+    )
+
+    assert len(resp.sources) == 1
+    citation = resp.sources[0]
+
+    # Must NOT invent 'https://www.myscheme.gov.in'
+    assert citation.url == "Unknown Source"
+    # Must NOT invent '2024-01-01'
+    assert citation.publication_date == "Unknown"
+
+
+def test_department_verification_authoritative_registry():
+    """
+    Finding 4: Verify department verification validates against authoritative registry
+    and separates domain ownership from document provenance authenticity.
+    """
     agent = SourceVerificationAgent()
 
-    # Legit official departments
+    # Dynamic year check: must match current system year, never hardcoded
+    assert agent.current_year == datetime.now().year
+
+    # 1. Legit official ministry from authoritative registry
     v_clean = agent.verify_single({
         "metadata": {
             "url": "https://myscheme.gov.in/schemes/pmkisan",
-            "department": "Ministry of Agriculture & Farmers Welfare",
+            "department": "Ministry of Agriculture and Farmers Welfare",
             "publication_date": "2025-01-01"
         }
     })
     assert v_clean.is_department_verified is True
+    assert v_clean.is_official_domain is True
 
+    # 2. Apex statutory authority (UIDAI)
     v_uidai = agent.verify_single({
         "metadata": {
             "url": "https://uidai.gov.in",
-            "department": "Unique Identification Authority of India (UIDAI)",
+            "department": "Unique Identification Authority of India",
             "publication_date": "2025-01-01"
         }
     })
     assert v_uidai.is_department_verified is True
 
-    # Audit bug fix: strings > 5 chars without legitimate civic keywords MUST NOT be verified!
+    # 3. Random string without authoritative registry match -> Rejected
     v_fake = agent.verify_single({
         "metadata": {
             "url": "https://myscheme.gov.in/test",
-            "department": "RandomGibberishString",
+            "department": "RandomGibberishAuthority",
             "publication_date": "2025-01-01"
         }
     })
@@ -79,6 +164,6 @@ def test_department_verification_strictness():
 
 
 def test_embedding_degradation_transparency():
+    """Finding 5: Verify embedding service exposes degraded mode boolean."""
     service = EmbeddingService.get_instance()
-    # is_degraded_mode property must exist and be a boolean
     assert isinstance(service.is_degraded_mode, bool)

@@ -123,7 +123,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "CHECK_ACTIVE_TAB_SUPPORT") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0 || !canAccessTab(tabs[0].url)) {
-        sendResponse({ supported: true, url: tabs && tabs[0] ? tabs[0].url : "" });
+        sendResponse({ supported: false, reason: "Restricted browser page or unsupported non-civic domain", url: tabs && tabs[0] ? tabs[0].url : "" });
         return;
       }
       chrome.tabs.sendMessage(tabs[0].id, { action: "CHECK_PAGE_SUPPORT" }, (res) => {
@@ -147,7 +147,7 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
   if (message.action === "TRIGGER_INSPECT_PAGE") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0 || !canAccessTab(tabs[0].url)) {
-        sendResponse({ supported: true, hasForm: false, fields: [], url: tabs && tabs[0] ? tabs[0].url : "" });
+        sendResponse({ supported: false, reason: "Restricted browser page or unsupported non-civic domain", hasForm: false, fields: [], url: tabs && tabs[0] ? tabs[0].url : "" });
         return;
       }
       chrome.tabs.sendMessage(tabs[0].id, { action: "INSPECT_PAGE_FORM" }, (res) => {

@@ -874,6 +874,24 @@ describe('Chrome Extension Test Audit', () => {
       assert.strictEqual(navTab.clicked, true);
     });
 
+    test('DOM-Action Layer Submission Guard: blocks click on opaque button ID with submit semantics (Finding 3)', () => {
+      const opaqueSubmitBtn = env.document.createElement('button');
+      opaqueSubmitBtn.id = 'btn_8271';
+      opaqueSubmitBtn.type = 'submit';
+      opaqueSubmitBtn.innerText = 'Lodge Application';
+      env.document.body.appendChild(opaqueSubmitBtn);
+
+      let clickRes = null;
+      for (const listener of env.messageListeners) {
+        listener({ action: 'CLICK_PAGE_ELEMENT', target: 'btn_8271' }, {}, (r) => { clickRes = r; });
+      }
+
+      assert.strictEqual(clickRes.success, false);
+      assert.strictEqual(clickRes.blocked, true);
+      assert.ok(clickRes.reason.includes('Nagarik AI Safety Guard'));
+      assert.strictEqual(Boolean(opaqueSubmitBtn.clicked), false);
+    });
+
     test('Sensitive Field Protection: strictly rejects filling passwords, OTPs, and does NOT auto-check consent', () => {
       const pwdInput = env.document.createElement('input');
       pwdInput.type = 'password';

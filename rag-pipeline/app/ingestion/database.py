@@ -184,7 +184,7 @@ class GovernmentDatabase:
                         ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
                     """, (
                         slug, title, url, canonical_url, source, dept,
-                        updated_at[:10] if updated_at else "2024-01-01",
+                        updated_at[:10] if updated_at else None,
                         updated_at, html, cat, scraped_at, content_hash,
                         scraped_at, updated_at
                     ))

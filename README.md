@@ -9,7 +9,9 @@
 [![Chrome Extension](https://img.shields.io/badge/Chrome%20Extension-Manifest%20V3%20Side%20Panel%20v1.2.3-blue.svg)](https://developer.chrome.com/docs/extensions/reference/manifest)
 [![Live Web App](https://img.shields.io/badge/Live%20Deploy-Firebase%20Hosting-amber.svg)](https://nagarik-ai-civic-2026.web.app)
 [![Data Engine](https://img.shields.io/badge/Data%20Source-myScheme%20Web%20Scraping%20(myscheme.gov.in)-emerald.svg)](https://myscheme.gov.in)
-[![Extension Tests](https://img.shields.io/badge/Extension%20Audit-26%2F26%20Passing%20(100%25)-brightgreen.svg)](#-5-running-automated-tests--verification)
+[![CI Tests](https://github.com/cyugandharreddy08/Nagarik-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/cyugandharreddy08/Nagarik-AI/actions)
+[![Extension Tests](https://img.shields.io/badge/Extension%20Audit-28%2F28%20Passing%20(100%25)-brightgreen.svg)](#-5-running-automated-tests--verification)
+[![Security Regression](https://img.shields.io/badge/RAG%20Security-12%2F12%20Passing%20(100%25)-brightgreen.svg)](#b-backend--rag-security-regression-suite-12-tests)
 [![DeepEval](https://img.shields.io/badge/DeepEval-Production%20Grade%20(96.8%25%20Faithful)-purple.svg)](#-6-deepeval-model-evaluation--rigorous-quality-benchmarks)
 
 > **Live Production Web Application**: [https://nagarik-ai-civic-2026.web.app](https://nagarik-ai-civic-2026.web.app)  

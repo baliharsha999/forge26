@@ -71,6 +71,8 @@ class RAGState(BaseModel):
     bm25_results: List[Dict[str, Any]] = Field(default_factory=list, description="Sparse BM25 retrieval results")
     fused_results: List[Dict[str, Any]] = Field(default_factory=list, description="Combined RRF results")
     reranked_documents: List[Dict[str, Any]] = Field(default_factory=list, description="Cross-Encoder reranked documents")
+    is_degraded_retrieval: bool = Field(default=False, description="Flag indicating if vector embeddings are degraded")
+    retrieval_mode: str = Field(default="hybrid_hnsw_bm25", description="Active retrieval engine mode")
 
     # 4. Source Verification & Contextual Compression
     source_verification_results: List[Dict[str, Any]] = Field(default_factory=list, description="Document authenticity and date verification scores")

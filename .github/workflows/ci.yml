@@ -1,0 +1,55 @@
+name: CI - Security, Extension & RAG Tests
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+  workflow_dispatch:
+
+jobs:
+  extension-tests:
+    name: Chrome Extension Audit Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Run Extension Audit Tests
+        run: |
+          node extension/tests/audit_extension.test.js
+
+  rag-security-tests:
+    name: Backend & RAG Security Tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: 'pip'
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pytest pytest-asyncio fastapi pydantic beautifulsoup4 requests numpy
+          if [ -f "rag-pipeline/requirements.txt" ]; then
+            pip install -r rag-pipeline/requirements.txt || echo "Continuing with core dependencies"
+          fi
+
+      - name: Run Security and Component Unit Tests
+        env:
+          ADMIN_API_KEY: "test-ci-admin-key-2026"
+          PYTHONPATH: "rag-pipeline"
+        run: |
+          pytest rag-pipeline/tests/test_audit_security.py rag-pipeline/tests/test_components.py -v

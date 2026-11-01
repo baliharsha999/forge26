@@ -1,7 +1,6 @@
 /**
  * Nagarik AI - Universal Civic Content Script
- * Injected into all web pages to provide Universal Civic Copilot capabilities.
- * Always supports any webpage on desktop with real-time DOM analysis, auto-healing, and form autofill.
+ * Injected into supported civic portals to provide assistive form inspection, zero-knowledge PII shielding, and guided citizen workflows.
  */
 (() => {
   if (typeof window !== "undefined" && window.__nagarikContentLoaded) return;
@@ -296,6 +295,7 @@
    */
   function findTargetElement(target) {
     if (!target) return null;
+    if (typeof target === 'object' && target.nodeType) return target;
     const raw = String(target).trim();
     const targetUpper = raw.toUpperCase();
     const targetLower = raw.toLowerCase();
@@ -856,26 +856,54 @@
       sendResponse({ success: ok });
       return true;
     }
+  function isSubmissionOrAuthElement(el) {
+    if (!el) return false;
+    const type = (el.type || "").toLowerCase();
+    if (type === "submit") return true;
+    if (el.tagName === "BUTTON" && (!el.type || el.type === "submit") && el.form) return true;
+
+    const text = (el.innerText || el.value || "").toLowerCase().trim();
+    const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+    const title = (el.title || "").toLowerCase();
+    const name = (el.name || "").toLowerCase();
+    const id = (el.id || "").toLowerCase();
+    const formAction = (el.getAttribute("formaction") || "").toLowerCase();
+
+    const combined = `${text} ${aria} ${title} ${name} ${id} ${formAction}`;
+    const submissionKeywords = [
+      "submit", "login", "log in", "sign in", "apply", "lodge", "pay", "payment",
+      "register", "confirm", "send otp", "get otp", "final", "proceed to pay",
+      "lodge grievance", "file complaint", "submit petition", "verify & submit"
+    ];
+    return submissionKeywords.some(kw => combined.includes(kw));
+  }
+
+
 
     // 6. CLICK_PAGE_ELEMENT
     if (message.action === "CLICK_PAGE_ELEMENT") {
+      const el = findTargetElement(message.target);
+      if (!el) {
+        sendResponse({ success: false, error: "Element not found" });
+        return true;
+      }
+
+      // DOM-ACTION LAYER SUBMISSION GUARD:
+      // Inspect resolved DOM element directly (type, form relation, ARIA, and action semantics).
+      // Blocks opaque button IDs (e.g. #btn_8271) as well as named targets.
       const targetStr = String(message.target || "").toUpperCase();
-      if (/SUBMIT|LOGIN|APPLY|LODGE|PAY|REGISTER|CONFIRM|SEND_OTP|FINAL/i.test(targetStr)) {
-        highlightPageElement(message.target || "SUBMIT", "Citizen Action Required: Click to Submit");
+      if (/SUBMIT|LOGIN|APPLY|LODGE|PAY|REGISTER|CONFIRM|SEND_OTP|FINAL/i.test(targetStr) || isSubmissionOrAuthElement(el)) {
+        highlightPageElement(el, "Citizen Action Required: Click to Submit");
         sendResponse({ 
           success: false, 
           blocked: true, 
-          reason: "Nagarik AI Safety Guard: Final form submission and login actions must be initiated by the citizen." 
+          reason: "Nagarik AI Safety Guard: Final form submission, login, and payment actions must be initiated by the citizen at the DOM layer." 
         });
         return true;
       }
-      const el = findTargetElement(message.target);
-      if (el) {
-        el.click();
-        sendResponse({ success: true });
-      } else {
-        sendResponse({ success: false, error: "Element not found" });
-      }
+
+      el.click();
+      sendResponse({ success: true });
       return true;
     }
 

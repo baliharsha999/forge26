@@ -775,7 +775,19 @@ def hybrid_retrieval_entry_node(state: RAGState) -> Dict[str, Any]:
 # ----------------------------------------------------
 
 def vector_retrieval_node(state: RAGState) -> Dict[str, Any]:
-    """Executes dense vector search using FAISS IndexHNSWFlat across active queries."""
+    """Executes dense vector search using FAISS IndexHNSWFlat across active queries with degraded mode handling."""
+    from app.ingestion.embeddings import EmbeddingService
+    emb_svc = EmbeddingService.get_instance()
+
+    # Safety Guard: If running in degraded fallback mode (character-position hashing),
+    # do NOT pretend to perform neural semantic search. Fall back cleanly to sparse BM25 only.
+    if emb_svc.is_degraded_mode:
+        return {
+            "vector_results": [],
+            "retrieval_mode": "lexical_bm25_only (degraded_fallback)",
+            "is_degraded_retrieval": True
+        }
+
     settings = get_settings()
     store = get_vector_store()
     search_queries = state.rewritten_queries or [state.original_query]
@@ -1034,10 +1046,15 @@ def answer_generation_node(state: RAGState) -> Dict[str, Any]:
         response_language=target_resp_lang
     )
 
+    if getattr(state, "is_degraded_retrieval", False):
+        evaluator_feedback_text = (state.evaluator_feedback or "") + "\n[SYSTEM TRANSPARENCY NOTICE: Operating in degraded retrieval mode. Answer strictly from verified lexical context.]"
+    else:
+        evaluator_feedback_text = state.evaluator_feedback
+
     response = answer_gen.generate(
         query=state.original_query,
         retrieved_documents=docs,
-        evaluator_feedback=state.evaluator_feedback,
+        evaluator_feedback=evaluator_feedback_text,
         response_language=target_resp_lang,
         alignment_guidance=understanding.alignment_guidance
     )

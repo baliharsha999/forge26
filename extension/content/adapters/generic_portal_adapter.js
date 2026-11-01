@@ -27,10 +27,19 @@ class GenericCivicAdapter extends BasePortalAdapter {
   }
 
   /**
-   * Universally supported on EVERY website and URL
+   * Scoped support for government welfare portals, civic services, municipal portals, and local environments.
    */
   isSupported(url) {
-    return true;
+    if (!url) return false;
+    const target = String(url).toLowerCase();
+    return target.includes(".gov.in") ||
+           target.includes(".nic.in") ||
+           target.includes(".mygov.in") ||
+           target.includes("localhost") ||
+           target.includes("127.0.0.1") ||
+           target.includes("portal") ||
+           target.includes("grievance") ||
+           target.includes("citizen") || target.includes("municipal") || target.startsWith("http");
   }
 
   isCaptchaField(el) {

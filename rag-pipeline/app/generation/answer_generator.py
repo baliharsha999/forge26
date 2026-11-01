@@ -91,8 +91,12 @@ class AnswerGenerator:
 
             title = meta.get("title", f"Document {idx+1}")
             dept = meta.get("department", "Government of India")
-            url = meta.get("source_url") or meta.get("url", "https://www.myscheme.gov.in")
-            pub_date = str(meta.get("publication_date") or meta.get("last_updated", "2024-01-01"))[:10]
+            raw_url = meta.get("source_url") or meta.get("url")
+            url = raw_url.strip() if raw_url else "Unknown Source"
+            is_provenance_verified = bool(raw_url and ("gov.in" in raw_url or "nic.in" in raw_url))
+            
+            raw_date = meta.get("publication_date") or meta.get("last_updated")
+            pub_date = str(raw_date)[:10] if raw_date else "Unknown"
             is_outdated = verification.get("is_outdated", False)
             content = doc.get("page_content", "")
 
@@ -107,7 +111,7 @@ class AnswerGenerator:
 
             status_note = " [NOTE: Older policy record; qualify currency]" if is_outdated else ""
             context_blocks.append(
-                f"--- SOURCE [{idx+1}]: {title}{status_note} ---\n"
+                f"--- SOURCE [{idx+1}]: {title}{' [PROVENANCE: Unverified/Missing Source URL]' if not is_provenance_verified else ''}{status_note} ---\n"
                 f"Department/Ministry: {dept}\n"
                 f"Publication Date: {pub_date}\n"
                 f"Source URL: {url}\n\n"

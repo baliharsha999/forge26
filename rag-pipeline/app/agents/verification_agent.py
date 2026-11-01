@@ -35,7 +35,7 @@ class SourceVerificationAgent:
 
     def __init__(self):
         self.settings = get_settings()
-        self.current_year = 2026
+        self.current_year = datetime.now().year
 
     def verify_single(self, doc_item: Dict[str, Any]) -> SourceVerificationItem:
         """Evaluates source authenticity and freshness for a single document chunk."""
@@ -58,14 +58,46 @@ class SourceVerificationAgent:
             or any(host == td or host.endswith("." + td) for td in self.settings.TRUSTED_DOMAINS)
         )
 
-        # 2. Department legitimacy check - strict validation against known official civic bodies
-        known_keywords = [
-            "ministry", "department", "pradhan mantri", "central", "state", "board",
-            "commission", "scheme", "directorate", "authority", "corporation", "council",
-            "bureau", "niti aayog", "uidai", "nic", "epfo", "esic"
-        ]
+        # Authoritative Registry of Official Ministries, Statutory Commissions, and Apex Civic Bodies
+        OFFICIAL_MINISTRIES_REGISTRY = {
+            "ministry of agriculture and farmers welfare", "ministry of civil aviation", "ministry of coal",
+            "ministry of commerce and industry", "ministry of communications",
+            "ministry of consumer affairs, food and public distribution", "ministry of corporate affairs",
+            "ministry of culture", "ministry of defence", "ministry of development of north eastern region",
+            "ministry of earth sciences", "ministry of education", "ministry of electronics and information technology",
+            "ministry of environment, forest and climate change", "ministry of external affairs", "ministry of finance",
+            "ministry of fisheries, animal husbandry and dairying", "ministry of food processing industries",
+            "ministry of health and family welfare", "ministry of heavy industries", "ministry of home affairs",
+            "ministry of housing and urban affairs", "ministry of information and broadcasting",
+            "ministry of jal shakti", "ministry of labour and employment", "ministry of law and justice",
+            "ministry of micro, small and medium enterprises", "ministry of mines", "ministry of minority affairs",
+            "ministry of new and renewable energy", "ministry of panchayati raj", "ministry of parliamentary affairs",
+            "ministry of personnel, public grievances and pensions", "ministry of petroleum and natural gas",
+            "ministry of power", "ministry of railways", "ministry of road transport and highways",
+            "ministry of rural development", "ministry of science and technology", "ministry of ports, shipping and waterways",
+            "ministry of skill development and entrepreneurship", "ministry of social justice and empowerment",
+            "ministry of statistics and programme implementation", "ministry of steel", "ministry of textiles",
+            "ministry of tourism", "ministry of tribal affairs", "ministry of women and child development",
+            "ministry of youth affairs and sports", "niti aayog", "unique identification authority of india", "uidai",
+            "election commission of india", "national informatics centre", "nic",
+            "department of agriculture and cooperation", "department of higher education",
+            "department of school education and literacy", "department of telecommunications",
+            "department of revenue", "department of expenditure", "department of financial services",
+            "department of economic affairs", "employees provident fund organisation", "epfo",
+            "employees state insurance corporation", "esic", "central board of direct taxes",
+            "central board of indirect taxes and customs", "food safety and standards authority of india", "fssai",
+            "national health authority", "nha", "municipal corporation"
+        }
+
+        # 2. Department legitimacy check against authoritative registry
         dept_clean = dept.strip().lower()
-        is_dept_verified = any(kw in dept_clean for kw in known_keywords) and len(dept_clean) >= 4
+        is_dept_verified = any(
+            dept_clean == entry or entry in dept_clean or dept_clean in entry
+            for entry in OFFICIAL_MINISTRIES_REGISTRY
+        ) and len(dept_clean) >= 4
+
+        # Provenance verification separates domain ownership from document validity
+        is_provenance_verified = bool(is_gov_domain and is_dept_verified and url and url != "Unknown Source")
 
         # 3. Document currency / age analysis
         date_str = last_updated or pub_date

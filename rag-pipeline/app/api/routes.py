@@ -25,9 +25,18 @@ ingestion_graph = build_ingestion_graph()
 
 
 def verify_admin_key(x_api_key: Optional[str] = Header(None, alias="X-API-Key")) -> str:
-    """Protects administrative ingestion endpoints from unauthorized trigger."""
-    expected_key = os.getenv("ADMIN_API_KEY", "nagarik-admin-secret-key-2026")
-    if not x_api_key or x_api_key.strip() != expected_key:
+    """
+    Protects administrative ingestion endpoints from unauthorized trigger.
+    Strict fail-closed policy: if ADMIN_API_KEY is not configured in the environment,
+    the server refuses access rather than falling back to a default secret.
+    """
+    expected_key = os.getenv("ADMIN_API_KEY")
+    if not expected_key:
+        raise HTTPException(
+            status_code=500,
+            detail="Server configuration error: ADMIN_API_KEY environment variable is not configured. Admin endpoints are locked down."
+        )
+    if not x_api_key or x_api_key.strip() != expected_key.strip():
         raise HTTPException(
             status_code=401,
             detail="Unauthorized: Valid X-API-Key header required for admin ingestion operations."
