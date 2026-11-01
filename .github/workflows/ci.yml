@@ -42,9 +42,7 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pytest pytest-asyncio fastapi pydantic beautifulsoup4 requests numpy
-          # Finding 4 Fix: Fail closed on dependency installation for strict CI reliability
-          pip install --no-cache-dir pytest pytest-asyncio fastapi pydantic beautifulsoup4 requests numpy
+          pip install --no-cache-dir pytest pytest-asyncio fastapi pydantic pydantic-settings beautifulsoup4 requests numpy groq langchain-core langchain-text-splitters rank-bm25 faiss-cpu
 
       - name: Run Security and Component Unit Tests
         env:
