@@ -499,7 +499,7 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     // 5. Citizen Name
-    const nameMatch = text.match(/(?:my name is|i am|myself|citizen:?)\s+([A-Za-z\s]{2,25})/i);
+    const nameMatch = text.match(/(?:my name is|i am|myself|citizen:?)\s+([^.,\n]+?)(?=\s+(?:and|who|from|need|residing|with|my)\b|[.,\n]|$)/i);
     if (nameMatch) {
       res.extractedName = nameMatch[1].trim();
     }
