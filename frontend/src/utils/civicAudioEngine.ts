@@ -29,8 +29,11 @@ export function detectTextScript(text: string, fallback: SpokenLanguage = 'en'):
 /**
  * Sanitizes markdown, asterisks, URLs, and table formats into natural spoken sentences.
  */
-export function cleanTextForSpeech(text: string): string {
+export function cleanTextForSpeech(text: string, lang?: SpokenLanguage): string {
   if (!text) return '';
+  const detected = lang || detectTextScript(text);
+  const currencyWord = detected === 'te' ? 'రూపాయలు' : detected === 'hi' ? 'रुपये' : detected === 'ta' ? 'ரூபாய்' : 'Rupees';
+
   return text
     // Replace markdown links [label](url) with just label
     .replace(/\[([^\]]+)\]\([^)]+\)/g, '$1')
@@ -42,8 +45,8 @@ export function cleanTextForSpeech(text: string): string {
     .replace(/[*_#`~>]/g, ' ')
     // Replace bullet points and dashes at start of line
     .replace(/^\s*[-•]\s*/gm, '')
-    // Standardize currency
-    .replace(/₹\s*(\d+)/g, 'రూపాయలు $1')
+    // Standardize currency according to language
+    .replace(/₹\s*(\d+)/g, `${currencyWord} $1`)
     // Remove multiple spaces and newlines
     .replace(/\s+/g, ' ')
     .trim();

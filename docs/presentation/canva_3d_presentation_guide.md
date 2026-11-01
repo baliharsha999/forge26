@@ -27,24 +27,31 @@ Configure your Canva Brand Kit with these exact tokens before building the slide
 
 ---
 
-## 💎 Generated Photorealistic 3D Renders (Ready to Upload into Canva)
+## 💎 7 Photorealistic 3D Renders (Ready to Upload into Canva & PPTX)
 
-Three ultra-high fidelity 3D renders have been generated matching the exact brand kit (`#0B0C1E`, `#D97B4A`, `#F2B84B`) and are available directly in the project directory:
+All 7 slides have dedicated ultra-high fidelity 3D renders matching the sovereign brand palette (`#0B0C1E`, `#D97B4A`, `#F2B84B`) in `docs/presentation/assets/`:
 
-1. **3D Sovereign Diya Hero Render**:
+1. **Slide 1 Hero: 3D Sovereign Diya & Flame**
    - File: `docs/presentation/assets/diya_3d_render.jpg`
-   - Description: Photorealistic Indian brass Diya with breathing golden flame, subtle sacred lotus chakra, and binary particles on dark slate.
-   - Canva Usage: Upload and place as Slide 1 & Slide 7 Hero visual.
-
-2. **3D Zero-Knowledge Security Shield Render**:
-   - File: `docs/presentation/assets/security_shield_3d.jpg`
-   - Description: Sovereign cyber shield with glowing brass mandala, golden particle ring, and floating holographic masked citizen cards (Aadhaar, Passport, Ration Card).
-   - Canva Usage: Upload and place in Slide 4 & Slide 6 to illustrate safe auto-fill and Aadhaar masking.
-
-3. **3D Browser Copilot & Scheme Pipeline Render**:
+   - Visual: Sacred Indian brass Diya with breathing golden flame, rotating chakra mandala, and rising binary digits (`0 1`).
+2. **Slide 2: 3D Bureaucratic Maze & Paperwork**
+   - File: `docs/presentation/assets/bureaucratic_maze_3d.jpg`
+   - Visual: Dark isometric filing labyrinth of red tape and forms, with a radiant golden path illuminating the way out.
+3. **Slide 3: 3D Browser Copilot Pipeline**
    - File: `docs/presentation/assets/copilot_pipeline_3d.jpg`
-   - Description: 3D browser copilot interface docked next to an official government portal, glowing voice orb (English, Telugu, Hindi), and verified scheme badges.
-   - Canva Usage: Upload and place in Slide 3 & Slide 5 to visualize the plain-language conversation and portal adapter.
+   - Visual: Glassmorphic civic copilot interface docked next to the portal, glowing voice wave orb, and verified scheme badges.
+4. **Slide 4: 3D Six Modular Civic Tools Dashboard**
+   - File: `docs/presentation/assets/tools_dashboard_3d.jpg`
+   - Visual: Isometric glass podium featuring the 3D mic, verified wax-sealed scheme, 100% eligibility gauge, auto-fill quill, truth magnifier, and RTI scroll.
+5. **Slide 5: 3D Grounded RAG Server Infrastructure**
+   - File: `docs/presentation/assets/rag_architecture_3d.jpg`
+   - Visual: Glowing isometric data cubes (Chrome Side Panel, FastAPI microservices, Vector DB, Grounded LLM Core) with zero-latency fiber streams.
+6. **Slide 6: 3D Zero-Knowledge Security Shield**
+   - File: `docs/presentation/assets/security_shield_3d.jpg`
+   - Visual: Sovereign cyber mandala shield, golden particle orbit, and floating holographic citizen cards with masked Aadhaar (`XXXXXXXX4821`).
+7. **Slide 7: 3D Nagarik Setu Bridge to the Future**
+   - File: `docs/presentation/assets/roadmap_setu_3d.jpg`
+   - Visual: Golden bridge of light spanning the civic landscape towards sunrise, floating roadmap milestone platforms, and glowing 3D QR cube.
 
 ---
 

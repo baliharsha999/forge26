@@ -295,6 +295,24 @@
     };
   }
 
+  function isUnwantedButtonOrLink(el) {
+    if (!el) return true;
+    const txt = (el.innerText || el.value || "").toLowerCase();
+    const href = (el.getAttribute("href") || "").toLowerCase();
+    const id = (el.id || "").toLowerCase();
+    const name = (el.name || "").toLowerCase();
+    const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+    const combined = `${txt} ${href} ${id} ${name} ${aria}`;
+    return combined.includes("register") ||
+           combined.includes("signup") ||
+           combined.includes("sign up") ||
+           combined.includes("new registration") ||
+           combined.includes("new candidate") ||
+           combined.includes("forgot") ||
+           combined.includes("reset password") ||
+           combined.includes("officer");
+  }
+
   /**
    * Target Element Finder (by intent, selector, or text, with Shadow DOM support)
    */
@@ -312,35 +330,54 @@
       } catch (e) {}
     }
 
-    const allInteractive = querySelectorAllDeep("a, button, input[type='submit'], input[type='button'], [role='button'], .btn, .button");
+    const allInteractive = querySelectorAllDeep("button, input[type='submit'], input[type='button'], [role='button'], .btn, .button, a");
 
-    // 2. Specific intent mappings
-    if (targetUpper === "SUBMIT" || targetUpper === "SAVE" || targetUpper === "LODGE" || targetUpper === "APPLY" || targetUpper === "LOGIN" || targetUpper === "OTP") {
-      const found = allInteractive.find(el => {
+    // 2. Specific intent mappings (Buttons prioritized over generic links)
+    if (targetUpper === "SUBMIT" || targetUpper === "SAVE" || targetUpper === "LODGE" || targetUpper === "APPLY" || targetUpper === "LOGIN" || targetUpper === "OTP" || targetUpper === "SIGN_IN") {
+      const realButtons = querySelectorAllDeep("input[type='submit'], input[type='button'], button, [role='button'], .btn, .button");
+      
+      // Highest priority: exact ID or value matches
+      const exactBtn = realButtons.find(el => {
+        if (isUnwantedButtonOrLink(el)) return false;
+        const txt = (el.innerText || el.value || "").toLowerCase().trim();
+        const id = (el.id || "").toLowerCase();
+        const name = (el.name || "").toLowerCase();
+        return id.includes("btnlogin") || id === "login-btn" || id === "submit-button" || id === "login" ||
+               name.includes("btnlogin") || name.includes("login") ||
+               txt === "log in" || txt === "login" || txt === "sign in" || txt === "submit";
+      });
+      if (exactBtn) return exactBtn;
+
+      const foundBtn = realButtons.find(el => {
+        if (isUnwantedButtonOrLink(el)) return false;
         const txt = (el.innerText || el.value || "").toLowerCase();
         const id = (el.id || "").toLowerCase();
         const name = (el.name || "").toLowerCase();
-        return id === "login-btn" || id.includes("login") || id.includes("submit") || name.includes("login") ||
+        return id.includes("btnlogin") || id.includes("login") || id.includes("submit") || name.includes("login") ||
                txt.includes("login with otp") || txt.includes("send otp") || txt.includes("get otp") ||
+               txt.includes("log in") || txt.includes("login") || txt.includes("sign in") ||
                txt.includes("submit grievance") || txt.includes("submit complaint") || txt.includes("lodge grievance") ||
                txt.includes("submit") || txt.includes("lodge") || txt.includes("apply") || txt.includes("save") ||
-               txt.includes("proceed") || txt.includes("register");
+               txt.includes("proceed");
       });
-      if (found) return found;
-    }
+      if (foundBtn) return foundBtn;
 
-    if (targetUpper === "SIGN_IN" || targetUpper === "LOGIN") {
-      const found = allInteractive.find(el => {
+      // Fallback only if no real buttons found and it's not a forbidden link
+      const foundLink = allInteractive.find(el => {
+        if (isUnwantedButtonOrLink(el)) return false;
         const txt = (el.innerText || el.value || "").toLowerCase();
-        const href = (el.getAttribute("href") || "").toLowerCase();
         const id = (el.id || "").toLowerCase();
-        return (id.includes("login") || txt.includes("sign in") || txt.includes("signin") || txt.includes("login") || href.includes("login")) && !txt.includes("officer");
+        const name = (el.name || "").toLowerCase();
+        return id.includes("btnlogin") || id.includes("login") || id.includes("submit") || name.includes("login") ||
+               txt.includes("log in") || txt.includes("login") || txt.includes("sign in") ||
+               txt.includes("submit") || txt.includes("proceed");
       });
-      if (found) return found;
+      if (foundLink) return foundLink;
     }
 
-    // 3. Substring match
+    // 3. Substring match (strictly excluding unwanted registration/forgot links)
     const matched = allInteractive.find(el => {
+      if (isUnwantedButtonOrLink(el)) return false;
       const txt = (el.innerText || el.value || "").toLowerCase();
       const href = (el.getAttribute("href") || "").toLowerCase();
       const aria = (el.getAttribute("aria-label") || "").toLowerCase();
@@ -498,8 +535,18 @@
         preferTag: "TEXTAREA"
       },
       {
-        fieldKeys: ["pincode", "pin_code", "zip", "postal_code", "pin"],
-        domKeywords: ["pincode", "pin_code", "postal_code", "zip", "pin", "पिनकोड", "పిన్‌కోడ్"],
+        fieldKeys: ["application_no", "app_no", "reg_no", "registration_no", "application_number", "roll_no", "user_id", "username"],
+        domKeywords: ["txtregno", "application no", "application_no", "applicationno", "regno", "registration no", "appno", "rollno", "user id", "userid", "username", "पंजीकरण", "రిజిస్ట్రేషన్"],
+        preferTag: "INPUT"
+      },
+      {
+        fieldKeys: ["password", "pwd", "user_password"],
+        domKeywords: ["txtpassword", "password", "passwd", "pwd", "पासवर्ड", "పాస్‌వర్డ్"],
+        preferTag: "INPUT"
+      },
+      {
+        fieldKeys: ["pincode", "pin_code", "zip", "postal_code"],
+        domKeywords: ["pincode", "pin_code", "postal_code", "zip", "पिनकोड", "పిన్‌కోడ్"],
         preferTag: "INPUT"
       },
       {
@@ -508,6 +555,12 @@
         preferTag: "INPUT"
       }
     ];
+
+    function isSecPinOrCaptcha(el) {
+      if (!el) return false;
+      const c = `${el.id} ${el.name} ${el.placeholder || ""} ${el.getAttribute("aria-label") || ""} ${el.title || ""}`.toLowerCase();
+      return c.includes("captcha") || c.includes("secpin") || c.includes("securitypin") || c.includes("security_pin") || c.includes("security pin") || c.includes("txtsecpin") || c.includes("captchacode");
+    }
 
     // Find and populate values using two-pass prioritization (preferTag -> general match)
     mappings.forEach(mapping => {
@@ -541,14 +594,14 @@
         val = val.replace(/\s+/g, "");
       }
 
-      // Pass 1: Try preferred tag match (e.g. TEXTAREA for description, INPUT for name/phone)
+      // Pass 1: Try preferred tag match (explicitly avoiding Captcha/SecPin)
       let matchedEl = null;
       if (mapping.preferTag) {
-        matchedEl = allInputs.find(el => !el.dataset.nagarikFilled && el.tagName === mapping.preferTag && matchesKeywords(el, mapping.domKeywords));
+        matchedEl = allInputs.find(el => !el.dataset.nagarikFilled && el.tagName === mapping.preferTag && matchesKeywords(el, mapping.domKeywords) && !isSecPinOrCaptcha(el));
       }
-      // Pass 2: Any matching element
+      // Pass 2: Any matching element (explicitly avoiding Captcha/SecPin)
       if (!matchedEl) {
-        matchedEl = allInputs.find(el => !el.dataset.nagarikFilled && matchesKeywords(el, mapping.domKeywords));
+        matchedEl = allInputs.find(el => !el.dataset.nagarikFilled && matchesKeywords(el, mapping.domKeywords) && !isSecPinOrCaptcha(el));
       }
 
       if (matchedEl) {
@@ -642,6 +695,7 @@
 
       for (const el of allInputs) {
         if (el.dataset.nagarikFilled) continue;
+        if (isSecPinOrCaptcha(el)) continue; // STRICTLY PREVENT FILLING CAPTCHA / SECURITY PIN
         if (matchesKeywords(el, [key])) {
           setNativeValue(el, val);
           el.dataset.nagarikFilled = "true";
@@ -826,6 +880,60 @@
       singleObj[message.key] = message.value;
       const res = executeUniversalFill(singleObj);
       sendResponse(res);
+      return true;
+    }
+
+    // 9. GUIDE_LOGIN_SEQUENCE (Sequential Order: Appl No -> Password -> Security PIN / Captcha -> Log In)
+    if (message.action === "GUIDE_LOGIN_SEQUENCE") {
+      const allInputs = querySelectorAllDeep("input:not([type='hidden']), select, textarea");
+      
+      const appNoEl = allInputs.find(el => {
+        if (isSecPinOrCaptcha(el)) return false;
+        const s = `${el.id} ${el.name} ${el.placeholder || ""} ${el.getAttribute("aria-label") || ""}`.toLowerCase();
+        return s.includes("regno") || s.includes("application_no") || s.includes("applicationno") || s.includes("appno") || s.includes("userid") || s.includes("user_id") || s.includes("username") || s.includes("txtregno") || s.includes("rollno");
+      });
+
+      const pwdEl = allInputs.find(el => {
+        if (isSecPinOrCaptcha(el)) return false;
+        const s = `${el.id} ${el.name} ${el.placeholder || ""}`.toLowerCase();
+        return el.type === "password" || s.includes("password") || s.includes("txtpassword") || s.includes("passwd");
+      });
+
+      const captchaEl = allInputs.find(el => isSecPinOrCaptcha(el));
+      const loginBtn = findTargetElement("LOGIN");
+
+      if (appNoEl && !(appNoEl.value || '').trim()) {
+        highlightPageElement(appNoEl, "👉 Step 1: Enter Application No");
+        try { appNoEl.focus(); } catch (e) {}
+        showBanner("👉 Step 1 of 4: Enter Application Number", false);
+        sendResponse({ success: true, step: 1, target: "Application No" });
+        return true;
+      }
+
+      if (pwdEl && !(pwdEl.value || '').trim()) {
+        highlightPageElement(pwdEl, "👉 Step 2: Enter Password");
+        try { pwdEl.focus(); } catch (e) {}
+        showBanner("👉 Step 2 of 4: Enter Password", false);
+        sendResponse({ success: true, step: 2, target: "Password" });
+        return true;
+      }
+
+      if (captchaEl && !(captchaEl.value || '').trim()) {
+        highlightPageElement(captchaEl, "👉 Step 3: Enter Security PIN from Image");
+        try { captchaEl.focus(); } catch (e) {}
+        showBanner("👉 Step 3 of 4: Enter Security PIN from Image", false);
+        sendResponse({ success: true, step: 3, target: "Security PIN" });
+        return true;
+      }
+
+      if (loginBtn) {
+        highlightPageElement(loginBtn, "👉 Step 4: Click Log In");
+        showBanner("👉 Step 4 of 4: Click Log In to Proceed", true);
+        sendResponse({ success: true, step: 4, target: "Log In Button" });
+        return true;
+      }
+
+      sendResponse({ success: false, reason: "No standard login fields found" });
       return true;
     }
   });

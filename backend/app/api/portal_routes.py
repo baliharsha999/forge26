@@ -11,104 +11,188 @@ PORTAL_HTML = """
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>DEMO Civic Redressal Portal - Municipal Corporation</title>
+  <title>Unified Civic Redressal Portal - Municipal Corporation & Nagarik AI</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --surface-lowest: #0c0e11;
+      --surface-card: #16181b;
+      --surface-elevated: #1a1c1f;
+      --primary: #E58C5C;
+      --primary-container: #B8643A;
+      --gold: #f2ca50;
+      --on-surface: #E8E9F2;
+      --muted: #8F93B5;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--surface-lowest);
+      color: var(--on-surface);
+    }
+    .font-space {
+      font-family: 'Space Grotesk', monospace;
+    }
+    .glass-panel {
+      background: rgba(22, 24, 27, 0.72);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(229, 140, 92, 0.18);
+      box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.75), inset 0 1px 1px rgba(255, 255, 255, 0.12);
+    }
+    .glass-input {
+      background: rgba(12, 14, 17, 0.85);
+      border: 1px solid rgba(143, 147, 181, 0.22);
+      color: #E8E9F2;
+      transition: all 0.2s ease-in-out;
+    }
+    .glass-input:focus {
+      outline: none;
+      border-color: #f2ca50;
+      box-shadow: 0 0 0 2px rgba(242, 202, 80, 0.25), 0 0 18px rgba(242, 202, 80, 0.15);
+    }
+    .glass-input::placeholder {
+      color: #5c607a;
+    }
+    .gold-gradient-text {
+      background: linear-gradient(135deg, #f2ca50 0%, #E58C5C 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+    }
+    .ambient-glow {
+      position: fixed;
+      pointer-events: none;
+      border-radius: 50%;
+      filter: blur(90px);
+      z-index: 0;
+      opacity: 0.18;
+    }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans min-h-screen">
+<body class="min-h-screen relative overflow-x-hidden selection:bg-[#E58C5C] selection:text-[#0c0e11]">
   
+  <!-- Ambient Luminous Glow Orbs -->
+  <div class="ambient-glow bg-[#E58C5C] w-[450px] h-[450px] -top-32 -left-20"></div>
+  <div class="ambient-glow bg-[#f2ca50] w-[400px] h-[400px] top-1/3 -right-24"></div>
+  <div class="ambient-glow bg-[#3b82f6] w-[350px] h-[350px] -bottom-20 left-1/4"></div>
+
   <!-- Mandatory Notice Banner -->
-  <div class="bg-amber-500 text-slate-900 px-4 py-2 text-center text-xs font-bold tracking-wide shadow-sm flex items-center justify-center gap-2">
-    <span>⚠️ DEMO MUNICIPAL PORTAL — Not a real government site. Built for testing & Playwright automation.</span>
+  <div class="relative z-10 bg-gradient-to-r from-amber-500/20 via-amber-400/25 to-amber-500/20 border-b border-amber-500/30 text-amber-300 px-4 py-2 text-center text-xs font-semibold tracking-wide flex items-center justify-center gap-2 backdrop-blur-md">
+    <span class="inline-flex items-center justify-center w-5 h-5 rounded-full bg-amber-400 text-slate-950 font-black text-[11px]">!</span>
+    <span>DEMO MUNICIPAL REDRESSAL PORTAL — Verified Sandbox for Nagarik AI Extension & Playwright Autofill Engine</span>
   </div>
 
-  <header class="bg-blue-900 text-white shadow-md">
+  <!-- Header -->
+  <header class="relative z-10 border-b border-white/5 bg-[#111316]/80 backdrop-blur-xl">
     <div class="max-w-4xl mx-auto px-4 py-4 flex items-center justify-between">
-      <div class="flex items-center space-x-3">
-        <div class="bg-white/10 p-2 rounded-lg text-2xl font-bold">🏛️</div>
+      <div class="flex items-center space-x-3.5">
+        <div class="w-10 h-10 rounded-xl bg-gradient-to-br from-[#E58C5C]/20 to-[#f2ca50]/20 border border-[#f2ca50]/30 flex items-center justify-center text-xl shadow-lg shadow-[#E58C5C]/10">
+          🏛️
+        </div>
         <div>
-          <h1 class="text-lg font-bold">Unified Municipal Redressal Gateway</h1>
-          <p class="text-xs text-blue-200">Public Grievance Registration & Dispatch Unit (Mock)</p>
+          <div class="flex items-center gap-2">
+            <h1 class="text-sm sm:text-base font-bold text-white tracking-tight">Unified Municipal Redressal Gateway</h1>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-bold bg-[#E58C5C]/15 border border-[#E58C5C]/30 text-[#E58C5C]">DEMO GOV</span>
+          </div>
+          <p class="text-xs text-[#8F93B5]">Public Grievance Registration & Statutory Dispatch Division</p>
         </div>
       </div>
       <div>
-        <a href="/portal/admin" class="text-xs bg-blue-800 hover:bg-blue-700 text-blue-100 px-3 py-1.5 rounded font-medium transition">
-          Operator Dashboard ➔
+        <a href="/portal/admin" class="text-xs inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg font-semibold bg-[#1a1c1f] hover:bg-[#22252a] text-[#f2ca50] border border-[#f2ca50]/30 shadow-md transition-all">
+          <span>Operator Console</span>
+          <span class="text-[10px]">➔</span>
         </a>
       </div>
     </div>
   </header>
 
-  <main class="max-w-2xl mx-auto px-4 py-8">
-    <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
+  <!-- Main Content Form -->
+  <main class="relative z-10 max-w-2xl mx-auto px-4 py-8">
+    <div class="glass-panel rounded-2xl p-6 sm:p-8">
       
-      <div id="submission-confirmation" class="hidden mb-6 p-5 bg-emerald-50 border-2 border-emerald-500 rounded-xl">
-        <div class="text-emerald-800 font-bold text-sm mb-1">✅ Grievance Officially Dispatched!</div>
-        <div class="text-xs text-emerald-700 mb-2">Tracking Reference Number:</div>
-        <div id="tracking-id" class="text-2xl font-black text-emerald-900 font-mono tracking-wider">CP-2026-00000</div>
-        <div class="text-xs text-slate-500 mt-2">Screenshot receipt generated. Status: <span class="font-semibold text-emerald-700">Filed</span></div>
+      <!-- Submission Confirmation Card (Target of autofill dispatch) -->
+      <div id="submission-confirmation" class="hidden mb-6 p-5 rounded-xl bg-gradient-to-br from-emerald-950/70 to-[#111316] border border-emerald-500/40 shadow-xl shadow-emerald-950/30 transition-all">
+        <div class="flex items-center gap-2.5 text-emerald-400 font-bold text-sm mb-1.5">
+          <div class="w-6 h-6 rounded-full bg-emerald-500/20 border border-emerald-400/40 flex items-center justify-center text-xs">✓</div>
+          <span>Grievance Officially Dispatched to Dispatch Queue</span>
+        </div>
+        <div class="text-xs text-emerald-300/80 mb-2">Statutory Tracking Reference Number:</div>
+        <div id="tracking-id" class="text-2xl font-black text-[#f2ca50] font-space tracking-wider drop-shadow-md">CP-2026-00000</div>
+        <div class="text-xs text-[#8F93B5] mt-2.5 pt-2 border-t border-emerald-500/20 flex items-center justify-between">
+          <span>Digital receipt logged in municipal ledger</span>
+          <span class="px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-300 font-bold text-[10px]">Filed & SLA Active</span>
+        </div>
       </div>
 
-      <h2 class="text-base font-bold text-slate-900 mb-1">File a Public Grievance</h2>
-      <p class="text-xs text-slate-500 mb-6">Enter details below or let Nagarik AI copilot fill it automatically.</p>
+      <div class="flex items-center justify-between mb-2">
+        <h2 class="text-lg font-bold text-white tracking-tight">File a Citizen Grievance</h2>
+        <span class="text-[11px] font-semibold text-[#f2ca50] flex items-center gap-1">
+          <span class="w-1.5 h-1.5 rounded-full bg-[#f2ca50] animate-ping"></span>
+          Autofill Ready
+        </span>
+      </div>
+      <p class="text-xs text-[#8F93B5] mb-6">Enter municipal complaint details manually or use the <strong class="text-[#E58C5C]">Nagarik AI Sidepanel</strong> for 1-click intelligent dispatch.</p>
 
       <form id="complaint-form" onsubmit="handleFormSubmit(event)" class="space-y-4">
         
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Citizen Name *</label>
-            <input type="text" id="citizen-name" name="citizen_name" required placeholder="Enter full name" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
+            <label class="block text-xs font-semibold text-[#E8E9F2] mb-1.5">Citizen Name <span class="text-[#E58C5C]">*</span></label>
+            <input type="text" id="citizen-name" name="citizen_name" required placeholder="Full legal name" class="glass-input w-full text-xs p-3 rounded-xl">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Contact Mobile Number *</label>
-            <input type="tel" id="citizen-phone" name="citizen_phone" required placeholder="10-digit mobile number" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
+            <label class="block text-xs font-semibold text-[#E8E9F2] mb-1.5">Contact Mobile Number <span class="text-[#E58C5C]">*</span></label>
+            <input type="tel" id="citizen-phone" name="citizen_phone" required placeholder="10-digit citizen mobile" class="glass-input w-full text-xs p-3 rounded-xl">
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Responsible Municipal Department *</label>
-          <select id="department-select" name="department" required class="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white outline-none focus:ring-2 focus:ring-blue-600">
-            <option value="" disabled selected>-- Select Responsible Department --</option>
-            <option value="Municipal Corporation & Public Works">Municipal Corporation & Public Works</option>
-            <option value="Water Supply & Sewerage Board">Water Supply & Sewerage Board</option>
-            <option value="State Electricity Distribution Company (DISCOM)">State Electricity Distribution Company (DISCOM)</option>
-            <option value="Solid Waste Management & Public Health">Solid Waste Management & Public Health</option>
-            <option value="Civil Supplies & Consumer Affairs">Civil Supplies & Consumer Affairs</option>
+          <label class="block text-xs font-semibold text-[#E8E9F2] mb-1.5">Responsible Municipal Department <span class="text-[#E58C5C]">*</span></label>
+          <select id="department-select" name="department" required class="glass-input w-full text-xs p-3 rounded-xl cursor-pointer">
+            <option value="" disabled selected class="bg-[#111316] text-[#8F93B5]">-- Select Responsible Department --</option>
+            <option value="Municipal Corporation & Public Works" class="bg-[#111316] text-[#E8E9F2]">Municipal Corporation & Public Works</option>
+            <option value="Water Supply & Sewerage Board" class="bg-[#111316] text-[#E8E9F2]">Water Supply & Sewerage Board</option>
+            <option value="State Electricity Distribution Company (DISCOM)" class="bg-[#111316] text-[#E8E9F2]">State Electricity Distribution Company (DISCOM)</option>
+            <option value="Solid Waste Management & Public Health" class="bg-[#111316] text-[#E8E9F2]">Solid Waste Management & Public Health</option>
+            <option value="Civil Supplies & Consumer Affairs" class="bg-[#111316] text-[#E8E9F2]">Civil Supplies & Consumer Affairs</option>
           </select>
         </div>
 
-        <div class="grid grid-cols-2 gap-4">
+        <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Issue Category *</label>
-            <input type="text" id="category-select" name="category" required placeholder="e.g. Water Pipeline Leakage" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
+            <label class="block text-xs font-semibold text-[#E8E9F2] mb-1.5">Issue Category <span class="text-[#E58C5C]">*</span></label>
+            <input type="text" id="category-select" name="category" required placeholder="e.g. Water Pipeline Leakage" class="glass-input w-full text-xs p-3 rounded-xl">
           </div>
           <div>
-            <label class="block text-xs font-semibold text-slate-700 mb-1">Urgency Level *</label>
-            <select id="urgency-select" name="urgency_level" required class="w-full text-xs p-2.5 rounded-lg border border-slate-300 bg-white outline-none focus:ring-2 focus:ring-blue-600">
-              <option value="" disabled selected>-- Select Urgency --</option>
-              <option value="HIGH">HIGH (Immediate Safety Risk)</option>
-              <option value="MEDIUM">MEDIUM (Standard Maintenance)</option>
-              <option value="LOW">LOW (General Inquiry)</option>
+            <label class="block text-xs font-semibold text-[#E8E9F2] mb-1.5">Urgency Level <span class="text-[#E58C5C]">*</span></label>
+            <select id="urgency-select" name="urgency_level" required class="glass-input w-full text-xs p-3 rounded-xl cursor-pointer">
+              <option value="" disabled selected class="bg-[#111316] text-[#8F93B5]">-- Select Urgency --</option>
+              <option value="HIGH" class="bg-[#111316] text-amber-400 font-semibold">HIGH (Immediate Public Risk)</option>
+              <option value="MEDIUM" class="bg-[#111316] text-[#E8E9F2]">MEDIUM (Standard Maintenance)</option>
+              <option value="LOW" class="bg-[#111316] text-[#8F93B5]">LOW (General Inquiry)</option>
             </select>
           </div>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Exact Location / Ward / Landmark *</label>
-          <input type="text" id="location-input" name="location" required placeholder="House No., Street, Colony, Ward, Landmark" class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600">
+          <label class="block text-xs font-semibold text-[#E8E9F2] mb-1.5">Exact Location / Ward / Landmark <span class="text-[#E58C5C]">*</span></label>
+          <input type="text" id="location-input" name="location" required placeholder="House No., Street, Colony, Ward, Landmark" class="glass-input w-full text-xs p-3 rounded-xl">
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Detailed Description of Problem *</label>
-          <textarea id="description-textarea" name="description" rows="3" required placeholder="Describe the civic grievance and damage in detail..." class="w-full text-xs p-2.5 rounded-lg border border-slate-300 outline-none focus:ring-2 focus:ring-blue-600"></textarea>
+          <label class="block text-xs font-semibold text-[#E8E9F2] mb-1.5">Detailed Description of Problem <span class="text-[#E58C5C]">*</span></label>
+          <textarea id="description-textarea" name="description" rows="3" required placeholder="Describe the civic grievance, damage, and public impact in detail..." class="glass-input w-full text-xs p-3 rounded-xl resize-y"></textarea>
         </div>
 
         <div>
-          <label class="block text-xs font-semibold text-slate-700 mb-1">Photographic Evidence (Optional)</label>
-          <input type="file" id="photo-upload" name="photo" accept="image/*" class="w-full text-xs text-slate-500 file:mr-3 file:py-1.5 file:px-3 file:rounded-lg file:border-0 file:text-xs file:font-semibold file:bg-blue-50 file:text-blue-700 hover:file:bg-blue-100">
+          <label class="block text-xs font-semibold text-[#E8E9F2] mb-1.5">Photographic Evidence (Optional)</label>
+          <input type="file" id="photo-upload" name="photo" accept="image/*" class="w-full text-xs text-[#8F93B5] file:mr-3 file:py-2 file:px-3 file:rounded-lg file:border file:border-[#E58C5C]/30 file:text-xs file:font-semibold file:bg-[#E58C5C]/15 file:text-[#E58C5C] hover:file:bg-[#E58C5C]/25 cursor-pointer">
         </div>
 
-        <button type="submit" id="submit-button" class="w-full py-3 bg-blue-900 hover:bg-blue-800 text-white font-bold text-xs rounded-xl shadow-md transition">
+        <button type="submit" id="submit-button" class="w-full py-3.5 px-4 rounded-xl font-bold text-xs tracking-wide uppercase transition-all duration-200 bg-gradient-to-r from-[#E58C5C] via-[#ea996d] to-[#f2ca50] text-[#0c0e11] shadow-lg shadow-[#E58C5C]/20 hover:shadow-[#E58C5C]/35 hover:scale-[1.005] active:scale-[0.99] cursor-pointer">
           Submit Grievance to Municipal Dispatch
         </button>
       </form>
@@ -122,8 +206,9 @@ PORTAL_HTML = """
       const trackingId = 'CP-2026-' + randomNum;
       
       document.getElementById('tracking-id').innerText = trackingId;
-      document.getElementById('submission-confirmation').classList.remove('hidden');
-      document.getElementById('submission-confirmation').scrollIntoView({ behavior: 'smooth' });
+      const conf = document.getElementById('submission-confirmation');
+      conf.classList.remove('hidden');
+      conf.scrollIntoView({ behavior: 'smooth' });
     }
   </script>
 </body>
@@ -135,79 +220,137 @@ ADMIN_HTML = """
 <html lang="en">
 <head>
   <meta charset="UTF-8">
-  <title>Portal Operator Dashboard</title>
+  <title>Portal Operator Dashboard - Municipal Redressal Console</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
   <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    :root {
+      --surface-lowest: #0c0e11;
+      --surface-card: #16181b;
+      --surface-elevated: #1a1c1f;
+      --primary: #E58C5C;
+      --gold: #f2ca50;
+      --on-surface: #E8E9F2;
+      --muted: #8F93B5;
+    }
+    body {
+      font-family: 'Plus Jakarta Sans', -apple-system, BlinkMacSystemFont, sans-serif;
+      background-color: var(--surface-lowest);
+      color: var(--on-surface);
+    }
+    .font-space {
+      font-family: 'Space Grotesk', monospace;
+    }
+    .glass-panel {
+      background: rgba(22, 24, 27, 0.75);
+      backdrop-filter: blur(28px) saturate(180%);
+      -webkit-backdrop-filter: blur(28px) saturate(180%);
+      border: 1px solid rgba(229, 140, 92, 0.18);
+      box-shadow: 0 24px 60px -15px rgba(0, 0, 0, 0.75);
+    }
+  </style>
 </head>
-<body class="bg-slate-100 text-slate-800 font-sans p-6">
+<body class="min-h-screen p-4 sm:p-8 bg-[#0c0e11] text-[#E8E9F2]">
   <div class="max-w-5xl mx-auto">
-    <div class="bg-amber-500 text-slate-900 px-4 py-2 text-center text-xs font-bold rounded-lg mb-6">
-      ⚠️ DEMO OPERATOR DASHBOARD — Use this to simulate status changes (e.g. Overdue) for buildathon evaluation.
+    <!-- Notice -->
+    <div class="bg-gradient-to-r from-amber-500/20 via-amber-400/25 to-amber-500/20 border border-amber-500/30 text-amber-300 px-4 py-2 text-center text-xs font-semibold rounded-xl mb-6 backdrop-blur-md">
+      ⚠️ DEMO OPERATOR CONSOLE — Simulate statutory status changes (e.g. Overdue, Resolved) for live evaluation.
     </div>
 
-    <div class="flex items-center justify-between mb-6">
+    <!-- Header -->
+    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
       <div>
-        <h1 class="text-xl font-bold text-slate-900">Municipal Grievance Dispatch Console</h1>
-        <p class="text-xs text-slate-500">Live operator status toggles for demo verification</p>
+        <div class="flex items-center gap-2">
+          <h1 class="text-xl font-bold text-white tracking-tight">Municipal Grievance Dispatch Console</h1>
+          <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-[#f2ca50]/15 text-[#f2ca50] border border-[#f2ca50]/30">OPERATOR LEVEL</span>
+        </div>
+        <p class="text-xs text-[#8F93B5] mt-1">Real-time status transitions and civic SLA escalation unit</p>
       </div>
-      <a href="/portal" class="text-xs bg-slate-900 text-white px-3 py-1.5 rounded-lg">Back to Portal Form</a>
+      <a href="/portal" class="text-xs self-start sm:self-auto inline-flex items-center gap-1.5 px-3 py-2 rounded-lg font-semibold bg-[#1a1c1f] hover:bg-[#22252a] text-[#E58C5C] border border-[#E58C5C]/30 shadow-md transition">
+        <span>← Back to Portal Form</span>
+      </a>
     </div>
 
-    <div class="bg-white rounded-xl shadow-sm border border-slate-200 overflow-hidden">
-      <table class="w-full text-left text-xs">
-        <thead class="bg-slate-50 border-b border-slate-200 font-semibold text-slate-600">
-          <tr>
-            <th class="p-3">Ref ID</th>
-            <th class="p-3">Citizen</th>
-            <th class="p-3">Category</th>
-            <th class="p-3">Current Status</th>
-            <th class="p-3">Toggle Status</th>
-          </tr>
-        </thead>
-        <tbody class="divide-y divide-slate-100" id="records-body">
-          <!-- Populated by JS -->
-        </tbody>
-      </table>
+    <!-- Table Container -->
+    <div class="glass-panel rounded-2xl overflow-hidden">
+      <div class="overflow-x-auto">
+        <table class="w-full text-left text-xs">
+          <thead class="bg-[#111316]/90 border-b border-white/5 font-semibold text-[#8F93B5]">
+            <tr>
+              <th class="p-3.5">Ref ID</th>
+              <th class="p-3.5">Citizen Details</th>
+              <th class="p-3.5">Category</th>
+              <th class="p-3.5">Current Status</th>
+              <th class="p-3.5">Statutory Action</th>
+            </tr>
+          </thead>
+          <tbody class="divide-y divide-white/5" id="records-body">
+            <!-- Populated dynamically by JS -->
+          </tbody>
+        </table>
+      </div>
     </div>
   </div>
 
   <script>
     async function loadComplaints() {
-      const res = await fetch('/api/v1/grievance/list');
-      const data = await res.json();
-      const tbody = document.getElementById('records-body');
-      tbody.innerHTML = '';
-      
-      data.forEach(item => {
-        const tr = document.createElement('tr');
-        tr.className = 'hover:bg-slate-50';
-        tr.innerHTML = `
-          <td class="p-3 font-mono font-bold text-blue-700">${item.tracking_id}</td>
-          <td class="p-3">${item.citizen_name}<br><span class="text-slate-400 text-[10px]">${item.district}</span></td>
-          <td class="p-3">${item.category}</td>
-          <td class="p-3"><span class="px-2 py-0.5 rounded font-bold text-[10px] bg-slate-100 text-slate-800">${item.status}</span></td>
-          <td class="p-3">
-            <select onchange="updateStatus('${item.tracking_id}', this.value)" class="text-[11px] p-1 rounded border border-slate-300">
-              <option value="">Change...</option>
-              <option value="Filed">Filed</option>
-              <option value="In Progress">In Progress</option>
-              <option value="Resolved">Resolved</option>
-              <option value="Overdue">Overdue</option>
-            </select>
-          </td>
-        `;
-        tbody.appendChild(tr);
-      });
+      try {
+        const res = await fetch('/api/v1/grievance/list');
+        const data = await res.json();
+        const tbody = document.getElementById('records-body');
+        tbody.innerHTML = '';
+        
+        if (!data || data.length === 0) {
+          tbody.innerHTML = '<tr><td colspan="5" class="p-6 text-center text-xs text-[#8F93B5]">No civic grievances registered yet. Submit via /portal or Nagarik AI!</td></tr>';
+          return;
+        }
+
+        data.forEach(item => {
+          const tr = document.createElement('tr');
+          tr.className = 'hover:bg-white/[0.02] transition-colors';
+          
+          let badgeColor = 'bg-blue-500/20 text-blue-300 border-blue-500/30';
+          if (item.status === 'Resolved') badgeColor = 'bg-emerald-500/20 text-emerald-300 border-emerald-500/30';
+          if (item.status === 'Overdue') badgeColor = 'bg-rose-500/20 text-rose-300 border-rose-500/30';
+          if (item.status === 'In Progress') badgeColor = 'bg-amber-500/20 text-amber-300 border-amber-500/30';
+
+          tr.innerHTML = `
+            <td class="p-3.5 font-space font-bold text-[#f2ca50]">${item.tracking_id}</td>
+            <td class="p-3.5 font-medium text-white">${item.citizen_name || 'Anonymous Citizen'}<br><span class="text-[#8F93B5] text-[10px]">${item.district || 'General Ward'}</span></td>
+            <td class="p-3.5 text-[#E8E9F2]">${item.category}</td>
+            <td class="p-3.5"><span class="px-2 py-0.5 rounded-md font-bold text-[10px] border ${badgeColor}">${item.status}</span></td>
+            <td class="p-3.5">
+              <select onchange="updateStatus('${item.tracking_id}', this.value)" class="text-[11px] p-1.5 rounded-lg bg-[#0c0e11] text-[#E8E9F2] border border-[#8F93B5]/30 focus:border-[#f2ca50] outline-none">
+                <option value="">Update...</option>
+                <option value="Filed">Filed</option>
+                <option value="In Progress">In Progress</option>
+                <option value="Resolved">Resolved</option>
+                <option value="Overdue">Overdue (Trigger SLA)</option>
+              </select>
+            </td>
+          `;
+          tbody.appendChild(tr);
+        });
+      } catch (err) {
+        console.error("Failed to load grievances:", err);
+      }
     }
 
     async function updateStatus(trackingId, newStatus) {
       if (!newStatus) return;
-      await fetch('/portal/admin/toggle-status', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ tracking_id: trackingId, status: newStatus })
-      });
-      loadComplaints();
+      try {
+        await fetch('/portal/admin/toggle-status', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ tracking_id: trackingId, status: newStatus })
+        });
+        loadComplaints();
+      } catch (err) {
+        console.error("Failed to update status:", err);
+      }
     }
 
     loadComplaints();

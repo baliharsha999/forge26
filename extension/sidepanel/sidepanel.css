@@ -20,14 +20,27 @@
 
 :root {
   /* Strict Palette Roles */
+  /* Strict Sovereign Palette Roles */
+  --surface-container-lowest: #0c0e11;
+  --surface-dim: #111316;
+  --surface: #111316;
+  --surface-container: #1a1c1f;
+  --surface-container-high: #22252a;
+  --primary: #E58C5C;
+  --primary-container: #B8643A;
+  --secondary: #ffb692;
+  --gold: #f2ca50;
+  --gold-container: #d4af37;
+  --border-terra: #B8643A;
+
   --text-on-orange: #0B0C1E;
   --text-on-slate: #E8E9F2;
   --muted-on-slate: #8F93B5;
   --border-on-orange: #B8643A;
-  --orange-primary: #F06A25;
-  --orange-hover: #E58C5C;
-  --slate-hover: #2F3558;
-  --base-bg: #0B0E1B;
+  --orange-primary: #E58C5C;
+  --orange-hover: #F06A25;
+  --slate-hover: #22252a;
+  --base-bg: #0c0e11;
 
   /* Ambient Orb Colors */
   --orb-saffron: #f06a25;

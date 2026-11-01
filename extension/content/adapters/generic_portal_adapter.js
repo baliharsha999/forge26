@@ -33,6 +33,18 @@ class GenericCivicAdapter extends BasePortalAdapter {
     return true;
   }
 
+  isCaptchaField(el) {
+    if (!el) return false;
+    const combined = `${el.id} ${el.name} ${el.placeholder || ""} ${el.getAttribute("aria-label") || ""} ${el.title || ""}`.toLowerCase();
+    return combined.includes("captcha") ||
+           combined.includes("secpin") ||
+           combined.includes("securitypin") ||
+           combined.includes("security_pin") ||
+           combined.includes("security pin") ||
+           combined.includes("txtsecpin") ||
+           combined.includes("captchacode");
+  }
+
   /**
    * Helper to find an input element by fuzzy label/attribute match (supports Shadow DOM)
    */
@@ -85,8 +97,8 @@ class GenericCivicAdapter extends BasePortalAdapter {
       });
     }
 
-    // Captcha Code
-    const captchaEl = this.findElementByKeywords(["captcha", "security code", "security_code", "captchacode"], ["input"]);
+    // Captcha / Security PIN Code (NIC portals use txtsecpin / Security Pin)
+    const captchaEl = this.findElementByKeywords(["captcha", "secpin", "txtsecpin", "security pin", "security_pin", "security code", "security_code", "captchacode"], ["input"]);
     if (captchaEl) {
       fields.push({
         key: 'captcha',
@@ -169,9 +181,9 @@ class GenericCivicAdapter extends BasePortalAdapter {
       });
     }
 
-    // Pincode / Postal
-    const pinEl = this.findElementByKeywords(["pincode", "pin_code", "pin", "postal_code", "zip"], ["input"]);
-    if (pinEl) {
+    // Pincode / Postal (Strictly exclude security PIN or captcha)
+    const pinEl = this.findElementByKeywords(["pincode", "pin_code", "postal_code", "postal code", "zip"], ["input"]);
+    if (pinEl && !this.isCaptchaField(pinEl)) {
       fields.push({
         key: 'pincode',
         label: 'Postal Pincode',
@@ -288,7 +300,8 @@ class GenericCivicAdapter extends BasePortalAdapter {
     } else if (key === 'citizen_email' || key === 'email') {
       el = this.findElementByKeywords(["email", "mail", "e-mail"], ["input"]);
     } else if (key === 'pincode' || key === 'pin_code' || key === 'zip') {
-      el = this.findElementByKeywords(["pincode", "pin_code", "postal_code", "zip", "pin"], ["input"]);
+      el = this.findElementByKeywords(["pincode", "pin_code", "postal_code", "postal code", "zip"], ["input"]);
+      if (el && this.isCaptchaField(el)) el = null;
     } else if (key === 'department') {
       el = this.findElementByKeywords(["department-select", "department", "dept", "ministry", "authority", "board"], ["select", "input"]);
       if (el && el.tagName === "SELECT") {
@@ -460,8 +473,8 @@ class GenericCivicAdapter extends BasePortalAdapter {
     }
 
     if (formData.pincode || formData.pin_code) {
-      const pinEl = this.findElementByKeywords(["pincode", "pin_code", "zip", "pin"], ["input"]);
-      if (pinEl) {
+      const pinEl = this.findElementByKeywords(["pincode", "pin_code", "postal_code", "postal code", "zip"], ["input"]);
+      if (pinEl && !this.isCaptchaField(pinEl)) {
         this.setValueWithEvents(pinEl, formData.pincode || formData.pin_code);
         filledCount++;
         report("Filled pincode");

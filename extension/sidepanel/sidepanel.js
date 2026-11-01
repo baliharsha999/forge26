@@ -784,24 +784,41 @@ Submitted in good faith by ${name}, Contact: ${phone}.`.trim();
       }
     });
 
-    // Task 4: Visual Spotlight on Submit / Action button
-    const isLoginPortal = activeTabInfo.domain.includes("uidai") || activeTabInfo.title.toLowerCase().includes("login");
+    // Task 4: Visual Spotlight on Submit / Action button (Sequential Guided Order for Login/Exam Portals)
+    const isLoginPortal = activeTabInfo.domain.includes("uidai") || 
+                          activeTabInfo.title.toLowerCase().includes("login") || 
+                          activeTabInfo.url.toLowerCase().includes("login") ||
+                          activeTabInfo.pageType === "EXAM_ADMISSION_PORTAL";
     const spotlightTarget = isLoginPortal ? "LOGIN" : "SUBMIT";
-    const spotlightLabel = isLoginPortal ? "Login with OTP / Proceed" : "Review & Submit";
+    const spotlightLabel = isLoginPortal ? "Log In / Submit" : "Review & Submit";
 
     tasks.push({
       id: "task_spotlight",
       icon: "🎯",
-      title: loc.task_spotlight_title,
-      desc: loc.task_spotlight_desc,
+      title: isLoginPortal ? "Sequential Login Copilot" : loc.task_spotlight_title,
+      desc: isLoginPortal ? "Step-by-step order: 1. Application No → 2. Password → 3. Security PIN → 4. Official Log In button." : loc.task_spotlight_desc,
       status: "pending",
       run: async () => {
         return new Promise((resolve) => {
-          chrome.tabs.sendMessage(activeTabInfo.id, {
-            action: "HIGHLIGHT_PAGE_ELEMENT",
-            target: spotlightTarget,
-            label: spotlightLabel
-          }, () => resolve(true));
+          if (isLoginPortal) {
+            chrome.tabs.sendMessage(activeTabInfo.id, { action: "GUIDE_LOGIN_SEQUENCE" }, (seqRes) => {
+              if (seqRes && seqRes.success) {
+                resolve(true);
+              } else {
+                chrome.tabs.sendMessage(activeTabInfo.id, {
+                  action: "HIGHLIGHT_PAGE_ELEMENT",
+                  target: spotlightTarget,
+                  label: spotlightLabel
+                }, () => resolve(true));
+              }
+            });
+          } else {
+            chrome.tabs.sendMessage(activeTabInfo.id, {
+              action: "HIGHLIGHT_PAGE_ELEMENT",
+              target: spotlightTarget,
+              label: spotlightLabel
+            }, () => resolve(true));
+          }
         });
       }
     });

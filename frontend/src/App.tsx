@@ -6,12 +6,13 @@ import {
   ExternalLink, Plus, MessageSquare, Trash2, Search, Menu, X,
   ShieldCheck, ArrowRight,
   Globe, Sparkles, Monitor, Download,
-  Settings, ChevronsLeft, ChevronsRight, FileText
+  Settings, ChevronsLeft, ChevronsRight, Phone,
+  FileText, Bookmark
 } from 'lucide-react';
 import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
 import { AISaathiExtensionModal } from './components/AISaathiExtensionModal';
 import { CivicSettingsModal, type SettingsLanguage } from './components/CivicSettingsModal';
-import { CivicChatSummarizerModal } from './components/CivicChatSummarizerModal';
+import { CivicHelplineModal } from './components/CivicHelplineModal';
 import { speakCivicText, stopAllSpeech } from './utils/civicAudioEngine';
 
 // Civic Language Support
@@ -122,7 +123,8 @@ export function App() {
   // UI state
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [sidebarCollapsed, setSidebarCollapsed] = useState<boolean>(() => {
-    return localStorage.getItem('nagarik_sidebar_collapsed') === 'true';
+    const item = localStorage.getItem('nagarik_sidebar_collapsed');
+    return item === null ? true : item === 'true';
   });
 
   const toggleSidebarCollapsed = () => {
@@ -144,7 +146,7 @@ export function App() {
   // Modals
   const [showExtensionModal, setShowExtensionModal] = useState(false);
   const [showSettingsModal, setShowSettingsModal] = useState(false);
-  const [showSummarizerModal, setShowSummarizerModal] = useState(false);
+  const [showHelplineModal, setShowHelplineModal] = useState(false);
   const [incognito, setIncognito] = useState<boolean>(() => {
     return sessionStorage.getItem('nagarik_incognito') === 'true';
   });
@@ -529,7 +531,7 @@ export function App() {
           }));
         }
       } catch {
-        fullBotText = 'Kindly check your internet connection or try again. You can also test all live services directly on the Host Verification Page.';
+        fullBotText = 'Kindly check your internet connection or verify your query. Nagarik AI is ready to assist.';
         setThreads(prevThreads => prevThreads.map(t => {
           if (t.id === activeThreadId) {
             const msgs = t.messages.map(m => {
@@ -798,7 +800,7 @@ export function App() {
         {/* Top Minimal Sovereign Header - Fully Responsive on Mobile (< 640px) */}
         <header className="flex items-center justify-between h-14 px-2 sm:px-4 border-b border-[#22262f] bg-[#101216]/90 backdrop-blur-xl shrink-0 overflow-hidden">
           <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
-            {/* Sidebar Toggle Button (Mobile & Desktop) */}
+            {/* Sidebar Toggle Button (Always accessible to collapse and expand) */}
             <button
               onClick={() => {
                 if (window.innerWidth < 768) {
@@ -807,16 +809,18 @@ export function App() {
                   toggleSidebarCollapsed();
                 }
               }}
-              className={`p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 ${
-                sidebarCollapsed
-                  ? 'bg-[#1a1d24] border-[#f2ca50]/50 text-[#f2ca50] shadow-sm hover:border-[#f2ca50] hover:bg-[#22262f]'
-                  : 'text-[#8F93B5] hover:text-white hover:bg-[#16191f] border-transparent md:hidden'
-              }`}
+              className="p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg border text-xs font-semibold transition-all flex items-center gap-1.5 shrink-0 bg-[#1a1d24] border-[#f2ca50]/50 text-[#f2ca50] shadow-sm hover:border-[#f2ca50] hover:bg-[#22262f]"
               title="Toggle Conversation History (Alt+S)"
               aria-label="Toggle Conversation History"
             >
-              <ChevronsRight className="w-4 h-4 text-[#f2ca50]" />
-              <span className="hidden sm:inline text-xs text-[#e2e2e6]">History</span>
+              {sidebarCollapsed ? (
+                <ChevronsRight className="w-4 h-4 text-[#f2ca50]" />
+              ) : (
+                <ChevronsLeft className="w-4 h-4 text-[#f2ca50]" />
+              )}
+              <span className="hidden sm:inline text-xs text-[#e2e2e6]">
+                {sidebarCollapsed ? 'History' : 'Collapse'}
+              </span>
               {threads.length > 0 && (
                 <span className="text-[10px] px-1.5 py-0.2 rounded-full bg-[#f2ca50]/20 text-[#f2ca50] font-mono">
                   {threads.length}
@@ -844,18 +848,26 @@ export function App() {
               <span className="hidden md:inline">AI Saathi</span>
             </button>
 
-            {/* Consultation Summarizer Button */}
+            {/* National Helplines (SOS / 24x7) Button */}
             <button
-              onClick={() => setShowSummarizerModal(true)}
-              className="hover-pop-btn-slate flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-[#1a1d24] border border-emerald-500/40 text-emerald-400 hover:border-emerald-400 text-xs font-semibold shadow-sm transition-all shrink-0"
-              title="Summarize Consultation & Generate Receipt"
-              aria-label="Summarize Consultation"
+              onClick={() => setShowHelplineModal(true)}
+              className="hover-pop-btn-slate flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-[#1a1d24] border border-amber-500/40 text-amber-400 hover:border-amber-400 text-xs font-semibold shadow-sm transition-all shrink-0"
+              title="National Helplines (112, 1930, 181, 1912)"
+              aria-label="National Helplines"
             >
-              <FileText className="w-3.5 h-3.5 text-emerald-400" />
-              <span className="hidden md:inline">Summarize</span>
-              {messages.length > 2 && (
-                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-pulse hidden xs:inline-block" />
-              )}
+              <Phone className="w-3.5 h-3.5 text-amber-400" />
+              <span className="hidden md:inline">Helplines</span>
+            </button>
+
+            {/* Preferences & Accessibility Settings Button */}
+            <button
+              onClick={() => setShowSettingsModal(true)}
+              className="hover-pop-btn-slate flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-[#1a1d24] border border-[#22262f] text-[#8F93B5] hover:text-[#f2ca50] hover:border-[#f2ca50]/50 text-xs font-semibold shadow-sm transition-all shrink-0"
+              title="Settings & Accessibility"
+              aria-label="Settings"
+            >
+              <Settings className="w-3.5 h-3.5" />
+              <span className="hidden md:inline">Settings</span>
             </button>
 
             {/* Language Switcher */}
@@ -1204,12 +1216,22 @@ export function App() {
         selectedLanguage={selectedLanguage}
       />
 
-      {/* Citizen Consultation Summarizer Modal */}
-      <CivicChatSummarizerModal
-        isOpen={showSummarizerModal}
-        onClose={() => setShowSummarizerModal(false)}
-        messages={messages}
-        currentLanguage={selectedLanguage}
+      {/* National Helplines Directory Modal (SOS / 24x7) */}
+      <CivicHelplineModal
+        isOpen={showHelplineModal}
+        onClose={() => setShowHelplineModal(false)}
+        currentLanguage={selectedLanguage === 'ta' ? 'en' : selectedLanguage}
+      />
+
+      {/* Citizen Preferences & Settings Modal */}
+      <CivicSettingsModal
+        isOpen={showSettingsModal}
+        onClose={() => setShowSettingsModal(false)}
+        selectedLanguage={selectedLanguage}
+        onLanguageChange={(lang) => setSelectedLanguage(lang as CivicLanguage)}
+        onClearHistory={handleClearAllHistory}
+        incognito={incognito}
+        onToggleIncognito={handleToggleIncognito}
       />
 
       {/* Toast Notification for Bookmarked Scheme */}
