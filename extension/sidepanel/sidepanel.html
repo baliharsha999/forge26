@@ -7,7 +7,7 @@
   <link rel="stylesheet" href="sidepanel.css">
 </head>
 <body>
-  <!-- Floating Ambient Glowing Orbs for Apple-Grade Glassmorphism Refraction -->
+  <!-- Ambient Glowing Orbs for Apple-Grade Glassmorphism Refraction -->
   <div class="glass-ambient-container" aria-hidden="true">
     <div class="ambient-orb orb-saffron"></div>
     <div class="ambient-orb orb-indigo"></div>
@@ -43,26 +43,16 @@
     </div>
   </header>
 
-  <!-- Live Municipal Portal Connection Status -->
-  <div id="tab-status-banner" class="alert-banner live">
-    <span id="tab-status-text">🔍 Nagarik AI is studying active page DOM...</span>
-    <span id="tab-status-badge" class="badge-status">STUDYING</span>
-  </div>
-
-  <!-- Privacy Advisory -->
-  <div id="privacy-banner" class="alert-banner warning hidden">
-    <span>⚠️ Aadhaar detected & masked. Government security standards prohibit storing national IDs on portal forms.</span>
-  </div>
-
-  <!-- Step Progress Tracker -->
-  <div class="wizard-progress">
-    <div class="progress-header">
-      <span id="progress-step-label" class="step-label">Step 1: The Problem</span>
-      <span id="progress-step-count" class="step-count">1 of 5</span>
+  <!-- Live Detected Website Header Card -->
+  <div id="website-detector-card" class="website-bar">
+    <div class="website-info">
+      <span class="website-icon">🌐</span>
+      <div class="website-text-group">
+        <div id="detected-domain" class="website-domain">Detecting Active Tab...</div>
+        <div id="detected-title" class="website-title">Analyzing page structure...</div>
+      </div>
     </div>
-    <div class="progress-track">
-      <div id="progress-bar" class="progress-bar" style="width: 20%;"></div>
-    </div>
+    <span id="detected-badge" class="badge-status">STUDYING</span>
   </div>
 
   <!-- Audio Speaking Indicator -->
@@ -73,342 +63,178 @@
     <span id="speaking-text">Nagarik AI is speaking...</span>
   </div>
 
-  <!-- ============================================================ -->
-  <!-- ANIMATED AI REASONING & ANALYSIS STAGE (During Gemini Call)  -->
-  <!-- ============================================================ -->
-  <div id="analyzing-stage" class="analyzing-stage hidden">
-    <div class="mandala-glow-wrapper">
-      <div class="mandala-pulse-ring"></div>
-      <img id="mandala-spinner" src="../assets/logo_emblem.png" class="mandala-img" alt="Nagarik AI Mandala">
-    </div>
-    <h3 id="analyzing-title" class="analyzing-heading">Nagarik AI is Analyzing...</h3>
-    <div id="reasoning-ticker" class="reasoning-ticker">
-      <span>🧠 Understanding your civic grievance...</span>
-    </div>
-    <div class="reasoning-dots">
-      <span></span><span></span><span></span>
-    </div>
+  <!-- Privacy Shield Banner -->
+  <div class="privacy-pill">
+    <span>🛡️ Zero-Knowledge Privacy • Aadhaar Masked & PII Shielded</span>
   </div>
 
   <!-- ============================================================ -->
-  <!-- STEP 1: The Problem                                          -->
+  <!-- MAIN DYNAMIC CONTEXTUAL COPILOT INTERFACE                     -->
   <!-- ============================================================ -->
-  <div id="wizard-step-1" class="step-card active">
-    <div class="question-box">
-      <div class="question-icon">📢</div>
-      <h2 id="q1-title" class="step-title">What problem are you facing?</h2>
-      <p id="q1-sub" class="step-subtitle">Tell me what happened in simple everyday words or tap the mic to speak.</p>
-    </div>
+  <main class="copilot-container">
 
-    <!-- Real-time Live Field Focus Alert Bubble -->
-    <div id="live-field-assistant" class="live-field-assistant hidden" style="background: rgba(16, 185, 129, 0.12); border: 1px solid #10b981; border-radius: 10px; padding: 10px 12px; margin-bottom: 12px; display: flex; align-items: flex-start; gap: 8px;">
-      <span style="font-size: 16px;">💡</span>
-      <div style="flex: 1;">
-        <div id="live-field-title" style="font-size: 11px; font-weight: 800; color: #10b981; text-transform: uppercase;">Editing Field: Roll Number</div>
-        <div id="live-field-tip" style="font-size: 11px; color: #E8E9F2; line-height: 1.4; margin-top: 2px;">Your Roll Number is located at the top-right of your 10th marksheet. Tap below to upload it!</div>
+    <!-- 1. Live Page Context Card -->
+    <section id="page-context-card" class="glass-section-card">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <span class="section-icon">📑</span>
+          <h3 id="context-heading" class="section-heading">Page Purpose & Form Status</h3>
+        </div>
+        <span id="fields-count-badge" class="pill-badge">0 Fields</span>
       </div>
-      <button id="btn-live-attach" style="background: #10b981; color: #064e3b; border: none; border-radius: 6px; padding: 4px 8px; font-size: 10px; font-weight: 800; cursor: pointer; white-space: nowrap;">📎 Scan Doc</button>
-    </div>
+      <p id="context-summary" class="section-desc">
+        Nagarik AI is scanning the active webpage DOM on your desktop...
+      </p>
 
-    <div class="input-wrapper">
-      <textarea id="input-problem" class="big-textarea" rows="3" placeholder="Speak or type what happened in simple words..."></textarea>
-      <div class="mic-control-bar">
-        <button id="mic-btn-step1" class="mic-toggle-btn" title="Click to speak">
-          <span>🎙️</span>
-          <span class="mic-label">Tap to Speak</span>
-        </button>
+      <!-- Form Fields Tag Cloud (Discovered on Active Webpage) -->
+      <div id="fields-tag-cloud" class="fields-cloud hidden">
+        <!-- Rendered dynamically -->
       </div>
-    </div>
+    </section>
 
-    <!-- Persistent "Attach Document to Auto-Fill" Trigger Button -->
-    <div style="margin-top: 10px; display: flex; gap: 8px;">
-      <input type="file" id="input-doc-autofill" accept="image/*,.pdf" style="display: none;">
-      <button id="btn-trigger-doc-upload" type="button" style="flex: 1; background: rgba(240, 106, 37, 0.12); border: 1px dashed var(--border-orange); color: var(--orange-hover); border-radius: 8px; padding: 8px 12px; font-size: 11px; font-weight: 700; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-        <span>📎 Attach Marksheet / Doc to Auto-Fill</span>
-      </button>
-    </div>
-
-    <!-- ID & Document Locator Card -->
-    <div id="id-locator-card" class="id-locator-card hidden" style="border: 1px solid #3b82f6; background: rgba(59, 130, 246, 0.08); border-radius: 12px; padding: 14px; margin-top: 14px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-        <span id="id-locator-badge" style="background: #2563eb; color: #ffffff; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">DOCUMENT LOCATOR</span>
-        <button id="btn-close-id-card" style="background: none; border: none; color: #8F93B5; font-size: 14px; cursor: pointer;">✕</button>
+    <!-- 2. Citizen Problem & Task Input Card -->
+    <section id="citizen-input-card" class="glass-section-card">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <span class="section-icon">💬</span>
+          <h3 id="input-card-title" class="section-heading">What do you want to do?</h3>
+        </div>
       </div>
-      <h3 id="id-locator-title" style="font-size: 14px; font-weight: 800; color: #fff; margin: 0 0 6px 0;">Where to Find Your ID</h3>
-      <p id="id-locator-desc" style="font-size: 12px; color: #E8E9F2; line-height: 1.5; margin: 0 0 10px 0;"></p>
-      
-      <!-- Visual Locator Badge Box -->
-      <div id="id-locator-visual" style="background: rgba(0,0,0,0.4); border: 1px dashed #3b82f6; border-radius: 8px; padding: 8px 10px; font-size: 11px; font-weight: 700; color: #93c5fd; margin-bottom: 10px; display: flex; align-items: center; gap: 6px;">
-        <span>🔍</span>
-        <span id="id-locator-visual-text">TOP-RIGHT CORNER: Labeled 'Roll No.'</span>
-      </div>
+      <p id="input-card-sub" class="section-desc">
+        Describe your problem, grievance, or task in simple words or speak via microphone.
+      </p>
 
-      <div class="guidance-btn-group" style="display: flex; gap: 8px;">
-        <button id="btn-id-attach-doc" class="btn-next" style="flex: 1; padding: 9px 12px; font-size: 11px; font-weight: 800; background: #2563eb; color: #fff; border: none; border-radius: 8px; cursor: pointer;">
-          <span>📎 Attach Doc & Auto-Detect</span>
-        </button>
-        <a id="btn-id-online-link" href="#" target="_blank" class="btn-back" style="flex: 1; padding: 9px 12px; font-size: 11px; font-weight: 800; color: #93c5fd; border: 1px solid #3b82f6; border-radius: 8px; text-decoration: none; text-align: center; display: flex; align-items: center; justify-content: center;">
-          <span>🌐 Get Online ↗</span>
-        </a>
-      </div>
-    </div>
-
-    <!-- Document Extraction & 1-Click Auto-Fill Card -->
-    <div id="doc-extract-card" class="doc-extract-card hidden" style="border: 1px solid #10b981; background: rgba(16, 185, 129, 0.08); border-radius: 12px; padding: 14px; margin-top: 14px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 6px;">
-        <span id="doc-detect-badge" style="background: #10b981; color: #064e3b; font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px;">DOCUMENT SCANNED</span>
-        <button id="btn-close-doc-card" style="background: none; border: none; color: #8F93B5; font-size: 14px; cursor: pointer;">✕</button>
-      </div>
-      <h3 id="doc-detect-title" style="font-size: 13px; font-weight: 800; color: #fff; margin: 0 0 4px 0;">CBSE Class X Marksheet</h3>
-      <p id="doc-detect-summary" style="font-size: 11px; color: #A7F3D0; margin: 0 0 10px 0;">Extracted 6 verified fields ready to inject into the active form.</p>
-
-      <!-- Extracted Field Pills List -->
-      <div id="doc-extracted-fields" style="display: flex; flex-direction: column; gap: 4px; margin-bottom: 12px; max-height: 150px; overflow-y: auto;">
-      </div>
-
-      <!-- Action Button -->
-      <button id="btn-autofill-page-now" class="btn-next" style="width: 100%; padding: 10px 14px; font-size: 12px; font-weight: 800; background: #10b981; color: #064e3b; border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 8px;">
-        <span>⚡ Auto-Fill Webpage Form with this Data</span>
-      </button>
-    </div>
-
-    <!-- Dynamic Adaptive Portal Guidance & Interactive Micro-Step Walker Card -->
-    <div id="guidance-card" class="guidance-card hidden" style="border: 1px solid var(--border-orange); background: rgba(240, 106, 37, 0.08); border-radius: 12px; padding: 14px; margin-top: 14px;">
-      <div style="display: flex; align-items: center; justify-content: space-between; margin-bottom: 8px;">
-        <span id="walker-badge" style="background: var(--orange-primary); color: var(--text-on-orange); font-size: 10px; font-weight: 900; padding: 2px 8px; border-radius: 6px; letter-spacing: 0.5px; text-transform: uppercase;">STEP 1 OF 3</span>
-        <div id="walker-dots" style="display: flex; gap: 4px;"></div>
-      </div>
-      <h3 id="guidance-title" style="font-size: 14px; font-weight: 800; color: #fff; margin: 0 0 6px 0; line-height: 1.3;">Portal Guidance</h3>
-      <p id="guidance-message" style="font-size: 12px; color: var(--text-slate); margin: 0 0 12px 0; line-height: 1.5;"></p>
-      
-      <!-- Interactive Action Buttons -->
-      <div class="guidance-btn-group" style="display: flex; gap: 8px; margin-bottom: 10px;">
-        <button id="btn-guidance-click" class="btn-next" style="flex: 1; padding: 9px 12px; font-size: 11px; font-weight: 800; background: var(--orange-primary); color: var(--text-on-orange); border: none; border-radius: 8px; cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-          <span>👉 Click It for Me</span>
-        </button>
-        <button id="btn-guidance-highlight" class="btn-back" style="flex: 1; padding: 9px 12px; font-size: 11px; font-weight: 800; color: var(--orange-hover); border: 1px solid var(--border-orange); border-radius: 8px; background: rgba(240, 106, 37, 0.1); cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;">
-          <span>✨ Spotlight on Page</span>
+      <!-- Quick profile shortcut -->
+      <div class="quick-profile-row">
+        <button id="btn-use-profile" class="profile-chip" title="Click to insert your saved citizen details">
+          <span>👤</span>
+          <span id="profile-chip-text">Fill as: Ramesh Kumar (9876543210, Hyderabad)</span>
         </button>
       </div>
 
-      <!-- Step Walker Navigation -->
-      <div id="walker-nav-bar" style="display: flex; justify-content: space-between; align-items: center; border-top: 1px solid rgba(255,255,255,0.08); padding-top: 8px;">
-        <button id="btn-walker-prev" style="background: none; border: none; color: var(--text-muted); font-size: 11px; cursor: pointer; padding: 4px 8px; font-weight: 600;">⬅ Prev</button>
-        <button id="btn-walker-next" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2); color: #fff; font-size: 11px; cursor: pointer; padding: 6px 12px; border-radius: 6px; font-weight: 700;">Next Step ➔</button>
+      <!-- Problem / Task Textarea with Integrated Voice Input Button -->
+      <div class="input-composer">
+        <textarea id="citizen-problem-input" class="copilot-textarea" rows="3" placeholder="Describe what you need on this website... e.g. 'Drainage overflow near metro station, please file complaint' or 'Fill my admission application'"></textarea>
+        
+        <div class="composer-toolbar">
+          <button id="mic-action-btn" class="mic-button" title="Speak in English, Hindi, or Telugu">
+            <span class="mic-icon">🎙️</span>
+            <span id="mic-btn-label">Tap to Speak</span>
+          </button>
+          
+          <button id="btn-execute-task" class="btn-primary-action">
+            <span class="btn-icon">⚡</span>
+            <span id="btn-execute-text">Determine & Run Plan ➔</span>
+          </button>
+        </div>
       </div>
-    </div>
+    </section>
 
-    <!-- Dynamic Quick Samples (Tailored to active website) -->
-    <div id="chips-container" class="chips-container">
-      <!-- Dynamically populated by AI based on whether browsing CPGRAMS or Municipal portal -->
-    </div>
+    <!-- 3. Dynamic 1-Click Action Chips (Tailored to active website DOM) -->
+    <section id="action-chips-section" class="chips-section">
+      <div class="chips-label">✨ Quick Actions for this Webpage:</div>
+      <div id="dynamic-chips-grid" class="chips-grid">
+        <!-- Dynamically generated action chips -->
+      </div>
+    </section>
 
-    <div class="wizard-nav">
-      <button id="btn-next-step1" class="btn-next">
-        <span class="btn-text">Analyze with Nagarik AI ➔</span>
-        <span class="spinner hidden"></span>
-      </button>
-    </div>
-  </div>
+    <!-- ============================================================ -->
+    <!-- ANIMATED AI REASONING & TASK DETERMINATION STAGE             -->
+    <!-- ============================================================ -->
+    <section id="analyzing-stage" class="analyzing-stage hidden">
+      <div class="mandala-glow-wrapper">
+        <div class="mandala-pulse-ring"></div>
+        <img id="mandala-spinner" src="../assets/logo_emblem.png" class="mandala-img" alt="Nagarik AI Mandala">
+      </div>
+      <h3 id="analyzing-title" class="analyzing-heading">Synthesizing Custom Plan...</h3>
+      <div id="reasoning-ticker" class="reasoning-ticker">
+        <span>🧠 Analyzing active website DOM + citizen goal...</span>
+      </div>
+      <div class="reasoning-dots">
+        <span></span><span></span><span></span>
+      </div>
+    </section>
 
-  <!-- ============================================================ -->
-  <!-- STEP 2: The Location                                         -->
-  <!-- ============================================================ -->
-  <div id="wizard-step-2" class="step-card">
-    <div class="question-box">
-      <div class="question-icon">📍</div>
-      <h2 id="q2-title" class="step-title">Where did this happen?</h2>
-      <p id="q2-sub" class="step-subtitle">Tell me the city, station, branch, or tap the button to use GPS.</p>
-    </div>
+    <!-- ============================================================ -->
+    <!-- DYNAMIC TASK EXECUTION & PROGRESS CHECKLIST                  -->
+    <!-- ============================================================ -->
+    <section id="task-plan-card" class="glass-section-card hidden">
+      <div class="section-header">
+        <div class="section-title-wrap">
+          <span class="section-icon">📋</span>
+          <h3 id="plan-title" class="section-heading">Custom Plan: Active Webpage</h3>
+        </div>
+        <span id="plan-status-badge" class="badge-running">EXECUTING</span>
+      </div>
+      <p id="plan-subtitle" class="section-desc">
+        Nagarik AI has determined 4 specific steps tailored to this page and your problem.
+      </p>
 
-    <div class="assist-row">
-      <button id="btn-gps-detect" class="gps-prominent-btn">
-        <span>📍</span>
-        <span id="gps-btn-text">Auto-Detect My Current GPS Location</span>
-      </button>
-    </div>
+      <!-- Interactive Step Checklist -->
+      <div id="task-checklist" class="task-checklist">
+        <!-- Populated dynamically with tasks -->
+      </div>
 
-    <div class="input-wrapper">
-      <input type="text" id="input-location" class="big-input" placeholder="e.g. Hyderabad / New Delhi / Near Station">
-      <div class="mic-control-bar">
-        <button id="mic-btn-step2" class="mic-toggle-btn">
-          <span>🎙️</span>
-          <span class="mic-label">Speak Location</span>
+      <!-- Action Button Group -->
+      <div class="plan-actions">
+        <button id="btn-highlight-submit" class="btn-secondary-action">
+          <span>🎯 Spotlight Submit Button on Page</span>
+        </button>
+        <button id="btn-explain-audio" class="btn-secondary-action">
+          <span>🔊 Read Aloud Explanation</span>
         </button>
       </div>
-    </div>
+    </section>
 
-    <div class="wizard-nav">
-      <button id="btn-back-step2" class="btn-back">⬅ Back</button>
-      <button id="btn-next-step2" class="btn-next">
-        <span>Save & Fill Portal ➔</span>
-      </button>
-    </div>
-  </div>
+    <!-- ============================================================ -->
+    <!-- EXECUTION RESULTS & RECEIPT DISPATCH CARD                     -->
+    <!-- ============================================================ -->
+    <section id="results-card" class="glass-section-card hidden">
+      <div class="results-header">
+        <span class="success-icon">🎉</span>
+        <div>
+          <h3 id="results-title" class="results-heading">Task Completed Successfully!</h3>
+          <p id="results-sub" class="results-sub">All actions applied directly to the active webpage on your screen.</p>
+        </div>
+      </div>
 
-  <!-- ============================================================ -->
-  <!-- STEP 3: Citizen Full Name                                    -->
-  <!-- ============================================================ -->
-  <div id="wizard-step-3" class="step-card">
-    <div class="question-box">
-      <div class="question-icon">👤</div>
-      <h2 id="q3-title" class="step-title">What is your full name?</h2>
-      <p id="q3-sub" class="step-subtitle">Official records require your full legal name for the grievance petition.</p>
-    </div>
+      <div class="results-body">
+        <div class="result-metric-row">
+          <div class="result-metric">
+            <span class="metric-label">Fields Populated</span>
+            <span id="res-fields-count" class="metric-value">4 Fields</span>
+          </div>
+          <div class="result-metric">
+            <span class="metric-label">Privacy Shield</span>
+            <span class="metric-value text-green">100% Zero-Knowledge</span>
+          </div>
+          <div class="result-metric">
+            <span class="metric-label">Aadhaar Status</span>
+            <span class="metric-value text-orange">Shielded / Masked</span>
+          </div>
+        </div>
 
-    <!-- Quick profile chip if saved -->
-    <div id="saved-name-container" class="assist-row hidden">
-      <button id="btn-use-saved-name" class="profile-chip-btn">
-        <span>👤</span>
-        <span id="saved-name-text">Use: Ramesh Kumar</span>
-      </button>
-    </div>
+        <div id="receipt-ref-box" class="receipt-ref-box hidden">
+          <span class="receipt-label">Official Tracking Reference:</span>
+          <span id="receipt-tracking-id" class="receipt-code">CP-2026-PENDING</span>
+        </div>
 
-    <div class="input-wrapper">
-      <input type="text" id="input-name" class="big-input" placeholder="e.g. Rajesh Sharma">
-      <div class="mic-control-bar">
-        <button id="mic-btn-step3" class="mic-toggle-btn">
-          <span>🎙️</span>
-          <span class="mic-label">Speak Your Name</span>
+        <div class="spotlight-notice">
+          <span class="notice-icon">👉</span>
+          <p id="results-instruction">
+            <strong>Check the webpage on your screen:</strong> Form fields have been populated. Please review and click the submit button to complete your official dispatch.
+          </p>
+        </div>
+      </div>
+
+      <div class="results-footer">
+        <button id="btn-reset-copilot" class="btn-secondary-action full-width">
+          <span>🔄 Start Another Task on this Page</span>
         </button>
       </div>
-    </div>
+    </section>
 
-    <div class="wizard-nav">
-      <button id="btn-back-step3" class="btn-back">⬅ Back</button>
-      <button id="btn-next-step3" class="btn-next">
-        <span>Save & Fill Portal ➔</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- STEP 4: Citizen Phone Number                                 -->
-  <!-- ============================================================ -->
-  <div id="wizard-step-4" class="step-card">
-    <div class="question-box">
-      <div class="question-icon">📞</div>
-      <h2 id="q4-title" class="step-title">What is your mobile number?</h2>
-      <p id="q4-sub" class="step-subtitle">You will receive official SMS tracking updates and inspection alerts on this 10-digit number.</p>
-    </div>
-
-    <!-- Quick profile chip if saved -->
-    <div id="saved-phone-container" class="assist-row hidden">
-      <button id="btn-use-saved-phone" class="profile-chip-btn">
-        <span>📞</span>
-        <span id="saved-phone-text">Use: 9876543210</span>
-      </button>
-    </div>
-
-    <div class="input-wrapper">
-      <input type="tel" id="input-phone" class="big-input" maxlength="10" placeholder="10-digit mobile number (e.g. 9876543210)">
-      <div class="mic-control-bar">
-        <button id="mic-btn-step4" class="mic-toggle-btn">
-          <span>🎙️</span>
-          <span class="mic-label">Speak Number</span>
-        </button>
-      </div>
-    </div>
-
-    <div class="wizard-nav">
-      <button id="btn-back-step4" class="btn-back">⬅ Back</button>
-      <button id="btn-next-step4" class="btn-next">
-        <span>Save & Fill Portal ➔</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- STEP 5: Photo Evidence                                       -->
-  <!-- ============================================================ -->
-  <div id="wizard-step-5" class="step-card">
-    <div class="question-box">
-      <div class="question-icon">📷</div>
-      <h2 id="q5-title" class="step-title">Do you have a photo of the damage?</h2>
-      <p id="q5-sub" class="step-subtitle">Photographic proof helps ward officers inspect and approve repairs faster. You can also skip this.</p>
-    </div>
-
-    <div class="input-wrapper">
-      <input type="file" id="input-photo" accept="image/*" class="big-input" style="padding: 6px;">
-      <div id="photo-preview-box" class="assist-row hidden" style="margin-top: 10px;">
-        <img id="photo-preview-img" src="" alt="Proof Preview" style="max-height: 110px; border-radius: 12px; border: 1px solid rgba(255, 255, 255, 0.2); object-fit: cover; box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);">
-        <button id="btn-remove-photo" style="border: 1px solid rgba(239, 68, 68, 0.4); background: rgba(220, 38, 38, 0.25); color: #fca5a5; font-size: 11px; font-weight: 800; padding: 6px 12px; border-radius: 8px; cursor: pointer; align-self: flex-start; margin-top: 6px; backdrop-filter: blur(16px); transition: all 0.2s;">Remove Photo</button>
-      </div>
-    </div>
-
-    <div class="wizard-nav">
-      <button id="btn-back-step5" class="btn-back">⬅ Back</button>
-      <button id="btn-skip-photo" class="btn-skip">Skip Photo</button>
-      <button id="btn-next-step5" class="btn-next">
-        <span>Attach & Review ➔</span>
-      </button>
-    </div>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- STEP 6: Review & Final Submission Prompt                     -->
-  <!-- ============================================================ -->
-  <div id="wizard-step-6" class="step-card">
-    <div class="question-box">
-      <div id="step6-icon" class="question-icon">🎉</div>
-      <h2 id="step6-title" class="step-title" style="color: #34d399;">All Fields Populated on Portal!</h2>
-      <p id="step6-subtitle" class="step-subtitle">Nagarik AI has injected every required field directly into the active portal on your screen.</p>
-    </div>
-
-    <!-- Review Card -->
-    <div class="review-card">
-      <div class="review-item">
-        <span class="review-key">🏢 Authority / Dept</span>
-        <span id="rev-dept" class="review-val">—</span>
-      </div>
-      <div class="review-item">
-        <span class="review-key">🏷️ Category</span>
-        <span id="rev-cat" class="review-val">—</span>
-      </div>
-      <div class="review-item">
-        <span class="review-key">⚡ Urgency</span>
-        <span id="rev-urgency" class="review-val" style="color: var(--orange-hover);">—</span>
-      </div>
-      <div class="review-item">
-        <span class="review-key">📍 Location / Ref</span>
-        <span id="rev-loc" class="review-val">—</span>
-      </div>
-      <div class="review-item">
-        <span class="review-key">👤 Citizen Name</span>
-        <span id="rev-name" class="review-val">—</span>
-      </div>
-      <div class="review-item">
-        <span class="review-key">📞 Contact Mobile</span>
-        <span id="rev-phone" class="review-val">—</span>
-      </div>
-    </div>
-
-    <!-- Prominent Pointer to the webpage or Action Button -->
-    <div id="step6-action-box" class="pulse-target-prompt">
-      <span id="step6-action-icon" class="pulse-icon">👉</span>
-      <div id="step6-action-title" class="pulse-title">LOOK AT THE PORTAL ON YOUR SCREEN</div>
-      <p id="step6-action-text" class="pulse-text">All form fields have been highlighted and populated. Please click the blue <strong>"Submit Grievance"</strong> button on the webpage to finish!</p>
-      <button id="btn-inject-now" class="btn-next hidden" style="margin-top: 10px; width: 100%;">
-        <span>🚀 Inject Saved Draft into Form</span>
-      </button>
-    </div>
-
-    <div class="wizard-nav">
-      <button id="btn-restart-wizard" class="btn-back" style="width: 100%;">🔄 File Another Grievance</button>
-    </div>
-  </div>
-
-  <!-- ============================================================ -->
-  <!-- Official Receipt (Captured by Mutation Observer on Submit)  -->
-  <!-- ============================================================ -->
-  <div id="receipt-card" class="step-card">
-    <div class="receipt-header">✅ Grievance Officially Dispatched!</div>
-    <p id="receipt-tracking-id" class="receipt-id">CP-2026-00000</p>
-    <p class="step-subtitle" style="margin-bottom: 14px; color: #a7f3d0; line-height: 1.5;">Tracking reference detected live from portal receipt. Grievance entered into public municipal dispatch records.</p>
-    <button id="btn-new-after-receipt" class="btn-next success" style="width: 100%;">
-      <span>File Another Grievance ➔</span>
-    </button>
-  </div>
+  </main>
 
   <script src="sidepanel.js"></script>
 </body>

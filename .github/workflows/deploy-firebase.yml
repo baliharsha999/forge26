@@ -39,10 +39,19 @@ jobs:
           npm run build
 
       - name: Deploy to Firebase Hosting
-        uses: FirebaseExtended/action-hosting-deploy@v0
-        with:
-          repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_NAGARIK_AI_CIVIC }}'
-          channelId: live
-          projectId: nagarik-ai-civic
-        continue-on-error: true
+        env:
+          FIREBASE_TOKEN: ${{ secrets.FIREBASE_TOKEN }}
+          FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_NAGARIK_AI_CIVIC }}
+        run: |
+          if [ -n "$FIREBASE_TOKEN" ]; then
+            echo "Deploying using FIREBASE_TOKEN..."
+            npx firebase-tools deploy --only hosting --token "$FIREBASE_TOKEN"
+          elif [ -n "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "Deploying using Service Account..."
+            echo "$FIREBASE_SERVICE_ACCOUNT" > /tmp/sa.json
+            export GOOGLE_APPLICATION_CREDENTIALS=/tmp/sa.json
+            npx firebase-tools deploy --only hosting --project nagarik-ai-civic
+          else
+            echo "Notice: Neither FIREBASE_TOKEN nor FIREBASE_SERVICE_ACCOUNT_NAGARIK_AI_CIVIC is set in repository secrets."
+            echo "To enable automated deployment, please add FIREBASE_TOKEN or FIREBASE_SERVICE_ACCOUNT_NAGARIK_AI_CIVIC to repo secrets."
+          fi

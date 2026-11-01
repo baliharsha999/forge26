@@ -144,6 +144,7 @@ export function App() {
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
   const voiceAgentRecognitionRef = useRef<any>(null);
+  const voiceSilenceTimerRef = useRef<any>(null);
 
   // Active thread
   const currentThread = threads.find(t => t.id === activeThreadId) || threads[0];
@@ -214,8 +215,8 @@ export function App() {
       .trim();
   };
 
-  // Speak Text Function with Language and Voice Matching
-  const speakText = (text: string, onEnd?: () => void) => {
+  // Speak Text Function with Robust Multilingual Regional Voice Matching
+  const speakText = (text: string, onEnd?: () => void, targetLang?: CivicLanguage) => {
     if (typeof window === 'undefined' || !('speechSynthesis' in window)) {
       if (onEnd) onEnd();
       return;
@@ -229,13 +230,41 @@ export function App() {
     }
 
     const utterance = new SpeechSynthesisUtterance(clean);
-    const langCode = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : 'en-IN';
+    const activeLang = targetLang || selectedLanguage;
+    const langCode = activeLang === 'hi' ? 'hi-IN' : activeLang === 'te' ? 'te-IN' : 'en-IN';
     utterance.lang = langCode;
 
-    const matched = availableVoices.find(v => v.lang.toLowerCase() === langCode.toLowerCase()) ||
-                    availableVoices.find(v => v.lang.startsWith(selectedLanguage)) ||
-                    availableVoices.find(v => v.lang.includes('IN'));
-    if (matched) utterance.voice = matched;
+    if (activeLang === 'hi') {
+      const hiVoice = availableVoices.find(v => v.lang.toLowerCase() === 'hi-in' || v.lang.toLowerCase().startsWith('hi')) ||
+                      availableVoices.find(v => {
+                        const n = v.name.toLowerCase();
+                        return n.includes('hindi') || n.includes('kalpana') || n.includes('hemant') || n.includes('swara');
+                      });
+      // CRITICAL: NEVER force utterance.voice to English when speaking Hindi!
+      // If no regional voice matches, do NOT set utterance.voice—let utterance.lang = 'hi-IN' use the browser/OS native TTS engine.
+      if (hiVoice) {
+        utterance.voice = hiVoice;
+      }
+    } else if (activeLang === 'te') {
+      const teVoice = availableVoices.find(v => v.lang.toLowerCase() === 'te-in' || v.lang.toLowerCase().startsWith('te')) ||
+                      availableVoices.find(v => {
+                        const n = v.name.toLowerCase();
+                        return n.includes('telugu') || n.includes('chitra') || n.includes('shruti') || n.includes('mohan');
+                      });
+      // CRITICAL: NEVER force utterance.voice to English when speaking Telugu!
+      // If no regional voice matches, do NOT set utterance.voice—let utterance.lang = 'te-IN' use the browser/OS native TTS engine.
+      if (teVoice) {
+        utterance.voice = teVoice;
+      }
+    } else {
+      const enVoice = availableVoices.find(v => v.lang.toLowerCase() === 'en-in') ||
+                      availableVoices.find(v => v.lang.toLowerCase().startsWith('en') && (v.name.toLowerCase().includes('india') || v.lang.toLowerCase().includes('in'))) ||
+                      availableVoices.find(v => v.lang.toLowerCase() === 'en-gb') ||
+                      availableVoices.find(v => v.lang.toLowerCase().startsWith('en'));
+      if (enVoice) {
+        utterance.voice = enVoice;
+      }
+    }
 
     utterance.rate = 1.0;
     utterance.pitch = 1.0;
@@ -244,7 +273,8 @@ export function App() {
       setSpeakingId(null);
       if (onEnd) onEnd();
     };
-    utterance.onerror = () => {
+    utterance.onerror = (e) => {
+      console.warn('SpeechSynthesis error:', e);
       setSpeakingId(null);
       if (onEnd) onEnd();
     };
@@ -289,7 +319,11 @@ export function App() {
   const toggleListening = () => {
     if (isListening) {
       if (recognitionRef.current) {
-        recognitionRef.current.stop();
+        try {
+          recognitionRef.current.stop();
+        } catch {
+          // ignore
+        }
       }
       setIsListening(false);
       return;
@@ -303,7 +337,7 @@ export function App() {
 
     try {
       const rec = new SpeechRecognition();
-      rec.continuous = false;
+      rec.continuous = true;
       rec.interimResults = true;
       rec.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : 'en-IN';
 
@@ -325,12 +359,26 @@ export function App() {
     }
   };
 
-  // Dedicated Voice Agent: Start Listening
-  const startVoiceAgentListening = () => {
+  // Dedicated Voice Agent: Start Listening with targetLang and Continuous Capture
+  const startVoiceAgentListening = (targetLang?: CivicLanguage) => {
+    const activeLang = targetLang || selectedLanguage;
     window.speechSynthesis.cancel();
     setSpeakingId(null);
     setVoiceAgentState('listening');
     setVoiceTranscript('');
+
+    if (voiceSilenceTimerRef.current) {
+      clearTimeout(voiceSilenceTimerRef.current);
+      voiceSilenceTimerRef.current = null;
+    }
+
+    if (voiceAgentRecognitionRef.current) {
+      try {
+        voiceAgentRecognitionRef.current.abort();
+      } catch {
+        // ignore
+      }
+    }
 
     const SpeechRecognition = (window as any).SpeechRecognition || (window as any).webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -341,9 +389,11 @@ export function App() {
 
     try {
       const rec = new SpeechRecognition();
-      rec.continuous = false;
+      // Continuous mode allows regional speakers (Hindi, Telugu) to speak complete multi-sentence queries without early cutoff
+      rec.continuous = true;
       rec.interimResults = true;
-      rec.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : 'en-IN';
+      rec.maxAlternatives = 1;
+      rec.lang = activeLang === 'hi' ? 'hi-IN' : activeLang === 'te' ? 'te-IN' : 'en-IN';
 
       let capturedText = '';
 
@@ -358,33 +408,72 @@ export function App() {
         }
         capturedText = current;
         setVoiceTranscript(current);
+
+        // Reset silence debounce: 2.2s of natural pause after speaking concludes input
+        if (voiceSilenceTimerRef.current) {
+          clearTimeout(voiceSilenceTimerRef.current);
+        }
+        voiceSilenceTimerRef.current = setTimeout(() => {
+          if (capturedText.trim()) {
+            try {
+              rec.stop();
+            } catch {
+              // ignore
+            }
+          }
+        }, 2200);
       };
 
       rec.onerror = (e: any) => {
         console.warn('Voice agent speech error:', e);
-        setVoiceAgentState('idle');
+        if (e.error !== 'no-speech') {
+          setVoiceAgentState(prev => (prev === 'listening' ? 'idle' : prev));
+        }
       };
 
       rec.onend = () => {
+        if (voiceSilenceTimerRef.current) {
+          clearTimeout(voiceSilenceTimerRef.current);
+          voiceSilenceTimerRef.current = null;
+        }
         if (capturedText.trim()) {
           setVoiceAgentState('thinking');
-          handleSendChat(capturedText.trim(), true);
+          handleSendChat(capturedText.trim(), true, activeLang);
         } else {
-          setVoiceAgentState('idle');
+          setVoiceAgentState(prev => (prev === 'listening' ? 'idle' : prev));
         }
       };
 
       voiceAgentRecognitionRef.current = rec;
       rec.start();
-    } catch {
+    } catch (err) {
+      console.warn('Failed to start voice recognition:', err);
       setVoiceAgentState('idle');
     }
   };
 
-  const stopVoiceAgent = () => {
+  const handleVoiceDoneSpeaking = () => {
+    if (voiceSilenceTimerRef.current) {
+      clearTimeout(voiceSilenceTimerRef.current);
+      voiceSilenceTimerRef.current = null;
+    }
     if (voiceAgentRecognitionRef.current) {
       try {
         voiceAgentRecognitionRef.current.stop();
+      } catch {
+        // ignore
+      }
+    }
+  };
+
+  const stopVoiceAgent = () => {
+    if (voiceSilenceTimerRef.current) {
+      clearTimeout(voiceSilenceTimerRef.current);
+      voiceSilenceTimerRef.current = null;
+    }
+    if (voiceAgentRecognitionRef.current) {
+      try {
+        voiceAgentRecognitionRef.current.abort();
       } catch {
         // ignore
       }
@@ -402,15 +491,15 @@ export function App() {
     }
   }, [voiceAgentOpen]);
 
-  // Audio Playback Toggle for Individual Message
-  const handleToggleSpeak = (msgId: string, text: string) => {
+  // Audio Playback Toggle for Individual Message with Language Support
+  const handleToggleSpeak = (msgId: string, text: string, lang?: CivicLanguage) => {
     if (speakingId === msgId) {
       window.speechSynthesis.cancel();
       setSpeakingId(null);
       return;
     }
     setSpeakingId(msgId);
-    speakText(text, () => setSpeakingId(null));
+    speakText(text, () => setSpeakingId(null), lang || selectedLanguage);
   };
 
   // Copy Message to Clipboard
@@ -421,9 +510,18 @@ export function App() {
   };
 
   // Send Chat Message
-  const handleSendChat = async (overrideQuery?: string, isVoiceAgentQuery: boolean = false) => {
+  const handleSendChat = async (
+    overrideQuery?: string,
+    isVoiceAgentQuery: boolean = false,
+    overrideLang?: CivicLanguage
+  ) => {
     const query = (overrideQuery || inputQuery).trim();
     if (!query || isGenerating) return;
+
+    const currentThread = threads.find(t => t.id === activeThreadId);
+    if (!currentThread) return;
+
+    const activeLang = overrideLang || selectedLanguage;
 
     setInputQuery('');
     const userMsgId = 'user_' + Date.now();
@@ -434,7 +532,7 @@ export function App() {
       role: 'user',
       content: query,
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      language: selectedLanguage
+      language: activeLang
     };
 
     const initialBotMessage: ChatMessage = {
@@ -442,7 +540,7 @@ export function App() {
       role: 'assistant',
       content: '',
       timestamp: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-      language: selectedLanguage,
+      language: activeLang,
       citations: []
     };
 
@@ -476,7 +574,7 @@ export function App() {
 
     const payload = {
       query,
-      language: selectedLanguage,
+      language: activeLang,
       session_id: currentThread.sessionId,
       thread_id: currentThread.id,
       history: currentThread.messages.slice(-6).map(m => ({ role: m.role, content: m.content }))
@@ -645,12 +743,12 @@ export function App() {
       speakText(fullBotText, () => {
         if (autoVoiceLoop && voiceAgentOpen) {
           setTimeout(() => {
-            startVoiceAgentListening();
+            startVoiceAgentListening(activeLang);
           }, 800);
         } else {
           setVoiceAgentState('idle');
         }
-      });
+      }, activeLang);
     }
   };
 
@@ -699,7 +797,7 @@ export function App() {
   ];
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0c0e11] text-[#e2e2e6] font-sans antialiased">
+    <div className="fixed inset-0 flex h-[100dvh] max-h-[100dvh] w-full max-w-full overflow-hidden bg-[#0c0e11] text-[#e2e2e6] font-sans antialiased">
       {/* ================================================================= */}
       {/* 1. LEFT SIDEBAR (SOVEREIGN PRECISION DARK)                        */}
       {/* ================================================================= */}
@@ -878,69 +976,76 @@ export function App() {
       {/* ================================================================= */}
       {/* 2. MAIN CONVERSATION WORKSPACE                                    */}
       {/* ================================================================= */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#0c0e11]">
-        {/* Top Minimal Sovereign Header */}
-        <header className="flex items-center justify-between h-14 px-4 border-b border-[#22262f] bg-[#101216]/90 backdrop-blur-xl shrink-0">
-          <div className="flex items-center gap-3">
+      <main className="flex-1 flex flex-col h-full min-h-0 overflow-hidden bg-[#0c0e11] relative">
+        {/* Top Minimal Sovereign Header - Fully Responsive on Mobile (< 640px) */}
+        <header className="flex items-center justify-between h-14 px-2 sm:px-4 border-b border-[#22262f] bg-[#101216]/90 backdrop-blur-xl shrink-0 overflow-hidden">
+          <div className="flex items-center gap-1.5 sm:gap-3 min-w-0">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#16191f] transition-colors md:hidden"
+              className="p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#16191f] transition-colors md:hidden shrink-0"
               title="Open History"
+              aria-label="Open History"
             >
               <Menu className="w-5 h-5" />
             </button>
-            <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm text-[#e2e2e6] truncate max-w-[150px] sm:max-w-md">
+            <div className="flex items-center gap-2 min-w-0">
+              <span className="font-semibold text-xs sm:text-sm text-[#e2e2e6] truncate max-w-[85px] xs:max-w-[130px] sm:max-w-xs md:max-w-md">
                 {currentThread?.title || 'Nagarik AI Copilot'}
               </span>
             </div>
           </div>
 
-          {/* Right Header Controls */}
-          <div className="flex items-center gap-2 sm:gap-2.5">
-            {/* AI Saathi Extension Button in Header */}
+          {/* Right Header Controls - Auto-fit for mobile screens */}
+          <div className="flex items-center gap-1 sm:gap-2 shrink-0">
+            {/* AI Saathi Extension Button */}
             <button
               onClick={() => setShowExtensionModal(true)}
-              className="hover-pop-btn-slate flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1d24] border border-[#f2ca50]/40 text-[#f2ca50] hover:border-[#f2ca50] text-xs font-semibold shadow-sm transition-all"
+              className="hover-pop-btn-slate flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-[#1a1d24] border border-[#f2ca50]/40 text-[#f2ca50] hover:border-[#f2ca50] text-xs font-semibold shadow-sm transition-all shrink-0"
               title="Open AI Saathi Browser Extension & Guardian (Alt+E)"
+              aria-label="AI Saathi Extension"
             >
               <Monitor className="w-3.5 h-3.5 text-[#f2ca50]" />
-              <span className="hidden sm:inline">AI Saathi</span>
+              <span className="hidden md:inline">AI Saathi</span>
             </button>
 
             {/* Dedicated Voice Agent Button */}
             <button
               onClick={() => setVoiceAgentOpen(true)}
-              className="hover-pop-btn-slate flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1d24] border border-[#ffb692]/40 text-[#ffb692] hover:border-[#ffb692] text-xs font-semibold shadow-sm transition-all"
+              className="hover-pop-btn-slate flex items-center gap-1 sm:gap-1.5 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-[#1a1d24] border border-[#ffb692]/40 text-[#ffb692] hover:border-[#ffb692] text-xs font-semibold shadow-sm transition-all shrink-0"
               title="Open Hands-Free Voice Agent (Alt+V)"
+              aria-label="Voice Agent"
             >
               <Mic className="w-3.5 h-3.5 text-[#ffb692]" />
-              <span className="hidden xs:inline sm:inline">Voice Agent</span>
+              <span className="hidden md:inline">Voice Agent</span>
             </button>
 
             {/* Language Switcher */}
-            <div className="flex items-center bg-[#16191f] border border-[#22262f] rounded-lg p-0.5 text-xs">
+            <div className="flex items-center bg-[#16191f] border border-[#22262f] rounded-lg p-0.5 text-xs shrink-0">
               {(['en', 'hi', 'te'] as CivicLanguage[]).map(lang => (
                 <button
                   key={lang}
                   onClick={() => setSelectedLanguage(lang)}
-                  className={`px-2.5 py-1 rounded-md font-medium transition-all ${
+                  className={`px-1.5 sm:px-2.5 py-0.5 sm:py-1 rounded-md text-[11px] sm:text-xs font-medium transition-all ${
                     selectedLanguage === lang
                       ? 'bg-[#f2ca50] text-[#241a00] font-bold shadow-sm'
                       : 'text-[#8F93B5] hover:text-white'
                   }`}
+                  aria-label={`Switch language to ${lang === 'en' ? 'English' : lang === 'hi' ? 'Hindi' : 'Telugu'}`}
                 >
                   {lang === 'en' ? 'EN' : lang === 'hi' ? 'हिंदी' : 'తెలుగు'}
                 </button>
               ))}
             </div>
 
+            {/* New Thread Button */}
             <button
               onClick={handleCreateNewThread}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16191f] hover:bg-[#22262f] text-xs font-medium text-[#e2e2e6] border border-[#22262f] transition-colors"
+              className="flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-1.5 rounded-lg bg-[#16191f] hover:bg-[#22262f] text-xs font-medium text-[#e2e2e6] border border-[#22262f] transition-colors shrink-0"
+              title="New Conversation (Alt+N)"
+              aria-label="New Conversation"
             >
               <Plus className="w-3.5 h-3.5 text-[#f2ca50]" />
-              <span>New</span>
+              <span className="hidden sm:inline">New</span>
             </button>
           </div>
         </header>
@@ -948,7 +1053,7 @@ export function App() {
         {/* Message Feed / Welcome Screen (Rock-Solid Scrolling Container) */}
         <div
           ref={messagesContainerRef}
-          className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin overscroll-contain"
+          className="flex-1 min-h-0 overflow-y-auto px-3 sm:px-4 py-4 sm:py-6 scrollbar-thin overscroll-contain"
         >
           <div className="max-w-3xl mx-auto space-y-6">
             {/* EMPTY STATE: Welcome Screen */}
@@ -1105,7 +1210,7 @@ export function App() {
                         {/* Bottom Actions Bar */}
                         <div className="flex items-center gap-3 pt-2 text-xs text-[#8F93B5]">
                           <button
-                            onClick={() => handleToggleSpeak(msg.id, msg.content)}
+                            onClick={() => handleToggleSpeak(msg.id, msg.content, msg.language)}
                             className="flex items-center gap-1 hover:text-white transition-colors"
                             title="Listen"
                           >
@@ -1160,7 +1265,7 @@ export function App() {
         {/* ================================================================= */}
         {/* 3. PINNED BOTTOM INPUT BAR (SOVEREIGN GLOW)                       */}
         {/* ================================================================= */}
-        <div className="p-4 border-t border-[#22262f] bg-[#101216]/95 backdrop-blur-md shrink-0">
+        <div className="p-3 sm:p-4 pb-[max(0.6rem,env(safe-area-inset-bottom))] border-t border-[#22262f] bg-[#101216]/95 backdrop-blur-md shrink-0 z-20">
           <div className="max-w-3xl mx-auto space-y-2">
             <form
               onSubmit={(e) => {
@@ -1179,11 +1284,12 @@ export function App() {
                     : 'text-[#8F93B5] hover:text-white'
                 }`}
                 title={isListening ? 'Listening... speak now' : 'Voice typing'}
+                aria-label="Voice typing"
               >
                 {isListening ? <MicOff className="w-5 h-5 text-red-500" /> : <Mic className="w-5 h-5" />}
               </button>
 
-              {/* Text Input */}
+              {/* Text Input - 16px text-base on mobile prevents iOS viewport auto-zoom */}
               <input
                 ref={inputRef}
                 type="text"
@@ -1199,7 +1305,7 @@ export function App() {
                     : 'Ask about any government scheme, eligibility, or civic service...')
                 }
                 disabled={isGenerating}
-                className="flex-1 bg-transparent py-3 px-2 text-sm text-[#e2e2e6] placeholder-[#8F93B5] focus:outline-none disabled:opacity-50"
+                className="flex-1 bg-transparent py-3 px-2 text-base sm:text-sm text-[#e2e2e6] placeholder-[#8F93B5] focus:outline-none disabled:opacity-50"
               />
 
               {/* Send Button */}
@@ -1211,17 +1317,19 @@ export function App() {
                     ? 'bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] shadow-md hover:opacity-95 cursor-pointer font-bold'
                     : 'text-[#3f3a2f] cursor-not-allowed'
                 }`}
+                title="Send message"
+                aria-label="Send message"
               >
                 <Send className="w-4 h-4" />
               </button>
             </form>
 
-            <div className="flex items-center justify-between px-2 text-[11px] text-[#8F93B5]">
-              <span className="truncate flex items-center gap-1.5">
-                <ShieldCheck className="w-3 h-3 text-emerald-400" />
-                UIDAI Aadhaar Redacted • Voice Enabled in 22 Official Languages
+            <div className="flex items-center justify-between px-2 text-[10px] sm:text-[11px] text-[#8F93B5]">
+              <span className="truncate flex items-center gap-1.5 min-w-0">
+                <ShieldCheck className="w-3 h-3 text-emerald-400 shrink-0" />
+                <span className="truncate">UIDAI Aadhaar Redacted • Voice Enabled in 22 Official Languages</span>
               </span>
-              <span className="hidden sm:inline">Press Enter to send</span>
+              <span className="hidden sm:inline shrink-0 ml-2">Press Enter to send</span>
             </div>
           </div>
         </div>

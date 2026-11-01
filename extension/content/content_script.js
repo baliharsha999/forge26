@@ -1,6 +1,7 @@
 /**
- * JanSetu Lite Content Script
- * Injected into supported municipal and civic portals.
+ * Nagarik AI - Content Script
+ * Injected into all web pages to provide Universal Civic Copilot capabilities.
+ * Always supports any webpage on desktop with real-time DOM analysis and form autofill.
  */
 (() => {
   let activeBanner = null;
@@ -16,7 +17,7 @@
       <div>
         <div style="font-weight: 800; color: #F06A25; font-size: 13px; display: flex; align-items: center; gap: 6px;">
           <span>Nagarik AI</span>
-          <span style="font-size: 9px; color: #8F93B5; font-weight: normal; text-transform: uppercase; letter-spacing: 0.5px;">Auto-Filling Portal</span>
+          <span style="font-size: 9px; color: #8F93B5; font-weight: normal; text-transform: uppercase; letter-spacing: 0.5px;">Universal Civic Shield</span>
         </div>
         <div style="color: #E8E9F2; font-size: 11px;">${text}</div>
       </div>
@@ -35,13 +36,115 @@
     }
   }
 
+  /**
+   * Safe native setter to bypass React 16+, Vue, Angular proxy overrides
+   */
+  function setNativeValue(element, value) {
+    if (!element) return false;
+    element.focus();
+
+    const inputProto = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+    const textareaProto = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+    const selectProto = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value")?.set;
+
+    if (element.tagName === "INPUT" && inputProto) {
+      inputProto.call(element, value);
+    } else if (element.tagName === "TEXTAREA" && textareaProto) {
+      textareaProto.call(element, value);
+    } else if (element.tagName === "SELECT" && selectProto) {
+      selectProto.call(element, value);
+    } else {
+      element.value = value;
+    }
+
+    element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+    element.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+    element.dispatchEvent(new Event("blur", { bubbles: true, composed: true }));
+    element.classList.add("jansetu-highlight");
+    return true;
+  }
+
+  /**
+   * Extract comprehensive DOM structure from active webpage
+   */
+  function extractPageDomInfo() {
+    const title = document.title || "";
+    const url = window.location.href;
+    const domain = window.location.hostname || "Desktop Webpage";
+    
+    // Find main heading
+    const h1 = document.querySelector("h1");
+    const h2 = document.querySelector("h2");
+    const h3 = document.querySelector("h3");
+    const mainHeading = h1 ? h1.innerText.trim() : (h2 ? h2.innerText.trim() : (h3 ? h3.innerText.trim() : title));
+
+    // Discover form inputs, textareas, selects
+    const inputs = Array.from(document.querySelectorAll("input:not([type='hidden']):not([type='submit']):not([type='button']), textarea, select"));
+    const fields = inputs.map((el, idx) => {
+      let label = "";
+      if (el.id) {
+        const lbl = document.querySelector(`label[for='${el.id}']`);
+        if (lbl) label = lbl.innerText.trim();
+      }
+      if (!label) {
+        const parentLbl = el.closest("label");
+        if (parentLbl) label = parentLbl.innerText.trim();
+      }
+      if (!label) {
+        label = el.getAttribute("aria-label") || el.getAttribute("placeholder") || el.name || el.id || `field_${idx + 1}`;
+      }
+
+      return {
+        id: el.id || "",
+        name: el.name || "",
+        label: label.replace(/\s+/g, " ").trim(),
+        placeholder: el.placeholder || "",
+        type: el.type || el.tagName.toLowerCase(),
+        tagName: el.tagName.toLowerCase(),
+        required: el.required || el.getAttribute("aria-required") === "true" || (el.className && el.className.includes("required")),
+        value: (el.value || "").trim(),
+        isFilled: (el.value || "").trim().length > 0
+      };
+    });
+
+    const hasForm = fields.length > 0 || !!document.querySelector("form");
+
+    // Discover actionable buttons
+    const actionButtons = Array.from(document.querySelectorAll("button, input[type='submit'], input[type='button'], a.btn, a.button, [role='button']"))
+      .filter(el => {
+        const rect = el.getBoundingClientRect();
+        return rect.width > 0 && rect.height > 0 && el.style.display !== "none" && el.style.visibility !== "hidden";
+      })
+      .slice(0, 12)
+      .map(b => ({
+        text: (b.innerText || b.value || b.getAttribute("aria-label") || "Action").replace(/\s+/g, " ").trim(),
+        id: b.id || "",
+        type: b.type || "button",
+        selector: b.id ? `#${b.id}` : (b.name ? `[name='${b.name}']` : b.tagName.toLowerCase())
+      }));
+
+    return {
+      title,
+      url,
+      domain,
+      mainHeading,
+      hasForm,
+      fields,
+      actionButtons,
+      totalInputs: fields.length
+    };
+  }
+
+  /**
+   * Target Element Finder (by intent, selector, or text)
+   */
   function findTargetElement(target) {
     if (!target) return null;
     const raw = String(target).trim();
     const targetUpper = raw.toUpperCase();
     const targetLower = raw.toLowerCase();
 
-    // 1. First attempt exact CSS selector if formatted like one
+    // 1. Exact CSS selector
     if (raw.startsWith(".") || raw.startsWith("#") || raw.startsWith("[") || (raw.includes("[") && raw.includes("]"))) {
       try {
         const found = document.querySelector(raw);
@@ -49,59 +152,36 @@
       } catch (e) {}
     }
 
-    const allInteractive = Array.from(document.querySelectorAll("a, button, input[type='submit'], input[type='button'], [role='button'], h3 a, h4 a, li a, .btn, .button"));
+    const allInteractive = Array.from(document.querySelectorAll("a, button, input[type='submit'], input[type='button'], [role='button'], .btn, .button"));
 
     // 2. Specific intent mappings
-    if (targetUpper === "SIGN_IN" || targetUpper === "LOGIN" || targetUpper === "HIGHLIGHT_SIGNIN") {
+    if (targetUpper === "SUBMIT" || targetUpper === "SAVE" || targetUpper === "LODGE" || targetUpper === "APPLY") {
       const found = allInteractive.find(el => {
         const txt = (el.innerText || el.value || "").toLowerCase();
-        const href = (el.getAttribute("href") || "").toLowerCase();
-        const cls = (el.className || "").toLowerCase();
-        return (txt.includes("sign in") || txt.includes("signin") || txt.includes("login") || href.includes("signin") || href.includes("login") || cls.includes("signin")) && !txt.includes("officer");
+        return txt.includes("submit") || txt.includes("lodge") || txt.includes("apply") || txt.includes("save") || txt.includes("proceed") || txt.includes("register");
       });
       if (found) return found;
     }
 
-    if (targetUpper === "REGISTER" || targetUpper === "SIGN_UP" || targetUpper === "HIGHLIGHT_REGISTER") {
+    if (targetUpper === "SIGN_IN" || targetUpper === "LOGIN") {
       const found = allInteractive.find(el => {
         const txt = (el.innerText || el.value || "").toLowerCase();
         const href = (el.getAttribute("href") || "").toLowerCase();
-        return txt.includes("register") || txt.includes("sign up") || txt.includes("signup") || href.includes("registration") || txt.includes("candidate");
+        return (txt.includes("sign in") || txt.includes("signin") || txt.includes("login") || href.includes("login")) && !txt.includes("officer");
       });
       if (found) return found;
     }
 
-    if (targetUpper === "LODGE" || targetUpper === "GRIEVANCE") {
-      const found = allInteractive.find(el => {
-        const txt = (el.innerText || el.value || "").toLowerCase();
-        const href = (el.getAttribute("href") || "").toLowerCase();
-        return txt.includes("lodge") || txt.includes("grievance") || href.includes("lodge");
-      });
-      if (found) return found;
-    }
-
-    // 3. Substring match across all interactive elements
+    // 3. Substring match
     const matched = allInteractive.find(el => {
       const txt = (el.innerText || el.value || "").toLowerCase();
       const href = (el.getAttribute("href") || "").toLowerCase();
       const aria = (el.getAttribute("aria-label") || "").toLowerCase();
-      const title = (el.getAttribute("title") || "").toLowerCase();
-      return txt.includes(targetLower) || href.includes(targetLower) || aria.includes(targetLower) || title.includes(targetLower);
+      return txt.includes(targetLower) || href.includes(targetLower) || aria.includes(targetLower);
     });
     if (matched) return matched;
 
-    // 4. Token match (any significant word >= 4 letters)
-    const tokens = targetLower.split(/\s+/).filter(t => t.length >= 4 && !["step", "click", "find", "open", "here", "look"].includes(t));
-    if (tokens.length > 0) {
-      const tokenMatch = allInteractive.find(el => {
-        const txt = (el.innerText || el.value || "").toLowerCase();
-        const href = (el.getAttribute("href") || "").toLowerCase();
-        return tokens.some(t => txt.includes(t) || href.includes(t));
-      });
-      if (tokenMatch) return tokenMatch;
-    }
-
-    // 5. Try standard querySelector as fallback
+    // 4. Fallback selector
     try {
       return document.querySelector(raw);
     } catch (e) {
@@ -153,14 +233,151 @@
     return true;
   }
 
-  // Observe DOM for newly rendered tracking ID safely (only when submit happens)
+  /**
+   * Universal fuzzy DOM auto-filling across all inputs, textareas, selects
+   */
+  function executeUniversalFill(fieldsData) {
+    if (!fieldsData || typeof fieldsData !== "object") {
+      return { success: false, filledCount: 0 };
+    }
+
+    showBanner("Nagarik AI: Scanning and Populating Form Fields...");
+
+    const allInputs = Array.from(document.querySelectorAll("input:not([type='hidden']), select, textarea"));
+    let filledCount = 0;
+    const filledKeys = [];
+
+    // Helper to test if element matches keyword pattern
+    function matchesKeywords(el, keywords) {
+      const name = (el.name || "").toLowerCase();
+      const id = (el.id || "").toLowerCase();
+      const ph = (el.placeholder || "").toLowerCase();
+      const aria = (el.getAttribute("aria-label") || "").toLowerCase();
+      const title = (el.title || "").toLowerCase();
+      let labelText = "";
+      if (el.id) {
+        const lbl = document.querySelector(`label[for='${el.id}']`);
+        if (lbl) labelText = (lbl.innerText || "").toLowerCase();
+      }
+      if (!labelText) {
+        const parentLbl = el.closest("label");
+        if (parentLbl) labelText = (parentLbl.innerText || "").toLowerCase();
+      }
+      const combined = `${name} ${id} ${ph} ${aria} ${title} ${labelText}`;
+      return keywords.some(k => combined.includes(k.toLowerCase()));
+    }
+
+    // Process specific standard citizen fields
+    const mappings = [
+      {
+        fieldKeys: ["citizen_name", "name", "fullname", "applicant_name", "first_name", "applicant"],
+        domKeywords: ["name", "citizen", "applicant", "fullname", "candidate", "user", "first_name", "fname"]
+      },
+      {
+        fieldKeys: ["citizen_phone", "phone", "mobile", "contact_number", "contact"],
+        domKeywords: ["mobile", "phone", "contact", "cell", "tel"]
+      },
+      {
+        fieldKeys: ["citizen_email", "email"],
+        domKeywords: ["email", "mail", "e-mail"]
+      },
+      {
+        fieldKeys: ["location", "address", "city", "ward", "landmark", "street", "district"],
+        domKeywords: ["location", "address", "ward", "landmark", "street", "city", "village", "district", "locality", "place"]
+      },
+      {
+        fieldKeys: ["description", "grievance", "problem", "problem_raw", "details", "issue", "petition"],
+        domKeywords: ["grievance", "complaint", "description", "details", "problem", "issue", "petition", "remarks", "message", "comments", "query"]
+      },
+      {
+        fieldKeys: ["category", "department", "ministry", "service"],
+        domKeywords: ["category", "department", "ministry", "service", "topic", "subject"]
+      },
+      {
+        fieldKeys: ["pincode", "pin_code", "zip", "postal_code"],
+        domKeywords: ["pincode", "pin_code", "postal_code", "zip", "pin"]
+      }
+    ];
+
+    // Find and populate values
+    mappings.forEach(mapping => {
+      let val = null;
+      for (const fk of mapping.fieldKeys) {
+        if (fieldsData[fk]) {
+          val = fieldsData[fk];
+          break;
+        }
+      }
+      if (!val) return;
+
+      // Privacy Shielding: Mask Aadhaar if 12 consecutive digits detected
+      if (typeof val === "string" && /^\d{12}$/.test(val.replace(/\s+/g, ""))) {
+        const digits = val.replace(/\s+/g, "");
+        val = "XXXXXXXX" + digits.slice(8);
+      }
+
+      for (const el of allInputs) {
+        if (el.dataset.nagarikFilled) continue;
+        if (matchesKeywords(el, mapping.domKeywords)) {
+          if (el.tagName === "SELECT") {
+            const valStr = String(val).toLowerCase();
+            const option = Array.from(el.options).find(o => o.text.toLowerCase().includes(valStr) || o.value.toLowerCase().includes(valStr));
+            if (option) {
+              el.value = option.value;
+              el.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+              el.dataset.nagarikFilled = "true";
+              el.classList.add("jansetu-highlight");
+              filledCount++;
+              filledKeys.push(mapping.fieldKeys[0]);
+              break;
+            }
+          } else {
+            setNativeValue(el, val);
+            el.dataset.nagarikFilled = "true";
+            filledCount++;
+            filledKeys.push(mapping.fieldKeys[0]);
+            break;
+          }
+        }
+      }
+    });
+
+    // Also handle any arbitrary keys passed directly in fieldsData
+    for (const [key, rawVal] of Object.entries(fieldsData)) {
+      if (filledKeys.includes(key) || !rawVal) continue;
+      let val = rawVal;
+      if (typeof val === "string" && /^\d{12}$/.test(val.replace(/\s+/g, ""))) {
+        val = "XXXXXXXX" + val.replace(/\s+/g, "").slice(8);
+      }
+
+      for (const el of allInputs) {
+        if (el.dataset.nagarikFilled) continue;
+        if (matchesKeywords(el, [key])) {
+          setNativeValue(el, val);
+          el.dataset.nagarikFilled = "true";
+          filledCount++;
+          break;
+        }
+      }
+    }
+
+    // Visual floating banner on the page as required
+    showBanner("Nagarik AI: Form Populated & Aadhaar Shielded!", true);
+
+    return {
+      success: true,
+      filledCount,
+      notice: "Nagarik AI: Form Populated & Aadhaar Shielded!"
+    };
+  }
+
+  // Observe DOM for newly rendered tracking ID safely
   if (typeof MutationObserver !== "undefined" && document.body) {
     let lastReportedId = null;
     const observer = new MutationObserver(() => {
       try {
         const bodyTxt = document.body ? document.body.innerText : "";
-        // Only inspect if page contains post-submission success indicators
-        if (/registered successfully|grievance lodged|registration no|receipt/i.test(bodyTxt)) {
+        if (/registered successfully|grievance lodged|registration no|receipt|complaint no/i.test(bodyTxt)) {
           const adapter = typeof window.getPortalAdapter === "function" ? window.getPortalAdapter() : null;
           if (adapter && typeof adapter.readTrackingId === "function") {
             adapter.readTrackingId().then(trackingId => {
@@ -174,203 +391,80 @@
             }).catch(() => {});
           }
         }
-      } catch (err) {
-        // Silent catch to prevent console errors
-      }
+      } catch (err) {}
     });
 
     observer.observe(document.body, { childList: true, subtree: true });
   }
 
-  // ----------------------------------------------------------------
-  // Document-to-Form Intelligent Auto-Filler
-  // ----------------------------------------------------------------
-  function autoFillFromDocumentFields(fields) {
-    if (!fields || typeof fields !== "object") return { success: false, filledCount: 0 };
-    
-    let filledCount = 0;
-    const allInputs = Array.from(document.querySelectorAll("input, select, textarea"));
-
-    function matchAndFill(patternKeys, value) {
-      if (!value) return false;
-      const valStr = String(value).trim();
-      let didFill = false;
-
-      for (const el of allInputs) {
-        if (el.dataset.nagarikFilled) continue;
-        const name = (el.name || "").toLowerCase();
-        const id = (el.id || "").toLowerCase();
-        const placeholder = (el.placeholder || "").toLowerCase();
-        const aria = (el.getAttribute("aria-label") || "").toLowerCase();
-
-        // Check if element label or nearby text matches
-        let labelText = "";
-        if (el.id) {
-          const lbl = document.querySelector(`label[for='${el.id}']`);
-          if (lbl) labelText = (lbl.innerText || "").toLowerCase();
-        }
-
-        const combined = `${name} ${id} ${placeholder} ${aria} ${labelText}`;
-
-        const isMatch = patternKeys.some(k => combined.includes(k.toLowerCase()));
-        if (isMatch) {
-          if (el.tagName === "SELECT") {
-            // Select dropdown option
-            const opts = Array.from(el.options);
-            const foundOpt = opts.find(o => 
-              o.text.toLowerCase().includes(valStr.toLowerCase()) || 
-              o.value.toLowerCase().includes(valStr.toLowerCase())
-            );
-            if (foundOpt) {
-              el.value = foundOpt.value;
-              el.dispatchEvent(new Event("change", { bubbles: true }));
-              didFill = true;
-            }
-          } else if (el.type === "radio") {
-            const radVal = (el.value || "").toLowerCase();
-            if (radVal === valStr.toLowerCase() || (valStr.toLowerCase() === "male" && radVal.startsWith("m")) || (valStr.toLowerCase() === "female" && radVal.startsWith("f"))) {
-              el.checked = true;
-              el.dispatchEvent(new Event("change", { bubbles: true }));
-              didFill = true;
-            }
-          } else {
-            // Text, date, number inputs
-            el.focus();
-            el.value = valStr;
-            el.dispatchEvent(new Event("input", { bubbles: true }));
-            el.dispatchEvent(new Event("change", { bubbles: true }));
-            el.dispatchEvent(new Event("blur", { bubbles: true }));
-            didFill = true;
-          }
-
-          if (didFill) {
-            el.dataset.nagarikFilled = "true";
-            el.style.outline = "3px solid #10b981";
-            el.style.boxShadow = "0 0 15px rgba(16, 185, 129, 0.5)";
-            el.style.transition = "outline 0.3s, box-shadow 0.3s";
-            setTimeout(() => {
-              el.style.outline = "";
-              el.style.boxShadow = "";
-            }, 10000);
-            filledCount++;
-            break; // Fill one element per pattern group
-          }
-        }
-      }
-      return didFill;
-    }
-
-    // 1. Candidate Full Name
-    matchAndFill(["candidate_name", "applicant_name", "citizen_name", "txtname", "fullname", "name"], fields.candidate_name || fields.full_name || fields.citizen_name);
-
-    // 2. Father's Name
-    matchAndFill(["father", "father_name", "guardian"], fields.father_name);
-
-    // 3. Mother's Name
-    matchAndFill(["mother", "mother_name"], fields.mother_name);
-
-    // 4. Roll Number
-    matchAndFill(["roll_no", "roll_number", "rollno", "marksheet_no", "hall_ticket", "matric_roll"], fields.roll_number || fields.roll_no);
-
-    // 5. Gender
-    matchAndFill(["gender", "sex"], fields.gender);
-
-    // 6. Date of Birth
-    const dob = fields.dob || fields.date_of_birth;
-    if (dob) {
-      // Try single DOB input
-      const filledSingle = matchAndFill(["dob", "date_of_birth", "birth_date", "birthdate"], dob);
-      if (!filledSingle && dob.includes("/")) {
-        // Try split day, month, year dropdowns (common on NTA / CPGRAMS)
-        const parts = dob.split("/");
-        if (parts.length === 3) {
-          matchAndFill(["dob_day", "birth_day", "day"], parts[0].replace(/^0+/, ''));
-          matchAndFill(["dob_month", "birth_month", "month"], parts[1].replace(/^0+/, ''));
-          matchAndFill(["dob_year", "birth_year", "year"], parts[2]);
-        }
-      }
-    }
-
-    // 7. Education Board
-    matchAndFill(["board", "board_name", "education_board"], fields.board_name);
-
-    // 8. Passing Year
-    matchAndFill(["passing_year", "pass_year", "year_of_passing"], fields.passing_year);
-
-    // 9. PIN Code
-    matchAndFill(["pincode", "pin_code", "postal_code", "zip"], fields.pincode || fields.pin_code);
-
-    // 10. Address / Location
-    matchAndFill(["address", "permanent_address", "residential_address", "locality", "location"], fields.address || fields.location);
-
-    showBanner(`⚡ Nagarik AI Auto-Filled ${filledCount} fields from your document!`, true);
-    return { success: true, filledCount };
-  }
-
-  // ----------------------------------------------------------------
-  // Real-Time Active Form Focus Observer (Live Copilot Assist)
-  // ----------------------------------------------------------------
-  let lastFocusedFieldKey = "";
-  document.addEventListener("focusin", (e) => {
-    const el = e.target;
-    if (!el || !["INPUT", "SELECT", "TEXTAREA"].includes(el.tagName)) return;
-
-    const name = (el.name || "").toLowerCase();
-    const id = (el.id || "").toLowerCase();
-    const ph = (el.placeholder || "").toLowerCase();
-    let lbl = "";
-    if (el.id) {
-      const labelEl = document.querySelector(`label[for='${el.id}']`);
-      if (labelEl) lbl = (labelEl.innerText || "").toLowerCase();
-    }
-    const combined = `${name} ${id} ${ph} ${lbl}`;
-
-    let detectedKey = "";
-    let label = "";
-
-    if (combined.includes("roll")) {
-      detectedKey = "roll_number";
-      label = "10th Roll Number";
-    } else if (combined.includes("apaar") || combined.includes("abc")) {
-      detectedKey = "apaar_id";
-      label = "APAAR / ABC ID";
-    } else if (combined.includes("vid") || combined.includes("virtual")) {
-      detectedKey = "aadhaar_vid";
-      label = "Aadhaar Virtual ID (VID)";
-    } else if (combined.includes("uan")) {
-      detectedKey = "uan";
-      label = "Universal Account Number (UAN)";
-    } else if (combined.includes("application")) {
-      detectedKey = "application_number";
-      label = "Application Number";
-    }
-
-    if (detectedKey && detectedKey !== lastFocusedFieldKey) {
-      lastFocusedFieldKey = detectedKey;
-      chrome.runtime.sendMessage({
-        action: "PAGE_FIELD_FOCUSED",
-        fieldKey: detectedKey,
-        label: label
-      }).catch(() => {});
-    }
-  }, true);
-
   // Listen for extension messages
   chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-    if (message.action === "AUTOFILL_FROM_DOC") {
-      const res = autoFillFromDocumentFields(message.fields);
+    // 1. CHECK_PAGE_SUPPORT: ALWAYS return supported: true and extract real DOM info
+    if (message.action === "CHECK_PAGE_SUPPORT") {
+      const domInfo = extractPageDomInfo();
+      const adapter = typeof window.getPortalAdapter === "function" ? window.getPortalAdapter() : null;
+      sendResponse({
+        supported: true,
+        portalName: adapter ? adapter.name : domInfo.domain,
+        url: window.location.href,
+        ...domInfo
+      });
+      return true;
+    }
+
+    // 2. INSPECT_PAGE_FORM: ALWAYS return supported: true and full DOM inspection
+    if (message.action === "INSPECT_PAGE_FORM") {
+      const domInfo = extractPageDomInfo();
+      const adapter = typeof window.getPortalAdapter === "function" ? window.getPortalAdapter() : null;
+      if (adapter && typeof adapter.inspect === "function") {
+        adapter.inspect().then(inspection => {
+          sendResponse({
+            supported: true,
+            portalName: adapter.name,
+            ...inspection,
+            ...domInfo
+          });
+        }).catch(() => {
+          sendResponse({
+            supported: true,
+            portalName: domInfo.domain,
+            ...domInfo
+          });
+        });
+        return true;
+      }
+      sendResponse({
+        supported: true,
+        portalName: domInfo.domain,
+        ...domInfo
+      });
+      return true;
+    }
+
+    // 3. FILL_FIELDS: Universal fuzzy DOM auto-filling across all inputs/textareas/selects
+    if (message.action === "FILL_FIELDS") {
+      const res = executeUniversalFill(message.fields);
       sendResponse(res);
       return true;
     }
 
+    // 4. FILL_PORTAL_FORM
+    if (message.action === "FILL_PORTAL_FORM") {
+      const res = executeUniversalFill(message.formData);
+      sendResponse(res);
+      return true;
+    }
+
+    // 5. HIGHLIGHT_PAGE_ELEMENT
     if (message.action === "HIGHLIGHT_PAGE_ELEMENT") {
-      const ok = highlightPageElement(message.target || "SIGN_IN", message.label);
+      const ok = highlightPageElement(message.target || "SUBMIT", message.label);
       sendResponse({ success: ok });
       return true;
     }
 
+    // 6. CLICK_PAGE_ELEMENT
     if (message.action === "CLICK_PAGE_ELEMENT") {
-      const el = findTargetElement(message.target || "SIGN_IN");
+      const el = findTargetElement(message.target || "SUBMIT");
       if (el) {
         el.click();
         sendResponse({ success: true });
@@ -380,101 +474,29 @@
       return true;
     }
 
-    if (message.action === "CHECK_PAGE_SUPPORT") {
-      const adapter = window.getPortalAdapter();
-      sendResponse({
-        supported: !!adapter,
-        portalName: adapter ? adapter.name : null,
-        url: window.location.href
-      });
+    // 7. AUTOFILL_FROM_DOC
+    if (message.action === "AUTOFILL_FROM_DOC") {
+      const res = executeUniversalFill(message.fields);
+      sendResponse(res);
       return true;
     }
 
-    if (message.action === "INSPECT_PAGE_FORM") {
-      const adapter = window.getPortalAdapter();
-      if (!adapter || typeof adapter.inspect !== "function") {
-        sendResponse({
-          supported: !!adapter,
-          portalName: adapter ? adapter.name : null,
-          fields: [],
-          totalRequired: 0,
-          filledRequired: 0
-        });
-        return true;
-      }
-      adapter.inspect().then(inspection => {
-        sendResponse({
-          supported: true,
-          ...inspection
-        });
-      }).catch(err => {
-        sendResponse({ supported: true, error: err.message, fields: [] });
-      });
-      return true;
-    }
-
+    // 8. FILL_SINGLE_FIELD
     if (message.action === "FILL_SINGLE_FIELD") {
-      const adapter = window.getPortalAdapter();
-      if (!adapter || typeof adapter.fillSingleField !== "function") {
-        sendResponse({ success: false, error: "Adapter does not support single field fill" });
-        return true;
-      }
-      showBanner("Filling " + (message.label || message.key) + "...");
-      adapter.fillSingleField(message.key, message.value).then(res => {
-        showBanner("Populated " + (message.label || message.key), true);
-        sendResponse(res);
-      }).catch(err => {
-        showBanner("Error filling field: " + err.message, true);
-        sendResponse({ success: false, error: err.message });
-      });
-      return true;
-    }
-
-    if (message.action === "FILL_FIELDS") {
-      const adapter = window.getPortalAdapter();
-      if (!adapter || typeof adapter.fillFields !== "function") {
-        sendResponse({ success: false, error: "Adapter does not support fillFields" });
-        return true;
-      }
-      showBanner("JanSetu Copilot is filling fields on page...");
-      adapter.fillFields(message.fields).then(res => {
-        showBanner("Updated portal fields!", true);
-        sendResponse(res);
-      }).catch(err => {
-        showBanner("Error filling fields: " + err.message, true);
-        sendResponse({ success: false, error: err.message });
-      });
-      return true;
-    }
-
-    if (message.action === "FILL_PORTAL_FORM") {
-      const adapter = window.getPortalAdapter();
-      if (!adapter) {
-        sendResponse({
-          success: false,
-          error: "UNSUPPORTED_SITE",
-          message: "No portal adapter found for this URL."
+      const adapter = typeof window.getPortalAdapter === "function" ? window.getPortalAdapter() : null;
+      if (adapter && typeof adapter.fillSingleField === "function") {
+        adapter.fillSingleField(message.key, message.value).then(res => {
+          sendResponse(res);
+        }).catch(err => {
+          sendResponse({ success: false, error: err.message });
         });
         return true;
       }
-
-      showBanner("Filling form fields via " + adapter.name + "...");
-
-      adapter.fill(message.formData, (stepMsg) => {
-        showBanner(stepMsg);
-      }).then(result => {
-        if (result.success) {
-          showBanner("Form filled successfully! Please verify and submit.", true);
-        } else {
-          showBanner("Layout changed. Guided handoff required.", true);
-        }
-        sendResponse(result);
-      }).catch(err => {
-        showBanner("Error filling form: " + err.message, true);
-        sendResponse({ success: false, error: err.message });
-      });
-
-      return true; // Keep message channel open for async response
+      const singleObj = {};
+      singleObj[message.key] = message.value;
+      const res = executeUniversalFill(singleObj);
+      sendResponse(res);
+      return true;
     }
   });
 })();

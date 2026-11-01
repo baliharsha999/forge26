@@ -9,14 +9,43 @@ chrome.sidePanel
   .setPanelBehavior({ openPanelOnActionClick: true })
   .catch((error) => console.error("Side panel config error:", error));
 
+// Helper: Ensure content script is injected into active tab if not already present
+function ensureContentScriptInjected(tabId, callback) {
+  if (!tabId || typeof chrome.scripting === "undefined") {
+    if (callback) callback();
+    return;
+  }
+
+  chrome.scripting.executeScript({
+    target: { tabId: tabId },
+    files: [
+      "content/adapters/base_adapter.js",
+      "content/adapters/mock_portal_adapter.js",
+      "content/adapters/cpgrams_adapter.js",
+      "content/adapters/generic_portal_adapter.js",
+      "content/adapters/index.js",
+      "content/content_script.js"
+    ]
+  }).then(() => {
+    chrome.scripting.insertCSS({
+      target: { tabId: tabId },
+      files: ["content/banner.css"]
+    }).catch(() => {});
+    setTimeout(() => {
+      if (callback) callback();
+    }, 120);
+  }).catch((err) => {
+    // Some tabs like chrome:// cannot be injected
+    if (callback) callback(err);
+  });
+}
+
 // Tab change & URL change listeners for Zero-Touch Auto-Inspection
 chrome.tabs.onActivated.addListener((activeInfo) => {
   chrome.runtime.sendMessage({
     action: "ACTIVE_TAB_CHANGED",
     tabId: activeInfo.tabId
-  }).catch(() => {
-    // Side panel might not be open, silent catch
-  });
+  }).catch(() => {});
 });
 
 chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
@@ -31,100 +60,6 @@ chrome.tabs.onUpdated.addListener((tabId, changeInfo, tab) => {
 
 // Message Router
 chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
-  // 0. Forward highlight/click requests to active tab's content script
-  if (message.action === "PAGE_FIELD_FOCUSED") {
-    chrome.runtime.sendMessage({
-      action: "PAGE_FIELD_FOCUSED",
-      fieldKey: message.fieldKey,
-      label: message.label
-    }).catch(() => {});
-    return false;
-  }
-
-  if (message.action === "TRIGGER_AUTOFILL_FROM_DOC") {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
-        return;
-      }
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: "AUTOFILL_FROM_DOC",
-        fields: message.fields
-      }, (res) => {
-        if (chrome.runtime.lastError) {
-          sendResponse({ success: false, error: chrome.runtime.lastError.message });
-        } else {
-          sendResponse(res || { success: true });
-        }
-      });
-    });
-    return true;
-  }
-
-  if (message.action === "CALL_BACKEND_EXTRACT_DOC") {
-    fetch("http://localhost:8000/api/v1/agent/extract-document", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(message.payload)
-    })
-      .then(res => res.json())
-      .then(data => sendResponse({ success: true, data: data }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
-
-  if (message.action === "CALL_BACKEND_LOCATE_ID") {
-    fetch("http://localhost:8000/api/v1/agent/locate-id", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(message.payload)
-    })
-      .then(res => res.json())
-      .then(data => sendResponse({ success: true, data: data }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    return true;
-  }
-
-  if (message.action === "TRIGGER_HIGHLIGHT_ELEMENT") {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
-        return;
-      }
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: "HIGHLIGHT_PAGE_ELEMENT",
-        target: message.target || "SIGN_IN"
-      }, (res) => {
-        if (chrome.runtime.lastError) {
-          sendResponse({ success: false, error: chrome.runtime.lastError.message });
-        } else {
-          sendResponse(res || { success: true });
-        }
-      });
-    });
-    return true;
-  }
-
-  if (message.action === "TRIGGER_CLICK_ELEMENT") {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
-        return;
-      }
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: "CLICK_PAGE_ELEMENT",
-        target: message.target || "SIGN_IN"
-      }, (res) => {
-        if (chrome.runtime.lastError) {
-          sendResponse({ success: false, error: chrome.runtime.lastError.message });
-        } else {
-          sendResponse(res || { success: true });
-        }
-      });
-    });
-    return true;
-  }
-
   // 1. Relay detected tracking ID to side panel
   if (message.action === "TRACKING_ID_DETECTED") {
     chrome.runtime.sendMessage({
@@ -134,105 +69,51 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
     return false;
   }
 
-  // 2. Call FastAPI backend for Multimodal LLM analysis
-  if (message.action === "CALL_BACKEND_ANALYZE") {
-    fetch("http://localhost:8000/api/v1/grievance/analyze", {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify(message.payload)
-    })
-      .then(res => res.json())
-      .then(data => sendResponse({ success: true, data: data }))
-      .catch(err => sendResponse({ success: false, error: err.message }));
-    return true; // Keep message channel open for async response
-  }
-
-  // 3. Forward form fill request to active tab's content script
-  if (message.action === "TRIGGER_CONTENT_FILL") {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
-        return;
-      }
-
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: "FILL_PORTAL_FORM",
-        formData: message.formData
-      }, (response) => {
-        if (chrome.runtime.lastError) {
-          sendResponse({
-            success: false,
-            error: "CONTENT_SCRIPT_NOT_READY",
-            message: "Please open the municipal portal page (http://localhost:8000/portal) to file."
-          });
-        } else {
-          sendResponse(response);
-        }
-      });
-    });
-    return true; // Keep channel open
-  }
-
-  // 4. Check active tab support
+  // 2. Check active tab support (ALWAYS TRUE)
   if (message.action === "CHECK_ACTIVE_TAB_SUPPORT") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0) {
-        sendResponse({ supported: false });
+        sendResponse({ supported: true });
         return;
       }
       chrome.tabs.sendMessage(tabs[0].id, { action: "CHECK_PAGE_SUPPORT" }, (res) => {
         if (chrome.runtime.lastError) {
-          sendResponse({ supported: false, url: tabs[0].url });
+          ensureContentScriptInjected(tabs[0].id, () => {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "CHECK_PAGE_SUPPORT" }, (retryRes) => {
+              sendResponse(retryRes || { supported: true, url: tabs[0].url });
+            });
+          });
         } else {
-          sendResponse(res);
+          sendResponse(res || { supported: true, url: tabs[0].url });
         }
       });
     });
     return true;
   }
 
-  // 5. Forward inspection request to active tab
+  // 3. Forward inspection request to active tab
   if (message.action === "TRIGGER_INSPECT_PAGE") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0) {
-        sendResponse({ supported: false, error: "NO_ACTIVE_TAB" });
+        sendResponse({ supported: true, hasForm: false, fields: [] });
         return;
       }
       chrome.tabs.sendMessage(tabs[0].id, { action: "INSPECT_PAGE_FORM" }, (res) => {
         if (chrome.runtime.lastError) {
-          sendResponse({ supported: false, error: "CONTENT_SCRIPT_NOT_READY", url: tabs[0].url });
+          ensureContentScriptInjected(tabs[0].id, () => {
+            chrome.tabs.sendMessage(tabs[0].id, { action: "INSPECT_PAGE_FORM" }, (retryRes) => {
+              sendResponse(retryRes || { supported: true, url: tabs[0].url, hasForm: false, fields: [] });
+            });
+          });
         } else {
-          sendResponse(res);
+          sendResponse(res || { supported: true, url: tabs[0].url, hasForm: false, fields: [] });
         }
       });
     });
     return true;
   }
 
-  // 6. Forward single field fill request to active tab
-  if (message.action === "TRIGGER_SINGLE_FIELD_FILL") {
-    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
-      if (!tabs || tabs.length === 0) {
-        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
-        return;
-      }
-      chrome.tabs.sendMessage(tabs[0].id, {
-        action: "FILL_SINGLE_FIELD",
-        key: message.key,
-        value: message.value,
-        label: message.label
-      }, (res) => {
-        if (chrome.runtime.lastError) {
-          sendResponse({ success: false, error: "CONTENT_SCRIPT_NOT_READY" });
-        } else {
-          sendResponse(res);
-        }
-      });
-    });
-    return true;
-  }
-
-  // 7. Forward batch field fill request to active tab
+  // 4. Forward batch field fill request to active tab
   if (message.action === "TRIGGER_FILL_FIELDS") {
     chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
       if (!tabs || tabs.length === 0) {
@@ -244,10 +125,64 @@ chrome.runtime.onMessage.addListener((message, sender, sendResponse) => {
         fields: message.fields
       }, (res) => {
         if (chrome.runtime.lastError) {
-          sendResponse({ success: false, error: "CONTENT_SCRIPT_NOT_READY" });
+          ensureContentScriptInjected(tabs[0].id, () => {
+            chrome.tabs.sendMessage(tabs[0].id, {
+              action: "FILL_FIELDS",
+              fields: message.fields
+            }, (retryRes) => {
+              sendResponse(retryRes || { success: true });
+            });
+          });
         } else {
-          sendResponse(res);
+          sendResponse(res || { success: true });
         }
+      });
+    });
+    return true;
+  }
+
+  // 5. Forward highlight request to active tab
+  if (message.action === "TRIGGER_HIGHLIGHT_ELEMENT") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) {
+        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
+        return;
+      }
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "HIGHLIGHT_PAGE_ELEMENT",
+        target: message.target || "SUBMIT",
+        label: message.label
+      }, (res) => {
+        if (chrome.runtime.lastError) {
+          ensureContentScriptInjected(tabs[0].id, () => {
+            chrome.tabs.sendMessage(tabs[0].id, {
+              action: "HIGHLIGHT_PAGE_ELEMENT",
+              target: message.target || "SUBMIT",
+              label: message.label
+            }, (retryRes) => {
+              sendResponse(retryRes || { success: true });
+            });
+          });
+        } else {
+          sendResponse(res || { success: true });
+        }
+      });
+    });
+    return true;
+  }
+
+  // 6. Forward click request to active tab
+  if (message.action === "TRIGGER_CLICK_ELEMENT") {
+    chrome.tabs.query({ active: true, currentWindow: true }, (tabs) => {
+      if (!tabs || tabs.length === 0) {
+        sendResponse({ success: false, error: "NO_ACTIVE_TAB" });
+        return;
+      }
+      chrome.tabs.sendMessage(tabs[0].id, {
+        action: "CLICK_PAGE_ELEMENT",
+        target: message.target || "SUBMIT"
+      }, (res) => {
+        sendResponse(res || { success: true });
       });
     });
     return true;

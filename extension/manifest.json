@@ -1,8 +1,8 @@
 {
   "manifest_version": 3,
   "name": "Nagarik AI - Civic Copilot",
-  "version": "1.0.1",
-  "description": "Empowering Every Citizen - Voice-guided automated civic complaint copilot for municipal and public portals.",
+  "version": "1.2.0",
+  "description": "Empowering Every Citizen - Dynamic AI Civic Copilot for detecting any public, municipal, or welfare portal on desktop and automating citizen tasks with zero-knowledge privacy.",
   "icons": {
     "16": "icons/icon16.png",
     "48": "icons/icon48.png",
@@ -12,18 +12,11 @@
     "sidePanel",
     "activeTab",
     "tabs",
-    "storage"
+    "storage",
+    "scripting"
   ],
   "host_permissions": [
-    "http://localhost:8000/*",
-    "http://127.0.0.1:8000/*",
-    "https://pgportal.gov.in/*",
-    "http://pgportal.gov.in/*",
-    "https://*.pgportal.gov.in/*",
-    "https://*.gov.in/*",
-    "http://*.gov.in/*",
-    "https://*.nic.in/*",
-    "http://*.nic.in/*"
+    "<all_urls>"
   ],
   "background": {
     "service_worker": "background/service_worker.js"
@@ -37,15 +30,7 @@
   "content_scripts": [
     {
       "matches": [
-        "http://localhost:8000/*",
-        "http://127.0.0.1:8000/*",
-        "https://pgportal.gov.in/*",
-        "http://pgportal.gov.in/*",
-        "https://*.pgportal.gov.in/*",
-        "https://*.gov.in/*",
-        "http://*.gov.in/*",
-        "https://*.nic.in/*",
-        "http://*.nic.in/*"
+        "<all_urls>"
       ],
       "js": [
         "content/adapters/base_adapter.js",
@@ -55,7 +40,9 @@
         "content/adapters/index.js",
         "content/content_script.js"
       ],
-      "css": ["content/banner.css"],
+      "css": [
+        "content/banner.css"
+      ],
       "run_at": "document_idle"
     }
   ]
