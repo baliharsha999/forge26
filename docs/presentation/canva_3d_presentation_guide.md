@@ -27,6 +27,27 @@ Configure your Canva Brand Kit with these exact tokens before building the slide
 
 ---
 
+## 💎 Generated Photorealistic 3D Renders (Ready to Upload into Canva)
+
+Three ultra-high fidelity 3D renders have been generated matching the exact brand kit (`#0B0C1E`, `#D97B4A`, `#F2B84B`) and are available directly in the project directory:
+
+1. **3D Sovereign Diya Hero Render**:
+   - File: `docs/presentation/assets/diya_3d_render.jpg`
+   - Description: Photorealistic Indian brass Diya with breathing golden flame, subtle sacred lotus chakra, and binary particles on dark slate.
+   - Canva Usage: Upload and place as Slide 1 & Slide 7 Hero visual.
+
+2. **3D Zero-Knowledge Security Shield Render**:
+   - File: `docs/presentation/assets/security_shield_3d.jpg`
+   - Description: Sovereign cyber shield with glowing brass mandala, golden particle ring, and floating holographic masked citizen cards (Aadhaar, Passport, Ration Card).
+   - Canva Usage: Upload and place in Slide 4 & Slide 6 to illustrate safe auto-fill and Aadhaar masking.
+
+3. **3D Browser Copilot & Scheme Pipeline Render**:
+   - File: `docs/presentation/assets/copilot_pipeline_3d.jpg`
+   - Description: 3D browser copilot interface docked next to an official government portal, glowing voice orb (English, Telugu, Hindi), and verified scheme badges.
+   - Canva Usage: Upload and place in Slide 3 & Slide 5 to visualize the plain-language conversation and portal adapter.
+
+---
+
 ## 💎 Recommended 3D Graphics from Canva's Element Library
 
 Search for these exact keywords under Canva's **Elements > 3D / Graphics**:
