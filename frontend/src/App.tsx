@@ -541,15 +541,21 @@ export function App() {
               }
               try {
                 const parsed = JSON.parse(dataStr);
+                const textChunk = parsed.text ?? parsed.content ?? (parsed.type === 'chunk' || parsed.type === 'token' ? (parsed.chunk || parsed.token) : undefined);
+
                 if (parsed.type === 'step') {
                   setGenerationStep(parsed.title || 'Verifying official criteria...');
-                } else if (parsed.type === 'token' && parsed.content) {
-                  appendChunk(parsed.content);
+                } else if (textChunk !== undefined) {
+                  appendChunk(String(textChunk), parsed.citations, parsed.suggested_followups);
                   streamSucceeded = true;
                 } else if (parsed.type === 'citations' && parsed.citations) {
                   appendChunk('', parsed.citations, parsed.suggested_followups);
-                } else if (parsed.content) {
-                  appendChunk(parsed.content, parsed.citations, parsed.suggested_followups);
+                } else if (parsed.type === 'done') {
+                  if (parsed.suggested_followups) {
+                    appendChunk('', parsed.citations, parsed.suggested_followups);
+                  }
+                } else if (parsed.answer) {
+                  appendChunk(String(parsed.answer), parsed.citations, parsed.suggested_followups);
                   streamSucceeded = true;
                 }
               } catch {

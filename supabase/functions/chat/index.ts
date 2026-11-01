@@ -164,9 +164,29 @@ serve(async (req: Request) => {
         .from("schemes")
         .select("id, name, department, level, state, category, benefit, eligibility_criteria, official_url, last_verified_date");
 
-      // Extract search keywords (excluding common filler words)
+      // Extract search keywords (supporting English, Telugu, Hindi)
       const stopWords = new Set(["about", "what", "which", "how", "tell", "details", "for", "the", "and", "can", "get", "give", "please", "want", "know", "with"]);
-      const keywords = qLower.replace(/[^a-z0-9\s]/g, " ").split(/\s+/).filter(w => w.length > 2 && !stopWords.has(w));
+      let keywords = qLower
+        .replace(/[^\p{L}\p{N}\s]/gu, " ")
+        .split(/\s+/)
+        .filter(w => w.length > 2 && !stopWords.has(w));
+
+      // Indic keyword & alias expansion
+      if (/కిసాన్|రైతు|kisan|pm.?kisan|किसान/i.test(citizenQuery)) {
+        keywords.push("kisan", "pm-kisan");
+      }
+      if (/ఆయుష్మాన్|ఆరోగ్య|ayushman|आरोग्य/i.test(citizenQuery)) {
+        keywords.push("ayushman");
+      }
+      if (/స్కాలర్‌షిప్|scholarship|छात्रवृत्ति/i.test(citizenQuery)) {
+        keywords.push("scholarship");
+      }
+      if (/ఆవాస్|ఇల్లు|awas|आवास/i.test(citizenQuery)) {
+        keywords.push("awas");
+      }
+      if (/ముద్రా|రుణం|mudra|ऋण|लोन/i.test(citizenQuery)) {
+        keywords.push("mudra");
+      }
 
       if (detectedState) {
         queryBuilder = queryBuilder.or(`state.eq.${detectedState},state.eq.All-India`);
@@ -174,7 +194,8 @@ serve(async (req: Request) => {
 
       if (keywords.length > 0) {
         // Build search conditions for scheme name, category, or benefit
-        const orClauses = keywords.slice(0, 3).map(k => `name.ilike.%${k}%,category.ilike.%${k}%,benefit.ilike.%${k}%`).join(",");
+        const uniqueKeys = Array.from(new Set(keywords)).slice(0, 4);
+        const orClauses = uniqueKeys.map(k => `name.ilike.%${k}%,category.ilike.%${k}%,benefit.ilike.%${k}%`).join(",");
         queryBuilder = queryBuilder.or(orClauses);
       }
 
@@ -233,10 +254,12 @@ Respond in ${language}.`;
 
 ") : "No specific government welfare scheme matched the keywords.";
 
+        const targetLang = language === 'te' || /[\u0C00-\u0C7F]/.test(citizenQuery) ? 'Telugu' : (language === 'hi' || /[\u0900-\u097F]/.test(citizenQuery) ? 'Hindi' : 'English');
         sysPrompt = `You are Nagarik AI, India's Sovereign Civic Intelligence Copilot.
-Provide authoritative citizen guidance regarding the citizen's inquiry in ${language}.
-If verified schemes are provided, base your benefits, eligibility, and portal guidance strictly on them.
-Format cleanly with Markdown bullet points and link to official .gov.in portals.`;
+Provide a comprehensive, authoritative, citizen-friendly response regarding the citizen's inquiry in ${targetLang}.
+- You MUST answer completely in ${targetLang} language with natural, fluent phrasing.
+- If the query is about PM-KISAN, explain: (1) Overview & Financial benefit (₹6,000/year in 3 installments via DBT), (2) Eligibility criteria & Landholding rules, (3) Mandatory e-KYC & Aadhaar bank seeding, (4) Step-by-step application procedure online on pmkisan.gov.in or CSC/MeeSeva center.
+- Always provide clear headings and clean Markdown bullet points.`;
         userPrompt = `Citizen Query: ${citizenQuery}
 
 Verified Schemes Context:
@@ -396,7 +419,8 @@ You can ask me about:
           for (const tok of tokens) {
             buf.push(tok);
             if (buf.length >= 2 || tok.includes("\n")) {
-              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'chunk', text: buf.join("") })}
+              const str = buf.join("");
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'chunk', text: str, content: str })}
 
 `));
               buf = [];
@@ -404,7 +428,8 @@ You can ask me about:
             }
           }
           if (buf.length > 0) {
-            controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'chunk', text: buf.join("") })}
+            const str = buf.join("");
+              controller.enqueue(encoder.encode(`data: ${JSON.stringify({ type: 'chunk', text: str, content: str })}
 
 `));
           }
