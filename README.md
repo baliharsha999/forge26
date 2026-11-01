@@ -88,6 +88,157 @@ flowchart TD
 
 ---
 
+## 🧩 Extension System Design (Deep-Dive for Judges)
+
+The **Nagarik AI Chrome Extension (v1.2.3)** is engineered under the strict constraints of **Chrome Manifest V3**, adhering to zero-trust client privacy, multi-process memory boundaries, and dynamic reactive form manipulation without modifying target website source code.
+
+```
+┌────────────────────────────────────────────────────────────────────────────────────────┐
+│                               NAGARIK AI EXTENSION SUBSYSTEMS                          │
+├──────────────────────────────┬───────────────────────────┬─────────────────────────────┤
+│ 1. Side Panel UI (Context)   │ 2. Background Worker      │ 3. In-Page Content Script   │
+│    (Isolated Extension Host) │    (Manifest V3 Ephemeral)│    (Target Page Context)    │
+│  • Web Speech Audio Engine   │  • canAccessTab() Guard   │  • querySelectorAllDeep()   │
+│  • Real-time Aadhaar Parser  │  • Safe Messaging Relay   │  • Native Prototype Setter  │
+│  • Verhoeff Checksum (D_5)   │  • Tab Lifecycle Tracker  │  • Sequential Guidance Beacon│
+│  • Zero-Knowledge PII Masker │  • Zero Unhandled Rejects │  • CAPTCHA Non-Automation   │
+└──────────────────────────────┴───────────────────────────┴─────────────────────────────┘
+```
+
+### 1. Multi-Process Component Isolation
+
+| Subsystem | File Anchor | Context / Permissions | Technical Responsibility |
+|:---|:---|:---|:---|
+| **Native Side Panel** | [`sidepanel/sidepanel.js`](extension/sidepanel/sidepanel.js) | Extension Origin (`chrome-extension://`) | Houses the citizen interface, multilingual Web Speech audio synthesis, real-time regex parsing, local zero-knowledge synthesis, and task checklist orchestrator. |
+| **Service Worker** | [`background/service_worker.js`](extension/background/service_worker.js) | Ephemeral Background Worker | Manages extension lifecycle, coordinates cross-tab messaging, guards against restricted schemes (`chrome://`, `about:`), and handles Side Panel open events via `chrome.sidePanel.setPanelBehavior`. |
+| **Content Script** | [`content/content_script.js`](extension/content/content_script.js) | Target Portal DOM (`<all_urls>`) | Executes deep DOM inspection, pierces shadow roots, maps multilingual input labels, injects values through native prototypes, and anchors the visual golden beacon over official action buttons. |
+| **Portal Adapters** | [`content/adapters/`](extension/content/adapters/) | Strategy Pattern Framework | Modular adapter hierarchy (`BasePortalAdapter` $\to$ `CPGRAMSAdapter`, `MockPortalAdapter`, `GenericCivicAdapter`) ensuring 100% universal web fallback on unhandled municipal portals. |
+
+---
+
+### 2. Message Bus & Event Lifecycle Sequence
+
+The side panel, background worker, and target webpage communicate via an asynchronous typed message bus:
+
+```mermaid
+sequenceDiagram
+    autonumber
+    actor Citizen
+    participant SidePanel as Side Panel UI (sidepanel.js)
+    participant Worker as Service Worker (service_worker.js)
+    participant Content as Content Script (content_script.js)
+    participant PortalDOM as Government Portal DOM (UIDAI / JEE / CPGRAMS)
+
+    Note over Citizen,PortalDOM: 1. Handshake & DOM Inspection
+    SidePanel->>Worker: safeRuntimeSendMessage({ action: "GET_ACTIVE_TAB_INFO" })
+    Worker->>Content: chrome.tabs.sendMessage({ action: "INSPECT_PAGE_FORM" })
+    Content->>PortalDOM: querySelectorAllDeep("input, select, textarea, button")
+    PortalDOM-->>Content: Discovered form fields, labels, buttons
+    Content-->>SidePanel: Returns DOM signature (portalName, fieldCount, hasCaptcha)
+
+    Note over Citizen,PortalDOM: 2. Real-time Citizen Input & Verhoeff Validation
+    Citizen->>SidePanel: Speaks or types problem & Aadhaar
+    SidePanel->>SidePanel: Regex extracts 12 digits -> Verhoeff D_5 dihedral validation -> Mask to XXXXXXXX<last4>
+
+    Note over Citizen,PortalDOM: 3. Dynamic Auto-Fill & Framework Bypass
+    Citizen->>SidePanel: Clicks "Auto-Fill This Form"
+    SidePanel->>Content: chrome.tabs.sendMessage({ action: "FILL_FIELDS", fields: currentCitizenState })
+    Content->>PortalDOM: HTMLInputElement.prototype.value.set.call(el, val)
+    Content->>PortalDOM: Dispatch: focus -> keydown -> InputEvent("input") -> change -> keyup -> blur
+    PortalDOM-->>Content: Reactive form accepts value & clears error state
+
+    Note over Citizen,PortalDOM: 4. Sequential Spotlight Guidance
+    SidePanel->>Content: chrome.tabs.sendMessage({ action: "GUIDE_LOGIN_SEQUENCE" })
+    Content->>PortalDOM: Focus Application No -> Focus Password -> Spotlight CAPTCHA -> Beacon Official Submit
+    Content-->>SidePanel: Confirms guidance steps active
+    Citizen->>PortalDOM: Solves visual CAPTCHA manually & clicks Submit
+```
+
+---
+
+### 3. The Modern Framework Bypass: Native Prototype Setter
+
+Modern government and examination portals (such as UIDAI on Angular 12+ and NIC on ASP.NET / React) use synthetic event systems (`ControlValueAccessor` in Angular, synthetic event listeners in React). Directly modifying `element.value = "..."` sets the property on the DOM node but leaves the internal framework state unchanged, causing validation errors (e.g., *"Please enter valid Aadhaar number"*).
+
+Nagarik AI bypasses this cleanly by invoking the original browser prototype descriptor directly:
+
+```javascript
+// Native setter bypass implemented in content_script.js
+function setNativeValue(element, value) {
+  if (!element) return false;
+  element.focus();
+
+  // 1. Fetch raw prototype setter from browser window
+  const inputProto = Object.getOwnPropertyDescriptor(window.HTMLInputElement.prototype, "value")?.set;
+  const textareaProto = Object.getOwnPropertyDescriptor(window.HTMLTextAreaElement.prototype, "value")?.set;
+  const selectProto = Object.getOwnPropertyDescriptor(window.HTMLSelectElement.prototype, "value")?.set;
+
+  // 2. Invoke setter directly on the element instance
+  if (element.tagName === "INPUT" && inputProto) {
+    inputProto.call(element, value);
+  } else if (element.tagName === "TEXTAREA" && textareaProto) {
+    textareaProto.call(element, value);
+  } else if (element.tagName === "SELECT" && selectProto) {
+    selectProto.call(element, value);
+  }
+  element.value = value;
+
+  // 3. Dispatch full bubbling input event lifecycle
+  element.dispatchEvent(new Event("focus", { bubbles: true }));
+  element.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, composed: true, key: "0" }));
+  element.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true, data: String(value) }));
+  element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
+  element.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+  element.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, composed: true, key: "0" }));
+  element.dispatchEvent(new Event("blur", { bubbles: true }));
+}
+```
+
+This guarantees that Angular's `FormControl` and React's `onChange` cycle both re-evaluate and mark the input as valid (`ng-valid`, `ng-dirty`).
+
+---
+
+### 4. Deep DOM Traversal & Multi-Attribute Semantic Matching
+
+Government portal DOMs rarely follow clean semantic markup. Labels are frequently decoupled from inputs or nested inside Material `<mat-form-field>` wrappers:
+
+1. **Shadow Root Piercing (`querySelectorAllDeep`)**: Uses a `TreeWalker` to traverse both normal DOM nodes and open `shadowRoot` trees, finding inputs rendered inside custom web components.
+2. **Multi-Attribute Scoring**: Analyzes 8 distinct DOM attributes per element:
+   - `name`, `id`, `placeholder`, `aria-label`, `title`, `formcontrolname`, `ng-reflect-name`, `autocomplete`.
+   - Associated `<label for="...">` and parent element text (checked up to 300 characters).
+3. **Multilingual Token Dictionaries**:
+   - English: `aadhaar`, `uid`, `application_no`, `regno`, `pincode`, `grievance`.
+   - Hindi (हिन्दी): `आधार`, `पंजीकरण`, `शिकायत`, `विवरण`, `विभाग`.
+   - Telugu (తెలుగు): `ఆధార్`, `రిజిస్ట్రేషన్`, `సమస్య`, `ఫిర్యాదు`, `విభాగం`.
+4. **UIDAI Portal Fallback**: If an identity field is requested on a `uidai.gov.in` domain and standard keyword passes miss due to proprietary Angular wrappers, the engine automatically selects the first non-captcha text input on the card.
+
+---
+
+### 5. Mathematical Verhoeff Dihedral Checksum ($D_5$)
+
+India's Unique Identification Authority (UIDAI) validates 12-digit Aadhaar numbers using the **Verhoeff algorithm**, a checksum based on the dihedral group $D_5$ of order 10:
+
+$$c = \sum_{i=0}^{n-1} d(c, p(i \bmod 8, a_i)) = 0$$
+
+- $d(j, k)$: Multiplication in the dihedral group $D_5$.
+- $p(i, j)$: Permutation table based on powers of the permutation $(0)(1, 5, 8, 9, 4, 2, 7, 0)$.
+
+Nagarik AI validates and embeds official demonstration credentials (e.g., **`488813127839`**, mathematically verified under $D_5$), completely preventing dummy number rejection (`234567890123` fails under $D_5$ with code $\ne 0$).
+
+---
+
+### 6. Sequential Login Copilot & Safety Guardrails
+
+To preserve safety and legal compliance:
+1. **Strict Sequential Order**: For login and admission portals, Nagarik AI guides users in an orderly sequence:
+   $$\text{Step 1: Application/Aadhaar No} \longrightarrow \text{Step 2: Password} \longrightarrow \text{Step 3: Security PIN / Captcha} \longrightarrow \text{Step 4: Official Submit}$$
+2. **STRICT CAPTCHA Exemption**: The engine actively identifies and excludes CAPTCHA elements (`isSecPinOrCaptcha()`), never automating them and spotlighting them with a golden beacon for manual citizen resolution.
+3. **Anti-Accidental-Click Filter**: When spotlighting submit targets, it strictly filters out dangerous elements matching `register`, `new user`, `forgot password`, `reset`, `cancel`, or `back`.
+4. **Zero Outbound PII Leakage**: The extension contains **zero** HTTP, Fetch, or WebSocket calls. All heuristic parsing and masking run entirely client-side inside the browser process.
+
+
+---
+
 ## 🚀 Setup & Judging Verification Guide
 
 Follow these steps to clone, run, and evaluate the complete repository.
