@@ -309,14 +309,7 @@ document.addEventListener("DOMContentLoaded", () => {
       chrome.tabs.sendMessage(tab.id, { action: "INSPECT_PAGE_FORM" }, (res) => {
         if (chrome.runtime.lastError || !res) {
           const _ = chrome.runtime.lastError ? chrome.runtime.lastError.message : null;
-          chrome.runtime.sendMessage({ action: "TRIGGER_INSPECT_PAGE" }, (bgRes) => {
-            if (chrome.runtime.lastError) { const __ = chrome.runtime.lastError.message; }
-            if (bgRes && bgRes.supported) {
-              applyInspectionResults(bgRes);
-            } else {
-              applyFallbackTabInfo();
-            }
-          });
+          applyFallbackTabInfo();
         } else {
           applyInspectionResults(res);
         }
@@ -676,29 +669,21 @@ Submitted in good faith by ${name}, Contact: ${phone}.`.trim();
 
     speak(LOCALES[currentLang].analyzing);
 
-    // Try backend AI analysis with local fallback
-    chrome.runtime.sendMessage({
-      action: "CALL_BACKEND_ANALYZE",
-      payload: {
-        raw_input: citizenText,
-        language: currentLang,
-        location: currentCitizenState.location,
-        portal_context: activeTabInfo.domain
-      }
-    }, (bgRes) => {
+    // Fast, local zero-knowledge synthesis
+    setTimeout(() => {
       clearInterval(tickerInterval);
       analyzingStage.classList.add("hidden");
       taskPlanCard.classList.remove("hidden");
 
-      // 2. Synthesize State (From Backend or Local Graph)
-      synthesizeCitizenState(citizenText, bgRes && bgRes.success ? bgRes.data : null);
+      // 2. Synthesize State (From Local Sovereign Heuristics & Synonyms)
+      synthesizeCitizenState(citizenText, null);
       updateSynthesisPreview();
 
       // 3. Build & Execute Plan
       const plan = synthesizeCustomPlan(options);
       renderTaskPlan(plan);
       executeTasksSequentially(plan);
-    });
+    }, 450);
   }
 
   function synthesizeCitizenState(rawText, aiData) {
@@ -852,14 +837,8 @@ Submitted in good faith by ${name}, Contact: ${phone}.`.trim();
       }, (res) => {
         if (chrome.runtime.lastError || !res) {
           const _ = chrome.runtime.lastError ? chrome.runtime.lastError.message : null;
-          chrome.runtime.sendMessage({
-            action: "TRIGGER_FILL_FIELDS",
-            fields: currentCitizenState
-          }, (bgRes) => {
-            if (chrome.runtime.lastError) { const __ = chrome.runtime.lastError.message; }
-            lastFillResult = bgRes || { success: false, filledCount: 0 };
-            resolve(lastFillResult);
-          });
+          lastFillResult = { success: false, filledCount: 0 };
+          resolve(lastFillResult);
         } else {
           lastFillResult = res;
           resolve(res);
