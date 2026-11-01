@@ -6,7 +6,8 @@ import {
   Bot, User, Sparkles, Search, Mic, MicOff, Send, Volume2, VolumeX,
   Copy, Check, Download, ExternalLink, ShieldCheck, ShieldAlert,
   Layers, Zap, CheckCircle2, RefreshCw, X, ChevronRight, FastForward,
-  FileCheck, FileText, ArrowRight, Share2, Activity, Printer
+  FileCheck, FileText, ArrowRight, Share2, Activity, Printer,
+  Plus, MessageSquare, Trash2, History
 } from 'lucide-react';
 import { WhatsAppBotView } from './components/WhatsAppBotView';
 import { CivicEligibilityCalculator } from './components/CivicEligibilityCalculator';
@@ -37,6 +38,16 @@ interface ReasoningStep {
   status: 'completed' | 'active' | 'pending';
 }
 
+interface ChatThread {
+  id: string;
+  sessionId: string;
+  title: string;
+  createdAt: string;
+  updatedAt: string;
+  messages: ChatMessage[];
+  language: CivicLanguage;
+}
+
 interface ChatMessage {
   id: string;
   role: 'user' | 'assistant';
@@ -48,6 +59,63 @@ interface ChatMessage {
   retrievalBadge?: string;
   suggestedFollowups?: string[];
   suggestedActions?: string[];
+}
+
+// ==========================================
+// ULTRA-RELIABLE CRISP NAGARIK CIVIC EMBLEM
+// Dual fallback: Base64 -> ./logo_emblem.png -> Crisp Inline SVG Ashoka Chakra
+// ==========================================
+export interface NagarikEmblemProps {
+  className?: string;
+  alt?: string;
+}
+
+export function NagarikEmblem({ className = "w-full h-full object-cover rounded-xl", alt = "Nagarik AI Emblem" }: NagarikEmblemProps) {
+  const [useFallbackSvg, setUseFallbackSvg] = useState(false);
+
+  if (useFallbackSvg || !LOGO_EMBLEM_BASE64) {
+    return (
+      <svg
+        viewBox="0 0 100 100"
+        className={className}
+        fill="none"
+        xmlns="http://www.w3.org/2000/svg"
+        role="img"
+        aria-label={alt}
+      >
+        <circle cx="50" cy="50" r="48" fill="#141824" stroke="#F06A25" strokeWidth="2.5" />
+        <circle cx="50" cy="50" r="38" stroke="#138808" strokeWidth="1.5" strokeDasharray="3 3" />
+        <circle cx="50" cy="50" r="18" stroke="#0038A8" strokeWidth="2" />
+        {Array.from({ length: 24 }).map((_, i) => {
+          const angle = (i * 360) / 24;
+          const rad = (angle * Math.PI) / 180;
+          const x2 = 50 + 17 * Math.cos(rad);
+          const y2 = 50 + 17 * Math.sin(rad);
+          return <line key={i} x1="50" y1="50" x2={x2} y2={y2} stroke="#0038A8" strokeWidth="1" />;
+        })}
+        <circle cx="50" cy="50" r="3.5" fill="#0038A8" />
+        <path d="M 22 26 Q 50 14 78 26" stroke="#FF9933" strokeWidth="3.5" strokeLinecap="round" />
+        <path d="M 22 74 Q 50 86 78 74" stroke="#138808" strokeWidth="3.5" strokeLinecap="round" />
+      </svg>
+    );
+  }
+
+  return (
+    <img
+      src={LOGO_EMBLEM_BASE64}
+      alt={alt}
+      className={className}
+      onError={(e) => {
+        const target = e.currentTarget;
+        if (!target.dataset.fallbackTried) {
+          target.dataset.fallbackTried = 'true';
+          target.src = './logo_emblem.png';
+        } else {
+          setUseFallbackSvg(true);
+        }
+      }}
+    />
+  );
 }
 
 export default function App() {
@@ -89,6 +157,133 @@ Select a quick topic below or type your question in English, Hindi (हिंद
       ]
     }
   ]);
+  // ==========================================
+  // THREADS & SESSION ID MANAGEMENT
+  // ==========================================
+  const getInitialWelcomeMessage = (lang: CivicLanguage): ChatMessage => ({
+    id: `welcome-${Date.now()}`,
+    role: 'assistant',
+    content: `### 🏛️ Welcome to Nagarik AI — Sovereign Civic Intelligence
+
+I am your official public entitlements copilot, grounded in **5,210+ verified Central and State welfare schemes** across all 28 Indian States and 8 Union Territories. 
+
+Ask me any question regarding:
+- **Direct Benefit Transfers (DBT)**: Bank account seeding, NPCI mapper, PM-KISAN, Rythu Bharosa, pensions.
+- **Civic Documents & Transport**: Driving Licence (Sarathi Parivahan), Learner's Licence, Voter ID, Ration Cards.
+- **Enterprise & Entrepreneurship**: Stand-Up India, PMMY Mudra, PM Vishwakarma collateral-free loans.
+- **Education & Scholarships**: Post-Matric, National Scholarship Portal (NSP), Central Sector fellowships.
+- **Health & Welfare**: Ayushman Bharat PM-JAY ₹5 Lakh limit, free treatment for senior citizens aged 70+.
+
+Type your question below or select a quick topic. Every query is privately processed with 100% PII masking and traced in LangSmith.`,
+    timestamp: 'Active Now',
+    language: lang,
+    retrievalBadge: '🏛️ Grounded in 5,210 Schemes (Gazette 2026)',
+    suggestedFollowups: [
+      'How do I check if my bank account is Aadhaar DBT seeded?',
+      'How to apply for a Driving Licence on Sarathi Parivahan?',
+      'What is the annual income limit for Post-Matric scholarships?'
+    ]
+  });
+
+  const [threads, setThreads] = useState<ChatThread[]>(() => {
+    try {
+      const saved = localStorage.getItem('nagarik_ai_threads');
+      if (saved) {
+        const parsed = JSON.parse(saved);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    const initialId = `thread-${Date.now()}`;
+    const initialSession = `session-${Date.now().toString(36)}`;
+    return [{
+      id: initialId,
+      sessionId: initialSession,
+      title: 'New Conversation',
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      messages: [getInitialWelcomeMessage('en')],
+      language: 'en'
+    }];
+  });
+
+  const [activeThreadId, setActiveThreadId] = useState<string>(() => {
+    try {
+      const savedActive = localStorage.getItem('nagarik_active_thread_id');
+      if (savedActive) return savedActive;
+    } catch (e) {}
+    return threads[0]?.id || `thread-${Date.now()}`;
+  });
+
+  const [showThreadDrawer, setShowThreadDrawer] = useState(false);
+
+  // Active thread helper
+  const activeThread = threads.find(t => t.id === activeThreadId) || threads[0];
+  const activeSessionId = activeThread?.sessionId || `session-${Date.now().toString(36)}`;
+
+  // Synchronize threads to localStorage
+  useEffect(() => {
+    try {
+      localStorage.setItem('nagarik_ai_threads', JSON.stringify(threads));
+      localStorage.setItem('nagarik_active_thread_id', activeThreadId);
+    } catch (e) {}
+  }, [threads, activeThreadId]);
+
+  const handleCreateNewThread = () => {
+    const newId = `thread-${Date.now()}`;
+    const newSession = `session-${Date.now().toString(36)}`;
+    const newThread: ChatThread = {
+      id: newId,
+      sessionId: newSession,
+      title: 'New Conversation',
+      createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+      messages: [getInitialWelcomeMessage(selectedLanguage)],
+      language: selectedLanguage
+    };
+    setThreads(prev => [newThread, ...prev]);
+    setActiveThreadId(newId);
+    setChatMessages(newThread.messages);
+    setShowThreadDrawer(false);
+  };
+
+  const handleSelectThread = (threadId: string) => {
+    const target = threads.find(t => t.id === threadId);
+    if (target) {
+      setActiveThreadId(target.id);
+      setChatMessages(target.messages);
+      setSelectedLanguage(target.language || 'en');
+      setShowThreadDrawer(false);
+    }
+  };
+
+  const handleDeleteThread = (threadId: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setThreads(prev => {
+      const filtered = prev.filter(t => t.id !== threadId);
+      if (filtered.length === 0) {
+        const freshId = `thread-${Date.now()}`;
+        const freshSession = `session-${Date.now().toString(36)}`;
+        const freshThread: ChatThread = {
+          id: freshId,
+          sessionId: freshSession,
+          title: 'New Conversation',
+          createdAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+          messages: [getInitialWelcomeMessage(selectedLanguage)],
+          language: selectedLanguage
+        };
+        setActiveThreadId(freshId);
+        setChatMessages(freshThread.messages);
+        return [freshThread];
+      }
+      if (activeThreadId === threadId) {
+        setActiveThreadId(filtered[0].id);
+        setChatMessages(filtered[0].messages);
+      }
+      return filtered;
+    });
+  };
+
   const [chatInput, setChatInput] = useState('');
   const [isGenerating, setIsGenerating] = useState(false);
   const [activeReasoningStep, setActiveReasoningStep] = useState<number>(1);
@@ -96,6 +291,54 @@ Select a quick topic below or type your question in English, Hindi (हिंद
   const [activeSpeechId, setActiveSpeechId] = useState<string | null>(null);
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isChatListening, setIsChatListening] = useState(false);
+  const [heroSearchInput, setHeroSearchInput] = useState('');
+  const [threadSearchQuery, setThreadSearchQuery] = useState('');
+
+  // Simplified Popular Civic Category Chips
+  const civicCategoryChips = [
+    {
+      id: 'farmers',
+      label: 'Farmers',
+      icon: '🌾',
+      subtext: 'PM-KISAN & Subsidies',
+      query: 'What are the top government welfare schemes, direct cash transfers, and crop subsidies available for farmers (such as PM-KISAN, Rythu Bharosa, and PM Fasal Bima)?'
+    },
+    {
+      id: 'students',
+      label: 'Students',
+      icon: '🎓',
+      subtext: 'Scholarships & Grants',
+      query: 'What central and state government scholarships, Post-Matric schemes, and fee reimbursement benefits are available for school and college students?'
+    },
+    {
+      id: 'healthcare',
+      label: 'Healthcare',
+      icon: '🏥',
+      subtext: 'Ayushman PM-JAY',
+      query: 'Explain Ayushman Bharat PM-JAY ₹5 lakh cashless healthcare coverage, empanelled hospital list criteria, and free diagnostic facilities.'
+    },
+    {
+      id: 'seniors',
+      label: 'Senior Citizens',
+      icon: '👴',
+      subtext: 'Pensions & 70+ PM-JAY',
+      query: 'What old-age pensions (IGNOAPS), welfare concessions, and Ayushman Bharat health insurance rules apply to senior citizens aged 60+ and 70+?'
+    },
+    {
+      id: 'housing',
+      label: 'Housing',
+      icon: '🏠',
+      subtext: 'PM Awas Yojana Subsidy',
+      query: 'How can eligible citizens apply for Pradhan Mantri Awas Yojana (PMAY Gramin & Urban) housing subsidy and what are the income criteria?'
+    },
+    {
+      id: 'business',
+      label: 'Business Loans',
+      icon: '💼',
+      subtext: 'Mudra & Stand-Up India',
+      query: 'What collateral-free government business loans and interest subsidies are available under PM Mudra Yojana, PM SVANidhi, and Stand-Up India?'
+    }
+  ];
   const chatBottomRef = useRef<HTMLDivElement>(null);
   const chatInputRef = useRef<HTMLInputElement>(null);
 
@@ -178,10 +421,29 @@ Select a quick topic below or type your question in English, Hindi (हिंद
     fetchLedger();
   }, []);
 
+  const scrollTimerRef = useRef<number | null>(null);
+
   useEffect(() => {
-    if (chatBottomRef.current) {
-      chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
+    if (!chatBottomRef.current) return;
+    // Throttled auto-scroll to eliminate page shaking and jitter during live token streaming
+    if (scrollTimerRef.current === null) {
+      scrollTimerRef.current = window.setTimeout(() => {
+        if (chatBottomRef.current) {
+          const rect = chatBottomRef.current.getBoundingClientRect();
+          const isNearBottom = rect.top <= window.innerHeight + 300;
+          if (isNearBottom || isGenerating) {
+            chatBottomRef.current.scrollIntoView({ behavior: 'auto', block: 'end' });
+          }
+        }
+        scrollTimerRef.current = null;
+      }, 140);
     }
+    return () => {
+      if (scrollTimerRef.current !== null) {
+        clearTimeout(scrollTimerRef.current);
+        scrollTimerRef.current = null;
+      }
+    };
   }, [chatMessages, isGenerating]);
 
   // Global Keyboard Shortcuts (WCAG 2.2 AA & Power User Ergonomics)
@@ -193,11 +455,17 @@ Select a quick topic below or type your question in English, Hindi (हिंद
         setActiveTab('chatbot');
         setTimeout(() => chatInputRef.current?.focus(), 50);
       }
-      // Escape -> Close active modals
+      // Escape -> Close active modals and drawers
       if (e.key === 'Escape') {
         setShowTelemetryModal(false);
         setShowDbtWizardModal(false);
+        setShowThreadDrawer(false);
         setSelectedEscalation(null);
+      }
+      // Alt+T -> Toggle Threads Drawer
+      if (e.altKey && e.key.toLowerCase() === 't') {
+        e.preventDefault();
+        setShowThreadDrawer(prev => !prev);
       }
       // Alt+1 to Alt+7 Quick Tab Navigation
       if (e.altKey) {
@@ -265,9 +533,19 @@ Select a quick topic below or type your question in English, Hindi (हिंद
       language: selectedLanguage
     };
 
-    setChatMessages(prev => [...prev, userMessage]);
+    const updatedWithUser = [...chatMessages, userMessage];
+    setChatMessages(updatedWithUser);
     setChatInput('');
     setIsGenerating(true);
+
+    // Auto-update thread title if generic
+    setThreads(prev => prev.map(t => {
+      if (t.id === activeThreadId) {
+        const newTitle = t.title === 'New Conversation' ? (textToSend.length > 28 ? textToSend.slice(0, 28) + '...' : textToSend) : t.title;
+        return { ...t, title: newTitle, messages: updatedWithUser, updatedAt: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) };
+      }
+      return t;
+    }));
     setActiveReasoningStep(1);
 
     const stepTimer1 = setTimeout(() => setActiveReasoningStep(2), 500);
@@ -290,19 +568,39 @@ Select a quick topic below or type your question in English, Hindi (हिंद
           stream: true
         };
 
+        const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
+        const primaryUrl = isLocalhost 
+          ? `${API_BASE}/chat/stream` 
+          : 'https://ocplgpmsfwibjzjvxynv.supabase.co/functions/v1/chat?stream=true';
+        const fallbackUrl = isLocalhost 
+          ? 'https://ocplgpmsfwibjzjvxynv.supabase.co/functions/v1/chat?stream=true' 
+          : `${API_BASE}/chat/stream`;
+
+        const requestBody = {
+          message: textToSend,
+          query: textToSend,
+          language: selectedLanguage,
+          stream: true,
+          session_id: activeSessionId,
+          sessionId: activeSessionId,
+          thread_id: activeThreadId,
+          threadId: activeThreadId,
+          history: chatMessages.slice(-6).map(m => ({ role: m.role, content: m.content }))
+        };
+
         let response: Response | null = null;
         try {
-          response = await fetch(`${API_BASE}/chat/stream`, {
+          response = await fetch(primaryUrl, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-            body: JSON.stringify(streamPayload)
+            body: JSON.stringify(requestBody)
           });
         } catch (e) {
           try {
-            response = await fetch('https://ocplgpmsfwibjzjvxynv.supabase.co/functions/v1/chat?stream=true', {
+            response = await fetch(fallbackUrl, {
               method: 'POST',
               headers: { 'Content-Type': 'application/json', 'Accept': 'text/event-stream' },
-              body: JSON.stringify(streamPayload)
+              body: JSON.stringify(requestBody)
             });
           } catch (subErr) {
             response = null;
@@ -353,11 +651,16 @@ Select a quick topic below or type your question in English, Hindi (हिंद
                   setChatMessages(prev => prev.map(m => m.id === botId ? { ...m, content: streamedContent } : m));
                 } else if (parsed.type === 'done') {
                   streamedFollowups = parsed.suggested_followups || [];
-                  setChatMessages(prev => prev.map(m => m.id === botId ? {
-                    ...m,
-                    suggestedFollowups: streamedFollowups,
-                    suggestedActions: parsed.suggested_actions || []
-                  } : m));
+                  setChatMessages(prev => {
+                    const finalMsgs = prev.map(m => m.id === botId ? {
+                      ...m,
+                      suggestedFollowups: streamedFollowups,
+                      suggestedActions: parsed.suggested_actions || []
+                    } : m);
+                    // Sync to threads
+                    setThreads(tList => tList.map(t => t.id === activeThreadId ? { ...t, messages: finalMsgs } : t));
+                    return finalMsgs;
+                  });
                 }
               } catch (jsonErr) {}
             }
@@ -953,25 +1256,31 @@ Nagarik AI Grievance Escalation Studio`
           <div data-no-scrollbar="true" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="flex items-center gap-4 overflow-x-auto whitespace-nowrap scrollbar-none no-scrollbar touch-pan-x py-0.5">
             <span className="flex items-center gap-1.5 text-[#ffb692] font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-[#F06A25] animate-ping"></span>
-              🏛️ 5,210+ Verified Schemes Grounded
+              🏛️ 5,210+ Verified Government Schemes
             </span>
             <span className="text-[rgba(255,255,255,0.2)]">|</span>
             <span className="text-[#34d399] flex items-center gap-1">
-              🔒 100% PII Masked (UIDAI Compliant)
+              🔒 Zero Data Retained (100% Private &amp; Secure)
             </span>
             <span className="text-[rgba(255,255,255,0.2)]">|</span>
             <span className="text-[#38bdf8] flex items-center gap-1">
-              🌐 22 Official Languages Supported
+              🌐 All 28 States &amp; UTs Supported
             </span>
             <span className="text-[rgba(255,255,255,0.2)]">|</span>
             <span className="text-[#f2ca50] flex items-center gap-1">
-              ⚡ &lt; 1.2s Average Hybrid RAG Response
+              🇮🇳 Official Gazette Grounded
             </span>
           </div>
           <div className="flex items-center gap-3 shrink-0">
-            <span className="hidden sm:inline text-xs text-[#8F93B5]">
-              Public Portal v3.2 • Buildathon 2026
-            </span>
+            <a 
+              href="host.html" 
+              target="_blank"
+              className="px-2.5 py-1 rounded-lg bg-[#F06A25]/20 hover:bg-[#F06A25]/30 text-[#ffb692] border border-[#F06A25]/40 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+              title="Open Unified Verification & Host Testing Webpage to check everything"
+            >
+              <span>⚙️ All-in-One Testing Hub</span>
+              <ExternalLink className="w-3 h-3 text-[#F06A25]" />
+            </a>
           </div>
         </div>
       </div>
@@ -1005,15 +1314,15 @@ Nagarik AI Grievance Escalation Studio`
       </div>
 
       <header className="sticky top-0 z-40 w-full bg-[#0B0E1B]/95 backdrop-blur-xl border-b border-[rgba(255,255,255,0.08)] shadow-lg shadow-black/40">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 h-20 flex items-center justify-between gap-4">
+        <div className="max-w-7xl mx-auto px-3 sm:px-6 min-h-[4.5rem] py-2 flex items-center justify-between gap-2 sm:gap-4">
           
           {/* Brand Logo & Emblem */}
           <div 
             onClick={() => setActiveTab('chatbot')}
             className="flex items-center gap-3.5 cursor-pointer hover:opacity-95 transition-opacity"
           >
-            <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-[#16191f] border border-[#B8643A]/60 p-1 shadow-md shadow-black/50 overflow-hidden">
-              <img src={LOGO_EMBLEM_BASE64} alt="Nagarik AI Emblem" className="w-full h-full object-cover rounded-xl" />
+            <div className="relative flex items-center justify-center w-10 h-10 sm:w-12 sm:h-12 rounded-xl sm:rounded-2xl bg-[#16191f] border border-[#B8643A]/60 p-1 shadow-md shadow-black/50 overflow-hidden shrink-0">
+              <NagarikEmblem className="w-full h-full object-cover rounded-lg sm:rounded-xl" />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
@@ -1028,7 +1337,7 @@ Nagarik AI Grievance Escalation Studio`
                     e.stopPropagation();
                     setShowTelemetryModal(true);
                   }}
-                  className="hidden md:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#0d281e] border border-[#34d399]/40 text-[10px] font-mono text-[#34d399] font-bold hover:bg-[#153f30] transition-all cursor-pointer shadow-sm"
+                  className="hidden lg:inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full bg-[#0d281e] border border-[#34d399]/40 text-[10px] font-mono text-[#34d399] font-bold hover:bg-[#153f30] transition-all cursor-pointer shadow-sm"
                   title="Click to view live LangSmith Tracing & Groq Qwen metrics"
                 >
                   <Activity className="w-3 h-3 text-[#34d399] animate-pulse" />
@@ -1044,7 +1353,17 @@ Nagarik AI Grievance Escalation Studio`
           </div>
 
           {/* Action Controls & Language Selector */}
-          <div className="flex items-center gap-2 sm:gap-3">
+          <div className="flex items-center gap-1.5 sm:gap-3 shrink-0">
+            {/* Quick Threads Drawer Button (Accessible on both Mobile & Laptop) */}
+            <button
+              onClick={() => setShowThreadDrawer(true)}
+              className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-[#1e2336] hover:bg-[#2F3558] text-[#ffb692] border border-white/10 text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm shrink-0"
+              title="View Saved Conversations & Threads (Alt+T)"
+            >
+              <History className="w-3.5 h-3.5 text-[#F06A25]" />
+              <span className="hidden md:inline">Threads ({threads.length})</span>
+              <span className="md:hidden font-mono text-[11px]">({threads.length})</span>
+            </button>
             {/* Quick DBT Seeding Diagnostic Wizard Button */}
             <button
               onClick={() => setShowDbtWizardModal(true)}
@@ -1117,7 +1436,7 @@ Nagarik AI Grievance Escalation Studio`
             }`}
           >
             <Bot className="w-4 h-4" />
-            <span>🤖 Schemes AI Chatbot</span>
+            <span>💬 Scheme Assistant</span>
             <span className="px-1.5 py-0.2 bg-[#0B0C1E]/20 text-[9px] rounded font-mono uppercase tracking-wider">
               Flagship
             </span>
@@ -1132,7 +1451,7 @@ Nagarik AI Grievance Escalation Studio`
             }`}
           >
             <Layers className="w-4 h-4" />
-            <span>📋 Scheme Directory & Filter</span>
+            <span>📋 Browse Schemes</span>
           </button>
 
           <button
@@ -1144,7 +1463,7 @@ Nagarik AI Grievance Escalation Studio`
             }`}
           >
             <ShieldCheck className="w-4 h-4" />
-            <span>🛡️ Civic Grievance Triage</span>
+            <span>🛡️ Grievance Redressal</span>
           </button>
 
           <button
@@ -1214,32 +1533,126 @@ Nagarik AI Grievance Escalation Studio`
             
             {/* Hero Welcome Header */}
             <div className="text-center pt-2 pb-4">
-              <div className="hover-pop-btn inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#16191f] border border-[#B8643A]/50 p-1 mb-3 shadow-xl shadow-black/50">
-                <img src={LOGO_EMBLEM_BASE64} alt="Nagarik AI Emblem" className="w-full h-full object-cover rounded-xl" />
+              <div className="hover-pop-btn inline-flex items-center justify-center w-14 h-14 sm:w-16 sm:h-16 rounded-2xl bg-[#16191f] border border-[#B8643A]/50 p-1 mb-3 shadow-xl shadow-black/50">
+                <NagarikEmblem className="w-full h-full object-cover rounded-xl" />
               </div>
-              <h1 className="brand-serif text-3xl sm:text-4xl font-bold tracking-tight text-[#E8E9F2] mb-2">
+              <h1 className="brand-serif text-2xl sm:text-4xl font-bold tracking-tight text-[#E8E9F2] mb-2 px-2">
                 <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-[#ffe088] via-[#f2ca50] to-[#ffb692]">
-                  Schemes RAG Copilot
+                  Find Government Schemes
                 </span>
-                <span className="font-normal text-[#8F93B5] text-2xl sm:text-3xl"> — Instant Civic Guidance</span>
+                <span className="font-normal text-[#8F93B5] text-xl sm:text-3xl"> &amp; Welfare Benefits</span>
               </h1>
-              <p className="max-w-2xl mx-auto text-xs sm:text-sm text-[#8F93B5] leading-relaxed">
-                Powered by Hybrid Retrieval (BM25 + Semantic Vector Embeddings) across Central &amp; State Gazettes. 
-                Ask multi-turn questions in your native language with guaranteed source verification.
+              <p className="max-w-2xl mx-auto text-xs sm:text-sm text-[#8F93B5] leading-relaxed px-4">
+                Get clear, simple answers on direct cash transfers, scholarships, healthcare, pensions, and housing.
+                Every response is verified with official Government of India and State Gazettes.
               </p>
 
-              {/* Quick Prompt Pills */}
-              <div className="mt-5 flex flex-wrap items-center justify-center gap-2 max-w-4xl mx-auto">
-                {quickPrompts.map((p, idx) => (
+              {/* Clean Accessible Civic Search Box */}
+              <div className="w-full max-w-2xl mx-auto mt-5 px-3">
+                <form
+                  role="search"
+                  aria-label="Civic schemes search"
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    if (heroSearchInput.trim()) {
+                      handleSendChat(heroSearchInput.trim());
+                      setHeroSearchInput('');
+                    }
+                  }}
+                  className="relative flex items-center bg-[#14182a] border-2 border-[#B8643A]/50 focus-within:border-[#F06A25] rounded-2xl p-1.5 sm:p-2 shadow-2xl shadow-black/60 transition-all"
+                >
+                  <Search className="w-5 h-5 text-[#F06A25] ml-2 mr-1 shrink-0" aria-hidden="true" />
+                  <input
+                    type="search"
+                    aria-label="Search civic schemes, benefits, or eligibility"
+                    value={heroSearchInput}
+                    onChange={(e) => setHeroSearchInput(e.target.value)}
+                    placeholder={
+                      selectedLanguage === 'hi'
+                        ? 'सरकारी योजनाएं खोजें (जैसे पीएम-किसान, छात्रवृत्ति, आवास, या आयुष्मान)...'
+                        : selectedLanguage === 'te'
+                          ? 'ప్రభుత్వ పథకాలను శోధించండి (ఉదా: రైతు బంధు, స్కాలర్‌షిప్, గృహ నిర్మాణం)...'
+                          : 'Search schemes by category (e.g. Farmers, Students, Housing, Mudra)...'
+                    }
+                    className="w-full bg-transparent px-2.5 sm:px-3 py-2 text-xs sm:text-sm text-[#E8E9F2] placeholder-[#8F93B5]/70 outline-none border-none focus:ring-0"
+                  />
                   <button
-                    key={idx}
-                    onClick={() => handleSendChat(p.query)}
-                    className="hover-pop-card text-left text-xs bg-[#16191f] hover:bg-[#2F3558] text-[#E8E9F2] hover:text-[#ffb692] px-3.5 py-2 rounded-xl border border-[rgba(255,255,255,0.08)] flex items-center gap-2 shadow-sm transition-all"
+                    type="button"
+                    onClick={toggleChatMic}
+                    className={`p-2 rounded-xl transition-all mr-1 shrink-0 ${
+                      isChatListening
+                        ? 'bg-[#F06A25] text-[#0B0C1E] animate-pulse'
+                        : 'text-[#8F93B5] hover:text-[#E8E9F2] hover:bg-[#2F3558]'
+                    }`}
+                    title="Voice search"
+                    aria-label="Voice search"
                   >
-                    <span className="font-semibold text-xs">{p.label}</span>
-                    <span className="text-[10px] text-[#8F93B5] hidden md:inline">• {p.desc}</span>
+                    <Mic className="w-4 h-4 sm:w-5 sm:h-5" />
                   </button>
-                ))}
+                  <button
+                    type="submit"
+                    disabled={!heroSearchInput.trim() || isGenerating}
+                    className="px-3.5 sm:px-5 py-2 sm:py-2.5 rounded-xl bg-gradient-to-r from-[#F06A25] to-[#E58C5C] text-[#0B0C1E] font-extrabold text-xs sm:text-sm shadow-md shadow-[#F06A25]/30 shrink-0 disabled:opacity-40 disabled:cursor-not-allowed hover:opacity-95 transition-all"
+                  >
+                    <span>Search</span>
+                  </button>
+                </form>
+              </div>
+
+              {/* Simplified Category Chips (Farmers, Students, Healthcare, Senior Citizens, Housing, Business Loans) */}
+              <div className="mt-5 w-full max-w-4xl mx-auto px-2">
+                <div className="flex items-center justify-center gap-2 mb-2.5">
+                  <span className="text-[11px] font-mono uppercase tracking-wider text-[#8F93B5] font-semibold">
+                    Browse Beneficiary Categories
+                  </span>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 sm:gap-2.5">
+                  {civicCategoryChips.map((chip) => (
+                    <button
+                      key={chip.id}
+                      onClick={() => handleSendChat(chip.query)}
+                      className="hover-pop-card group flex flex-col items-center justify-center p-3 rounded-xl bg-[#14182a]/90 hover:bg-[#1f253d] border border-white/10 hover:border-[#F06A25]/50 text-center transition-all shadow-sm"
+                    >
+                      <span className="text-xl sm:text-2xl mb-1 group-hover:scale-110 transition-transform">{chip.icon}</span>
+                      <span className="text-xs font-bold text-[#E8E9F2] group-hover:text-[#ffb692] transition-colors">{chip.label}</span>
+                      <span className="text-[9px] text-[#8F93B5] line-clamp-1 mt-0.5 hidden sm:inline">{chip.subtext}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Threads & Session ID Bar */}
+              <div className="mt-5 flex flex-wrap items-center justify-between gap-3 max-w-4xl mx-auto px-3 py-2 rounded-2xl bg-[#14182a]/80 border border-white/10 backdrop-blur-md">
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={() => setShowThreadDrawer(true)}
+                    className="px-3 py-1.5 rounded-xl bg-[#2F3558] hover:bg-[#3d4573] text-[#ffb692] text-xs font-bold flex items-center gap-1.5 transition-all shadow-sm"
+                    title="View Saved Conversations & Threads (Alt+T)"
+                  >
+                    <History className="w-3.5 h-3.5 text-[#F06A25]" />
+                    <span>Threads ({threads.length})</span>
+                  </button>
+
+                  <button
+                    onClick={handleCreateNewThread}
+                    className="px-3 py-1.5 rounded-xl bg-[#F06A25] hover:bg-[#E58C5C] text-[#0B0C1E] text-xs font-black flex items-center gap-1.5 transition-all shadow-sm"
+                    title="Start a Fresh Conversation Thread"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>New Thread</span>
+                  </button>
+
+                  <span className="text-xs text-[#8F93B5] font-semibold truncate max-w-[180px] sm:max-w-xs hidden sm:inline">
+                    Current: <strong className="text-white">{activeThread.title}</strong>
+                  </span>
+                </div>
+
+                <div className="flex items-center gap-2 font-mono text-[11px] text-[#8F93B5]">
+                  <span className="hidden md:inline">Session ID:</span>
+                  <span className="px-2 py-0.5 rounded bg-black/40 border border-white/10 text-emerald-400 font-bold" title="Persistent LangSmith Tracked Session">
+                    #{activeSessionId.slice(-8)}
+                  </span>
+                </div>
               </div>
             </div>
 
@@ -1254,8 +1667,8 @@ Nagarik AI Grievance Escalation Studio`
                 >
                   {/* Bot Avatar */}
                   {msg.role === 'assistant' && (
-                    <div className="w-10 h-10 rounded-xl bg-[#16191f] border border-[#B8643A]/40 p-1 flex items-center justify-center shrink-0 shadow-md">
-                      <img src={LOGO_EMBLEM_BASE64} alt="Nagarik AI" className="w-full h-full object-cover rounded-lg" />
+                    <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-xl bg-[#16191f] border border-[#B8643A]/40 p-1 flex items-center justify-center shrink-0 shadow-md">
+                      <NagarikEmblem className="w-full h-full object-cover rounded-lg" />
                     </div>
                   )}
 
@@ -1438,124 +1851,25 @@ Nagarik AI Grievance Escalation Studio`
               {/* ============================================================ */}
               {/* LATENCY-HIDING ANIMATIONS & REASONING STAGE                 */}
               {/* ============================================================ */}
+              {/* Stable, Non-Shaking Live Reasoning Status                     */}
+              {/* ============================================================ */}
+              {/* Stable, Fixed-Height Non-Shaking Live Reasoning Status */}
               {isGenerating && (
-                <div className="flex items-start gap-3.5 animate-fade-in-up">
-                  <div className="w-10 h-10 rounded-xl bg-[#16191f] border border-[#B8643A]/40 p-1 flex items-center justify-center shrink-0 shadow-md">
-                    <img src={LOGO_EMBLEM_BASE64} alt="Nagarik AI" className="w-full h-full object-cover rounded-lg" />
+                <div className="flex items-start gap-3 my-2 transition-all">
+                  <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl bg-[#16191f] border border-[#B8643A]/40 p-1 flex items-center justify-center shrink-0 shadow-md">
+                    <NagarikEmblem className="w-full h-full object-cover rounded-lg" />
                   </div>
-
-                  <div className="flex-1 w-full max-w-4xl bg-[#14182a]/95 backdrop-blur-xl border border-[#B8643A]/50 rounded-2xl rounded-tl-sm p-6 shadow-2xl relative overflow-hidden space-y-4">
-                    
-                    {/* Shimmering Top Progress Bar */}
-                    <div className="absolute top-0 left-0 right-0 h-1.5 w-full overflow-hidden bg-[rgba(255,255,255,0.06)]">
-                      <div className="h-full w-full shimmer-progress-bar"></div>
-                    </div>
-
-                    {/* Reasoning Stage Header */}
-                    <div className="flex items-center justify-between pb-3 border-b border-[rgba(255,255,255,0.08)]">
-                      <div className="flex items-center gap-2">
-                        <Sparkles className="w-4 h-4 text-[#F06A25] animate-spin" />
-                        <span className="brand-serif italic font-bold text-[#ffb692] text-sm">
-                          Nagarik AI Civic Reasoning Engine
-                        </span>
-                        <span className="px-2 py-0.5 rounded text-[10px] font-mono bg-[#2F3558] text-[#ffb692]">
-                          Step {activeReasoningStep} of 4
-                        </span>
-                      </div>
-                      <span className="text-xs font-mono text-[#8F93B5]">
-                        Elapsed: {reasoningElapsedSeconds}s
-                      </span>
-                    </div>
-
-                    {/* Multi-step Visual Pipeline */}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3 pt-1">
-                      
-                      {/* Step 1 */}
-                      <div className={`p-3.5 rounded-xl border transition-all ${
-                        activeReasoningStep === 1
-                          ? 'bg-[#1e2336] border-[#F06A25] pulse-step-active shadow-lg'
-                          : (activeReasoningStep > 1 
-                              ? 'bg-[#101322] border-[#34d399]/40 opacity-90' 
-                              : 'bg-[#0d101a] border-[rgba(255,255,255,0.05)] opacity-50')
-                      }`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          {activeReasoningStep > 1 ? (
-                            <CheckCircle2 className="w-4 h-4 text-[#34d399]" />
-                          ) : (
-                            <span className="w-4 h-4 rounded-full bg-[#F06A25] text-[#0B0C1E] text-[10px] font-bold flex items-center justify-center">1</span>
-                          )}
-                          <span className="text-xs font-bold text-[#E8E9F2]">
-                            🧠 Language Detection &amp; Query Expansion
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[#8F93B5] pl-6">
-                          Analyzing {selectedLanguage.toUpperCase()} syntax, extracting civic intent &amp; DBT keywords.
-                        </p>
-                      </div>
-
-                      {/* Step 2 */}
-                      <div className={`p-3.5 rounded-xl border transition-all ${
-                        activeReasoningStep === 2
-                          ? 'bg-[#1e2336] border-[#F06A25] pulse-step-active shadow-lg'
-                          : (activeReasoningStep > 2 
-                              ? 'bg-[#101322] border-[#34d399]/40 opacity-90' 
-                              : 'bg-[#0d101a] border-[rgba(255,255,255,0.05)] opacity-50')
-                      }`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          {activeReasoningStep > 2 ? (
-                            <CheckCircle2 className="w-4 h-4 text-[#34d399]" />
-                          ) : (
-                            <span className="w-4 h-4 rounded-full bg-[#F06A25] text-[#0B0C1E] text-[10px] font-bold flex items-center justify-center">2</span>
-                          )}
-                          <span className="text-xs font-bold text-[#E8E9F2]">
-                            🔍 Hybrid RAG Document Search
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[#8F93B5] pl-6">
-                          Scanning 1,400+ Central &amp; State Schemes (BM25 + Dense Vectors).
-                        </p>
-                      </div>
-
-                      {/* Step 3 */}
-                      <div className={`p-3.5 rounded-xl border transition-all ${
-                        activeReasoningStep === 3
-                          ? 'bg-[#1e2336] border-[#F06A25] pulse-step-active shadow-lg'
-                          : (activeReasoningStep > 3 
-                              ? 'bg-[#101322] border-[#34d399]/40 opacity-90' 
-                              : 'bg-[#0d101a] border-[rgba(255,255,255,0.05)] opacity-50')
-                      }`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          {activeReasoningStep > 3 ? (
-                            <CheckCircle2 className="w-4 h-4 text-[#34d399]" />
-                          ) : (
-                            <span className="w-4 h-4 rounded-full bg-[#F06A25] text-[#0B0C1E] text-[10px] font-bold flex items-center justify-center">3</span>
-                          )}
-                          <span className="text-xs font-bold text-[#E8E9F2]">
-                            ⚖️ Cross-Encoder Reranking
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[#8F93B5] pl-6">
-                          Computing multi-parameter criteria match &amp; applicant profile thresholds.
-                        </p>
-                      </div>
-
-                      {/* Step 4 */}
-                      <div className={`p-3.5 rounded-xl border transition-all ${
-                        activeReasoningStep === 4
-                          ? 'bg-[#1e2336] border-[#F06A25] pulse-step-active shadow-lg'
-                          : 'bg-[#0d101a] border-[rgba(255,255,255,0.05)] opacity-50'
-                      }`}>
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="w-4 h-4 rounded-full bg-[#F06A25] text-[#0B0C1E] text-[10px] font-bold flex items-center justify-center">4</span>
-                          <span className="text-xs font-bold text-[#E8E9F2]">
-                            🏛️ Official Source Grounding &amp; Citations
-                          </span>
-                        </div>
-                        <p className="text-[11px] text-[#8F93B5] pl-6">
-                          Verifying publication authenticity against active Gazette repository.
-                        </p>
-                      </div>
-                    </div>
+                  <div className="flex items-center gap-3 px-4 py-2.5 rounded-2xl bg-[#14182a] border border-[#F06A25]/30 text-xs text-[#E8E9F2] shadow-md min-h-[48px] h-12 overflow-hidden flex-1 max-w-2xl">
+                    <Sparkles className="w-4 h-4 text-[#F06A25] animate-spin shrink-0" />
+                    <span className="font-semibold text-[#ffb692] truncate flex-1">
+                      {activeReasoningStep === 1 && "🧠 Understanding your civic question..."}
+                      {activeReasoningStep === 2 && "🔍 Searching 5,210 verified government schemes..."}
+                      {activeReasoningStep === 3 && "⚖️ Checking official eligibility & benefits..."}
+                      {activeReasoningStep >= 4 && "✍️ Preparing verified guidance with official sources..."}
+                    </span>
+                    <span className="font-mono text-[10px] text-[#8F93B5] border-l border-white/10 pl-2 shrink-0">
+                      {reasoningElapsedSeconds}s
+                    </span>
                   </div>
                 </div>
               )}
@@ -2237,7 +2551,9 @@ Nagarik AI Grievance Escalation Studio`
                 <div className="w-full md:w-80 p-5 rounded-2xl bg-[#101322] border border-[#B8643A]/50 shadow-2xl relative">
                   <div className="flex items-center justify-between pb-3 mb-3 border-b border-[rgba(255,255,255,0.08)]">
                     <div className="flex items-center gap-2">
-                      <img src={LOGO_EMBLEM_BASE64} alt="Nagarik Logo" className="w-6 h-6 rounded-md" />
+                      <div className="w-6 h-6 rounded-md overflow-hidden shrink-0">
+                        <NagarikEmblem className="w-full h-full object-cover rounded-md" />
+                      </div>
                       <span className="font-bold text-xs text-[#ffb692]">Nagarik Copilot</span>
                     </div>
                     <span className="w-2 h-2 rounded-full bg-[#34d399] animate-pulse"></span>
@@ -2653,7 +2969,9 @@ Nagarik AI Grievance Escalation Studio`
       <footer className="border-t border-[rgba(255,255,255,0.08)] bg-[#0c0e11]/90 backdrop-blur-md py-8 mt-12 text-center text-xs text-[#8F93B5]">
         <div className="max-w-7xl mx-auto px-4 flex flex-col items-center justify-center">
           <div className="flex items-center gap-2 mb-2">
-            <img src={LOGO_EMBLEM_BASE64} alt="Nagarik AI" className="w-5 h-5 rounded-md" />
+            <div className="w-5 h-5 rounded-md overflow-hidden shrink-0">
+              <NagarikEmblem className="w-full h-full object-cover rounded-md" />
+            </div>
             <span className="font-black text-sm text-[#E8E9F2]">Nagarik AI (नागरिक AI)</span>
             <span className="text-[#F06A25] font-bold">— "Empowering Every Citizen"</span>
           </div>
