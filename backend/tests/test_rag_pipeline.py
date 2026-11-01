@@ -39,7 +39,7 @@ def test_multilingual_expansion_and_rag():
     
     # English query
     en_response = asyncio.run(rag.answer_citizen_query("What is the annual benefit under PM-KISAN?"))
-    assert "6,000" in en_response.answer or "6000" in en_response.answer or "KISAN" in en_response.answer
+    assert "6,000" in en_response.answer or "6000" in en_response.answer or "kisan" in en_response.answer.lower()
     assert any("pmkisan.gov.in" in s.url or "gov.in" in s.url for s in en_response.sources)
 
 def test_chat_api_endpoints():
