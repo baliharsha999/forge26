@@ -1,3 +1,4 @@
+import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
 import { useState, useEffect, useRef } from 'react';
 import axios from 'axios';
 import { marked } from 'marked';
@@ -949,7 +950,7 @@ Nagarik AI Grievance Escalation Studio`
       {/* ============================================================ */}
       <div className="relative z-50 w-full bg-[#0c0e11]/90 backdrop-blur-md border-b border-[rgba(255,255,255,0.08)] py-1.5 px-4 text-[11px] font-mono text-[#8F93B5]">
         <div className="max-w-7xl mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-4 overflow-x-auto whitespace-nowrap scrollbar-none py-0.5">
+          <div data-no-scrollbar="true" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="flex items-center gap-4 overflow-x-auto whitespace-nowrap scrollbar-none no-scrollbar touch-pan-x py-0.5">
             <span className="flex items-center gap-1.5 text-[#ffb692] font-semibold">
               <span className="w-1.5 h-1.5 rounded-full bg-[#F06A25] animate-ping"></span>
               🏛️ 5,210+ Verified Schemes Grounded
@@ -1012,7 +1013,7 @@ Nagarik AI Grievance Escalation Studio`
             className="flex items-center gap-3.5 cursor-pointer hover:opacity-95 transition-opacity"
           >
             <div className="relative flex items-center justify-center w-12 h-12 rounded-2xl bg-[#16191f] border border-[#B8643A]/60 p-1 shadow-md shadow-black/50 overflow-hidden">
-              <img src="/logo_emblem.png" alt="Nagarik AI Emblem" className="w-full h-full object-cover rounded-xl" />
+              <img src={LOGO_EMBLEM_BASE64} alt="Nagarik AI Emblem" className="w-full h-full object-cover rounded-xl" />
             </div>
             <div className="flex flex-col">
               <div className="flex items-center gap-2">
@@ -1105,11 +1106,11 @@ Nagarik AI Grievance Escalation Studio`
         </div>
 
         {/* Global Navigation Tabs Bar */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none border-t border-[rgba(255,255,255,0.05)] py-2">
+        <div data-no-scrollbar="true" style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }} className="max-w-7xl mx-auto px-4 sm:px-6 flex items-center gap-2 overflow-x-auto whitespace-nowrap scrollbar-none no-scrollbar touch-pan-x border-t border-[rgba(255,255,255,0.05)] py-2">
           
           <button
             onClick={() => setActiveTab('chatbot')}
-            className={`px-4 py-2 rounded-xl text-xs font-black flex items-center gap-2 transition-all ${
+            className={`px-4 py-2 rounded-xl text-xs font-black shrink-0 flex items-center gap-2 transition-all ${
               activeTab === 'chatbot'
                 ? 'bg-[#F06A25] text-[#0B0C1E] shadow-md shadow-[#F06A25]/30'
                 : 'text-[#8F93B5] hover:text-[#E8E9F2] hover:bg-[#1a1d24]'
@@ -1124,7 +1125,7 @@ Nagarik AI Grievance Escalation Studio`
 
           <button
             onClick={() => setActiveTab('schemes')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 flex items-center gap-2 transition-all ${
               activeTab === 'schemes'
                 ? 'bg-[#2F3558] text-[#ffb692] border border-[#B8643A]/60'
                 : 'text-[#8F93B5] hover:text-[#E8E9F2] hover:bg-[#1a1d24]'
@@ -1136,7 +1137,7 @@ Nagarik AI Grievance Escalation Studio`
 
           <button
             onClick={() => setActiveTab('grievance')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 flex items-center gap-2 transition-all ${
               activeTab === 'grievance'
                 ? 'bg-[#2F3558] text-[#ffb692] border border-[#B8643A]/60'
                 : 'text-[#8F93B5] hover:text-[#E8E9F2] hover:bg-[#1a1d24]'
@@ -1148,7 +1149,7 @@ Nagarik AI Grievance Escalation Studio`
 
           <button
             onClick={() => setActiveTab('factcheck')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 flex items-center gap-2 transition-all ${
               activeTab === 'factcheck'
                 ? 'bg-[#2F3558] text-[#ffb692] border border-[#B8643A]/60'
                 : 'text-[#8F93B5] hover:text-[#E8E9F2] hover:bg-[#1a1d24]'
@@ -1160,7 +1161,7 @@ Nagarik AI Grievance Escalation Studio`
 
           <button
             onClick={() => setActiveTab('ledger')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 flex items-center gap-2 transition-all ${
               activeTab === 'ledger'
                 ? 'bg-[#2F3558] text-[#ffb692] border border-[#B8643A]/60'
                 : 'text-[#8F93B5] hover:text-[#E8E9F2] hover:bg-[#1a1d24]'
@@ -1172,7 +1173,7 @@ Nagarik AI Grievance Escalation Studio`
 
           <button
             onClick={() => setActiveTab('extension')}
-            className={`px-3.5 py-2 rounded-xl text-xs font-bold flex items-center gap-2 transition-all ${
+            className={`px-3.5 py-2 rounded-xl text-xs font-bold shrink-0 flex items-center gap-2 transition-all ${
               activeTab === 'extension'
                 ? 'bg-[#2F3558] text-[#ffb692] border border-[#B8643A]/60'
                 : 'text-[#8F93B5] hover:text-[#E8E9F2] hover:bg-[#1a1d24]'
@@ -1214,7 +1215,7 @@ Nagarik AI Grievance Escalation Studio`
             {/* Hero Welcome Header */}
             <div className="text-center pt-2 pb-4">
               <div className="hover-pop-btn inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#16191f] border border-[#B8643A]/50 p-1 mb-3 shadow-xl shadow-black/50">
-                <img src="/logo_emblem.png" alt="Nagarik AI Emblem" className="w-full h-full object-cover rounded-xl" />
+                <img src={LOGO_EMBLEM_BASE64} alt="Nagarik AI Emblem" className="w-full h-full object-cover rounded-xl" />
               </div>
               <h1 className="brand-serif text-3xl sm:text-4xl font-bold tracking-tight text-[#E8E9F2] mb-2">
                 <span className="italic text-transparent bg-clip-text bg-gradient-to-r from-[#ffe088] via-[#f2ca50] to-[#ffb692]">
@@ -1254,7 +1255,7 @@ Nagarik AI Grievance Escalation Studio`
                   {/* Bot Avatar */}
                   {msg.role === 'assistant' && (
                     <div className="w-10 h-10 rounded-xl bg-[#16191f] border border-[#B8643A]/40 p-1 flex items-center justify-center shrink-0 shadow-md">
-                      <img src="/logo_emblem.png" alt="Nagarik AI" className="w-full h-full object-cover rounded-lg" />
+                      <img src={LOGO_EMBLEM_BASE64} alt="Nagarik AI" className="w-full h-full object-cover rounded-lg" />
                     </div>
                   )}
 
@@ -1440,7 +1441,7 @@ Nagarik AI Grievance Escalation Studio`
               {isGenerating && (
                 <div className="flex items-start gap-3.5 animate-fade-in-up">
                   <div className="w-10 h-10 rounded-xl bg-[#16191f] border border-[#B8643A]/40 p-1 flex items-center justify-center shrink-0 shadow-md">
-                    <img src="/logo_emblem.png" alt="Nagarik AI" className="w-full h-full object-cover rounded-lg" />
+                    <img src={LOGO_EMBLEM_BASE64} alt="Nagarik AI" className="w-full h-full object-cover rounded-lg" />
                   </div>
 
                   <div className="flex-1 w-full max-w-4xl bg-[#14182a]/95 backdrop-blur-xl border border-[#B8643A]/50 rounded-2xl rounded-tl-sm p-6 shadow-2xl relative overflow-hidden space-y-4">
@@ -2236,7 +2237,7 @@ Nagarik AI Grievance Escalation Studio`
                 <div className="w-full md:w-80 p-5 rounded-2xl bg-[#101322] border border-[#B8643A]/50 shadow-2xl relative">
                   <div className="flex items-center justify-between pb-3 mb-3 border-b border-[rgba(255,255,255,0.08)]">
                     <div className="flex items-center gap-2">
-                      <img src="/logo_emblem.png" alt="Nagarik Logo" className="w-6 h-6 rounded-md" />
+                      <img src={LOGO_EMBLEM_BASE64} alt="Nagarik Logo" className="w-6 h-6 rounded-md" />
                       <span className="font-bold text-xs text-[#ffb692]">Nagarik Copilot</span>
                     </div>
                     <span className="w-2 h-2 rounded-full bg-[#34d399] animate-pulse"></span>
@@ -2652,7 +2653,7 @@ Nagarik AI Grievance Escalation Studio`
       <footer className="border-t border-[rgba(255,255,255,0.08)] bg-[#0c0e11]/90 backdrop-blur-md py-8 mt-12 text-center text-xs text-[#8F93B5]">
         <div className="max-w-7xl mx-auto px-4 flex flex-col items-center justify-center">
           <div className="flex items-center gap-2 mb-2">
-            <img src="/logo_emblem.png" alt="Nagarik AI" className="w-5 h-5 rounded-md" />
+            <img src={LOGO_EMBLEM_BASE64} alt="Nagarik AI" className="w-5 h-5 rounded-md" />
             <span className="font-black text-sm text-[#E8E9F2]">Nagarik AI (नागरिक AI)</span>
             <span className="text-[#F06A25] font-bold">— "Empowering Every Citizen"</span>
           </div>

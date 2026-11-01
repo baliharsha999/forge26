@@ -445,3 +445,34 @@ body {
   color: #38bdf8;
 }
 
+
+/* ============================================================ */
+/* RESPONSIVE SCROLLBAR & TOUCH ERGONOMICS (Mobile & Laptop)    */
+/* ============================================================ */
+.scrollbar-none::-webkit-scrollbar,
+.no-scrollbar::-webkit-scrollbar,
+[data-no-scrollbar="true"]::-webkit-scrollbar {
+  display: none !important;
+  width: 0 !important;
+  height: 0 !important;
+  background: transparent !important;
+  -webkit-appearance: none !important;
+}
+
+.scrollbar-none,
+.no-scrollbar,
+[data-no-scrollbar="true"] {
+  -ms-overflow-style: none !important;
+  scrollbar-width: none !important;
+}
+
+/* Smooth horizontal drag-scroll on touch devices */
+.touch-pan-x {
+  touch-action: pan-x;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Custom glowing borders without layout shift */
+.glow-ring-amber {
+  box-shadow: 0 0 15px rgba(242, 202, 80, 0.25), inset 0 0 10px rgba(242, 202, 80, 0.1);
+}

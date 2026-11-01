@@ -1,3 +1,4 @@
+from app.agent.langgraph_streaming import stream_langgraph_execution
 from fastapi import APIRouter, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
 from typing import List, Optional, Dict, Any
@@ -331,7 +332,7 @@ async def api_schemes_chat_stream(req: SchemesChatRequest):
     lang = req.language or "en"
     agent = STAIRCivicAgent.get_instance()
     return StreamingResponse(
-        agent.stream_citizen_query(query=query, requested_lang=lang),
+        stream_langgraph_execution(query=query, requested_lang=lang),
         media_type="text/event-stream",
         headers={
             "Cache-Control": "no-cache",
