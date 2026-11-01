@@ -239,18 +239,18 @@ export const CivicEligibilityCalculator: React.FC<CivicEligibilityCalculatorProp
   };
 
   return (
-    <div className="glass-panel p-6 sm:p-8 rounded-2xl border border-[rgba(240,106,37,0.3)] shadow-2xl relative overflow-hidden mb-8">
+    <div className="p-6 sm:p-8 rounded-2xl bg-[#121418] border border-[#22262f] shadow-2xl relative overflow-hidden mb-8">
       {/* Background Glow */}
-      <div className="absolute top-0 right-0 w-96 h-96 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#F06A25]/10 via-[#2F3558]/20 to-transparent blur-3xl pointer-events-none -z-10" />
+      <div className="absolute top-0 right-0 w-96 h-96 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-[#f2ca50]/10 via-[#ffb692]/10 to-transparent blur-3xl pointer-events-none -z-10" />
 
       {/* Header */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
         <div>
-          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#2F3558] border border-[#B8643A]/50 text-xs font-mono text-[#ffb692] font-semibold mb-2">
-            <Sparkles className="w-3.5 h-3.5 text-[#F06A25]" />
+          <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-[#1a1d24] border border-[#B8643A]/50 text-xs font-mono text-[#ffb692] font-semibold mb-2">
+            <Sparkles className="w-3.5 h-3.5 text-[#f2ca50]" />
             <span>SOVEREIGN CIVIC ELIGIBILITY ENGINE</span>
           </div>
-          <h2 className="text-xl sm:text-2xl font-black text-[#E8E9F2]">
+          <h2 className="text-xl sm:text-2xl font-black text-[#e2e2e6]">
             Citizen Entitlement & Eligibility Calculator
           </h2>
           <p className="text-xs sm:text-sm text-[#8F93B5] mt-1">

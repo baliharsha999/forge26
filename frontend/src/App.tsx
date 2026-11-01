@@ -5,11 +5,12 @@ import {
   Send, Mic, MicOff, Volume2, VolumeX, Copy, Check,
   ExternalLink, Plus, MessageSquare, Trash2, Search, Menu, X,
   ShieldCheck, Calculator, Smartphone, Compass, ArrowRight,
-  Globe, Radio, Sparkles, Play, Square, Headphones
+  Globe, Radio, Sparkles, Square, Headphones, Monitor, Download
 } from 'lucide-react';
 import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
 import { CivicEligibilityCalculator } from './components/CivicEligibilityCalculator';
 import { WhatsAppBotView } from './components/WhatsAppBotView';
+import { AISaathiExtensionModal } from './components/AISaathiExtensionModal';
 
 // Civic Language Support
 type CivicLanguage = 'en' | 'hi' | 'te';
@@ -57,10 +58,10 @@ export const NagarikEmblem: React.FC<{ className?: string; size?: number }> = ({
   if (retryFailed) {
     return (
       <svg className={className} width={size} height={size} viewBox="0 0 100 100" fill="none" xmlns="http://www.w3.org/2000/svg">
-        <circle cx="50" cy="50" r="46" fill="#0E121E" stroke="#F59E0B" strokeWidth="3" />
-        <circle cx="50" cy="50" r="28" fill="#1E293B" stroke="#38BDF8" strokeWidth="2" strokeDasharray="3 3" />
-        <circle cx="50" cy="50" r="8" fill="#F59E0B" />
-        <path d="M50 12 L50 88 M12 50 L88 50 M23 23 L77 77 M23 77 L77 23" stroke="#F59E0B" strokeWidth="1.5" strokeOpacity="0.7" />
+        <circle cx="50" cy="50" r="46" fill="#0c0e11" stroke="#f2ca50" strokeWidth="3" />
+        <circle cx="50" cy="50" r="28" fill="#16191f" stroke="#ffb692" strokeWidth="2" strokeDasharray="3 3" />
+        <circle cx="50" cy="50" r="8" fill="#f2ca50" />
+        <path d="M50 12 L50 88 M12 50 L88 50 M23 23 L77 77 M23 77 L77 23" stroke="#f2ca50" strokeWidth="1.5" strokeOpacity="0.8" />
       </svg>
     );
   }
@@ -126,7 +127,7 @@ export function App() {
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [speakingId, setSpeakingId] = useState<string | null>(null);
 
-  // Voice Agent Dedicated Mode State
+  // Modals
   const [voiceAgentOpen, setVoiceAgentOpen] = useState(false);
   const [voiceAgentState, setVoiceAgentState] = useState<'idle' | 'listening' | 'thinking' | 'speaking'>('idle');
   const [voiceTranscript, setVoiceTranscript] = useState('');
@@ -134,14 +135,13 @@ export function App() {
   const [autoVoiceLoop, setAutoVoiceLoop] = useState(true);
   const [availableVoices, setAvailableVoices] = useState<SpeechSynthesisVoice[]>([]);
 
-  // Modals for secondary tools
   const [showEligibilityModal, setShowEligibilityModal] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [showExtensionModal, setShowExtensionModal] = useState(false);
 
   // Refs
-  const chatBottomRef = useRef<HTMLDivElement>(null);
+  const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
-  const scrollTimerRef = useRef<NodeJS.Timeout | null>(null);
   const recognitionRef = useRef<any>(null);
   const voiceAgentRecognitionRef = useRef<any>(null);
 
@@ -169,16 +169,21 @@ export function App() {
     }
   }, []);
 
-  // Throttled Auto-scroll
+  // Rock-Solid, Zero-Jitter Scroll: ONLY scrolls the chat container, NEVER scrolls the page
+  const scrollToBottomIfNear = (force: boolean = false) => {
+    if (!messagesContainerRef.current) return;
+    const el = messagesContainerRef.current;
+    const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 240;
+    if (force || isNearBottom) {
+      el.scrollTop = el.scrollHeight;
+    }
+  };
+
   useEffect(() => {
-    if (scrollTimerRef.current) return;
-    scrollTimerRef.current = setTimeout(() => {
-      scrollTimerRef.current = null;
-      chatBottomRef.current?.scrollIntoView({ behavior: 'auto', block: 'end' });
-    }, 120);
+    scrollToBottomIfNear();
   }, [messages, generationStep]);
 
-  // Keyboard shortcut Alt+N for new chat, Alt+T for sidebar, Alt+V for Voice Agent
+  // Keyboard shortcut Alt+N for new chat, Alt+T for sidebar, Alt+V for Voice Agent, Alt+E for Extension
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.altKey && e.key.toLowerCase() === 'n') {
@@ -190,6 +195,9 @@ export function App() {
       } else if (e.altKey && e.key.toLowerCase() === 'v') {
         e.preventDefault();
         setVoiceAgentOpen(prev => !prev);
+      } else if (e.altKey && e.key.toLowerCase() === 'e') {
+        e.preventDefault();
+        setShowExtensionModal(prev => !prev);
       }
     };
     window.addEventListener('keydown', handleKeyDown);
@@ -224,7 +232,6 @@ export function App() {
     const langCode = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : 'en-IN';
     utterance.lang = langCode;
 
-    // Pick best matching voice
     const matched = availableVoices.find(v => v.lang.toLowerCase() === langCode.toLowerCase()) ||
                     availableVoices.find(v => v.lang.startsWith(selectedLanguage)) ||
                     availableVoices.find(v => v.lang.includes('IN'));
@@ -374,7 +381,6 @@ export function App() {
     }
   };
 
-  // Dedicated Voice Agent: Stop Listening / Cancel
   const stopVoiceAgent = () => {
     if (voiceAgentRecognitionRef.current) {
       try {
@@ -388,7 +394,6 @@ export function App() {
     setVoiceAgentState('idle');
   };
 
-  // Trigger Voice Agent on modal open
   useEffect(() => {
     if (voiceAgentOpen) {
       startVoiceAgentListening();
@@ -415,7 +420,7 @@ export function App() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  // Send Chat Message (With optional voice agent auto-speaking)
+  // Send Chat Message
   const handleSendChat = async (overrideQuery?: string, isVoiceAgentQuery: boolean = false) => {
     const query = (overrideQuery || inputQuery).trim();
     if (!query || isGenerating) return;
@@ -441,7 +446,6 @@ export function App() {
       citations: []
     };
 
-    // Update active thread
     const newTitle = currentThread.messages.length === 0 ? query.slice(0, 32) : currentThread.title;
     const updatedMessages = [...currentThread.messages, userMessage, initialBotMessage];
 
@@ -463,11 +467,13 @@ export function App() {
       setVoiceAgentState('thinking');
     }
 
-    const isLocalhost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    // Immediate scroll on submission
+    setTimeout(() => scrollToBottomIfNear(true), 50);
+
+    const isLocalhost = typeof window !== 'undefined' && (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1');
     let streamSucceeded = false;
     let fullBotText = '';
 
-    // Build payload
     const payload = {
       query,
       language: selectedLanguage,
@@ -476,7 +482,6 @@ export function App() {
       history: currentThread.messages.slice(-6).map(m => ({ role: m.role, content: m.content }))
     };
 
-    // Helper: Append chunk to bot message
     const appendChunk = (chunk: string, citations?: SchemeCitation[], followups?: string[]) => {
       fullBotText += chunk;
       if (isVoiceAgentQuery) {
@@ -499,6 +504,8 @@ export function App() {
         }
         return t;
       }));
+      // Rock-solid inner container scroll
+      scrollToBottomIfNear();
     };
 
     // 1. Attempt Streaming
@@ -617,10 +624,7 @@ export function App() {
           if (t.id === activeThreadId) {
             const msgs = t.messages.map(m => {
               if (m.id === botMsgId) {
-                return {
-                  ...m,
-                  content: fullBotText
-                };
+                return { ...m, content: fullBotText };
               }
               return m;
             });
@@ -633,13 +637,13 @@ export function App() {
 
     setIsGenerating(false);
     setGenerationStep('');
+    setTimeout(() => scrollToBottomIfNear(true), 100);
 
-    // If in Voice Agent Mode, speak the reply aloud automatically!
+    // If in Voice Agent Mode, speak the reply aloud automatically
     if (isVoiceAgentQuery && fullBotText) {
       setVoiceAgentState('speaking');
       speakText(fullBotText, () => {
         if (autoVoiceLoop && voiceAgentOpen) {
-          // Continuous conversational loop: listen for next citizen question!
           setTimeout(() => {
             startVoiceAgentListening();
           }, 800);
@@ -650,12 +654,11 @@ export function App() {
     }
   };
 
-  // Filtered threads for sidebar
   const filteredThreads = threads.filter(t =>
     t.title.toLowerCase().includes(threadSearch.toLowerCase())
   );
 
-  // Quick Prompt Cards for welcome screen
+  // Quick Prompt Cards for welcome screen (Sovereign Theme)
   const promptCards = [
     {
       icon: '🌾',
@@ -696,32 +699,36 @@ export function App() {
   ];
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-[#0A0D14] text-[#E2E8F0] font-sans antialiased">
+    <div className="flex h-screen w-screen overflow-hidden bg-[#0c0e11] text-[#e2e2e6] font-sans antialiased">
       {/* ================================================================= */}
-      {/* 1. LEFT SIDEBAR (COLLAPSIBLE / RESPONSIVE)                         */}
+      {/* 1. LEFT SIDEBAR (SOVEREIGN PRECISION DARK)                        */}
       {/* ================================================================= */}
       <aside
-        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-72 bg-[#0E131F] border-r border-[#1E2638] transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
+        className={`fixed inset-y-0 left-0 z-50 flex flex-col w-72 bg-[#121418] border-r border-[#22262f] transition-transform duration-300 ease-in-out md:static md:translate-x-0 ${
           sidebarOpen ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="flex items-center justify-between p-4 border-b border-[#1E2638]">
+        <div className="flex items-center justify-between p-4 border-b border-[#22262f] bg-[#16191f]">
           <div className="flex items-center gap-3">
-            <div className="flex items-center justify-center w-9 h-9 rounded-xl bg-[#161D2E] border border-[#F59E0B]/40 shadow-sm">
-              <NagarikEmblem className="w-6 h-6" size={24} />
+            <div className="flex items-center justify-center w-10 h-10 rounded-full bg-[#1a1d24] border border-[#B8643A]/50 shadow-inner p-0.5">
+              <NagarikEmblem className="w-8 h-8 rounded-full" size={32} />
             </div>
             <div>
               <div className="flex items-center gap-1.5">
-                <span className="font-bold text-base tracking-tight text-white">Nagarik AI</span>
-                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded bg-[#F59E0B]/15 text-[#F59E0B] border border-[#F59E0B]/30">Civic</span>
+                <span className="brand-serif italic font-bold text-lg tracking-tight text-transparent bg-clip-text bg-gradient-to-r from-[#f2ca50] via-amber-200 to-[#ffb692]">
+                  Nagarik AI
+                </span>
+                <span className="text-[10px] uppercase font-bold px-1.5 py-0.5 rounded-full bg-[#f2ca50]/15 text-[#f2ca50] border border-[#f2ca50]/30 font-mono">
+                  Sovereign
+                </span>
               </div>
-              <p className="text-[11px] text-[#94A3B8]">Sovereign Intelligence</p>
+              <p className="text-[11px] text-[#8F93B5]">Civic Intelligence</p>
             </div>
           </div>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="md:hidden p-1.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-[#1E2638]"
+            className="md:hidden p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#22262f]"
           >
             <X className="w-5 h-5" />
           </button>
@@ -731,9 +738,9 @@ export function App() {
         <div className="p-3">
           <button
             onClick={handleCreateNewThread}
-            className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#EA580C] to-[#F59E0B] text-white font-semibold text-sm shadow-md hover:opacity-95 transition-all"
+            className="hover-pop-btn-orange w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] font-bold text-sm shadow-md hover:opacity-95 transition-all"
           >
-            <Plus className="w-4 h-4 stroke-[2.5]" />
+            <Plus className="w-4 h-4 stroke-[3]" />
             <span>New Conversation</span>
           </button>
         </div>
@@ -741,20 +748,20 @@ export function App() {
         {/* Search Past Conversations */}
         <div className="px-3 pb-2">
           <div className="relative">
-            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-[#64748B]" />
+            <Search className="absolute left-3 top-2.5 w-3.5 h-3.5 text-[#8F93B5]" />
             <input
               type="text"
               placeholder="Search conversations..."
               value={threadSearch}
               onChange={(e) => setThreadSearch(e.target.value)}
-              className="w-full bg-[#141B2D] border border-[#1E2638] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#CBD5E1] placeholder-[#64748B] focus:outline-none focus:border-[#F59E0B]/50"
+              className="w-full bg-[#16191f] border border-[#22262f] rounded-lg pl-8 pr-3 py-1.5 text-xs text-[#e2e2e6] placeholder-[#8F93B5] focus:outline-none focus:border-[#f2ca50]/60"
             />
           </div>
         </div>
 
         {/* Conversation Threads List */}
         <div className="flex-1 overflow-y-auto px-2 space-y-1 scrollbar-thin">
-          <div className="px-2 pt-2 pb-1 text-[11px] font-semibold text-[#64748B] uppercase tracking-wider">
+          <div className="px-2 pt-2 pb-1 text-[11px] font-semibold text-[#8F93B5] uppercase tracking-wider">
             History ({filteredThreads.length})
           </div>
 
@@ -769,12 +776,12 @@ export function App() {
                 }}
                 className={`group flex items-center justify-between px-3 py-2 rounded-lg cursor-pointer text-xs transition-colors ${
                   isActive
-                    ? 'bg-[#1E293B] text-white font-medium border border-[#334155]'
-                    : 'text-[#94A3B8] hover:bg-[#141B2D] hover:text-[#E2E8F0]'
+                    ? 'bg-[#1a1d24] text-white font-medium border border-[#3f3a2f]'
+                    : 'text-[#8F93B5] hover:bg-[#16191f] hover:text-[#e2e2e6]'
                 }`}
               >
                 <div className="flex items-center gap-2.5 truncate">
-                  <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#F59E0B]' : 'text-[#64748B]'}`} />
+                  <MessageSquare className={`w-3.5 h-3.5 shrink-0 ${isActive ? 'text-[#f2ca50]' : 'text-[#8F93B5]'}`} />
                   <span className="truncate">{thread.title || 'Untitled'}</span>
                 </div>
                 <button
@@ -790,35 +797,50 @@ export function App() {
         </div>
 
         {/* Sidebar Bottom Quick Links */}
-        <div className="p-3 border-t border-[#1E2638] space-y-1.5 bg-[#0C101A]">
-          {/* Dedicated Voice Agent Button in Sidebar */}
+        <div className="p-3 border-t border-[#22262f] space-y-1.5 bg-[#101216]">
+          {/* AI Saathi Extension Button */}
+          <button
+            onClick={() => {
+              setSidebarOpen(false);
+              setShowExtensionModal(true);
+            }}
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold bg-[#1a1d24] border border-[#f2ca50]/40 text-[#f2ca50] hover:bg-[#22262f] transition-colors"
+          >
+            <div className="flex items-center gap-2.5">
+              <Monitor className="w-4 h-4 text-[#f2ca50]" />
+              <span>AI Saathi (Extension)</span>
+            </div>
+            <span className="text-[10px] bg-[#f2ca50]/20 px-1.5 py-0.5 rounded text-[#f2ca50] font-mono">Chrome</span>
+          </button>
+
+          {/* Voice Agent Button */}
           <button
             onClick={() => {
               setSidebarOpen(false);
               setVoiceAgentOpen(true);
             }}
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold bg-[#182032] border border-[#F59E0B]/30 text-[#F59E0B] hover:bg-[#1E293B] transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-semibold bg-[#1a1d24] border border-[#ffb692]/30 text-[#ffb692] hover:bg-[#22262f] transition-colors"
           >
             <div className="flex items-center gap-2.5">
-              <Headphones className="w-4 h-4 text-[#F59E0B]" />
+              <Headphones className="w-4 h-4 text-[#ffb692]" />
               <span>Voice Agent Mode</span>
             </div>
-            <span className="text-[10px] bg-[#F59E0B]/20 px-1.5 py-0.5 rounded text-[#F59E0B]">Live</span>
+            <span className="text-[10px] bg-[#ffb692]/20 px-1.5 py-0.5 rounded text-[#ffb692]">Live</span>
           </button>
 
           <button
             onClick={() => setShowEligibilityModal(true)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-[#CBD5E1] hover:bg-[#161D2E] hover:text-white transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
           >
-            <Calculator className="w-4 h-4 text-[#38BDF8]" />
+            <Calculator className="w-4 h-4 text-[#f2ca50]" />
             <span>Check Eligibility</span>
           </button>
 
           <button
             onClick={() => setShowWhatsAppModal(true)}
-            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-[#CBD5E1] hover:bg-[#161D2E] hover:text-white transition-colors"
+            className="w-full flex items-center gap-2.5 px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
           >
-            <Smartphone className="w-4 h-4 text-[#4ADE80]" />
+            <Smartphone className="w-4 h-4 text-[#ffb692]" />
             <span>WhatsApp Citizen Bot</span>
           </button>
 
@@ -826,18 +848,18 @@ export function App() {
             href="./host.html"
             target="_blank"
             rel="noreferrer"
-            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#CBD5E1] hover:bg-[#161D2E] hover:text-white transition-colors"
+            className="w-full flex items-center justify-between px-3 py-2 rounded-lg text-xs font-medium text-[#e2e2e6] hover:bg-[#16191f] transition-colors"
           >
             <div className="flex items-center gap-2.5">
-              <Compass className="w-4 h-4 text-[#F59E0B]" />
+              <Compass className="w-4 h-4 text-[#f2ca50]" />
               <span>Host Verification Portal</span>
             </div>
-            <ExternalLink className="w-3 h-3 text-[#64748B]" />
+            <ExternalLink className="w-3 h-3 text-[#8F93B5]" />
           </a>
 
-          <div className="pt-2 px-1 flex items-center justify-between text-[10px] text-[#64748B]">
+          <div className="pt-2 px-1 flex items-center justify-between text-[10px] text-[#8F93B5]">
             <span className="flex items-center gap-1">
-              <ShieldCheck className="w-3 h-3 text-[#4ADE80]" />
+              <ShieldCheck className="w-3 h-3 text-emerald-400" />
               UIDAI Compliant
             </span>
             <span>5,210 Schemes</span>
@@ -856,19 +878,19 @@ export function App() {
       {/* ================================================================= */}
       {/* 2. MAIN CONVERSATION WORKSPACE                                    */}
       {/* ================================================================= */}
-      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#0A0D14]">
-        {/* Top Minimal Header */}
-        <header className="flex items-center justify-between h-14 px-4 border-b border-[#1E2638] bg-[#0E131F]/80 backdrop-blur-md">
+      <main className="flex-1 flex flex-col h-full overflow-hidden bg-[#0c0e11]">
+        {/* Top Minimal Sovereign Header */}
+        <header className="flex items-center justify-between h-14 px-4 border-b border-[#22262f] bg-[#101216]/90 backdrop-blur-xl shrink-0">
           <div className="flex items-center gap-3">
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-[#161D2E] transition-colors md:hidden"
+              className="p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#16191f] transition-colors md:hidden"
               title="Open History"
             >
               <Menu className="w-5 h-5" />
             </button>
             <div className="flex items-center gap-2">
-              <span className="font-semibold text-sm text-[#F1F5F9] truncate max-w-[150px] sm:max-w-md">
+              <span className="font-semibold text-sm text-[#e2e2e6] truncate max-w-[150px] sm:max-w-md">
                 {currentThread?.title || 'Nagarik AI Copilot'}
               </span>
             </div>
@@ -876,26 +898,36 @@ export function App() {
 
           {/* Right Header Controls */}
           <div className="flex items-center gap-2 sm:gap-2.5">
+            {/* AI Saathi Extension Button in Header */}
+            <button
+              onClick={() => setShowExtensionModal(true)}
+              className="hover-pop-btn-slate flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1d24] border border-[#f2ca50]/40 text-[#f2ca50] hover:border-[#f2ca50] text-xs font-semibold shadow-sm transition-all"
+              title="Open AI Saathi Browser Extension & Guardian (Alt+E)"
+            >
+              <Monitor className="w-3.5 h-3.5 text-[#f2ca50]" />
+              <span className="hidden sm:inline">AI Saathi</span>
+            </button>
+
             {/* Dedicated Voice Agent Button */}
             <button
               onClick={() => setVoiceAgentOpen(true)}
-              className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-gradient-to-r from-[#EA580C]/20 to-[#F59E0B]/20 border border-[#F59E0B]/50 text-[#F59E0B] hover:border-[#F59E0B] text-xs font-semibold shadow-sm transition-all animate-pulse"
+              className="hover-pop-btn-slate flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#1a1d24] border border-[#ffb692]/40 text-[#ffb692] hover:border-[#ffb692] text-xs font-semibold shadow-sm transition-all"
               title="Open Hands-Free Voice Agent (Alt+V)"
             >
-              <Mic className="w-3.5 h-3.5 text-[#F59E0B]" />
+              <Mic className="w-3.5 h-3.5 text-[#ffb692]" />
               <span className="hidden xs:inline sm:inline">Voice Agent</span>
             </button>
 
             {/* Language Switcher */}
-            <div className="flex items-center bg-[#141B2D] border border-[#1E2638] rounded-lg p-0.5 text-xs">
+            <div className="flex items-center bg-[#16191f] border border-[#22262f] rounded-lg p-0.5 text-xs">
               {(['en', 'hi', 'te'] as CivicLanguage[]).map(lang => (
                 <button
                   key={lang}
                   onClick={() => setSelectedLanguage(lang)}
                   className={`px-2.5 py-1 rounded-md font-medium transition-all ${
                     selectedLanguage === lang
-                      ? 'bg-[#F59E0B] text-[#0A0D14] font-bold shadow-sm'
-                      : 'text-[#94A3B8] hover:text-white'
+                      ? 'bg-[#f2ca50] text-[#241a00] font-bold shadow-sm'
+                      : 'text-[#8F93B5] hover:text-white'
                   }`}
                 >
                   {lang === 'en' ? 'EN' : lang === 'hi' ? 'हिंदी' : 'తెలుగు'}
@@ -905,22 +937,25 @@ export function App() {
 
             <button
               onClick={handleCreateNewThread}
-              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#161D2E] hover:bg-[#1E2638] text-xs font-medium text-[#E2E8F0] border border-[#1E2638] transition-colors"
+              className="hidden sm:flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16191f] hover:bg-[#22262f] text-xs font-medium text-[#e2e2e6] border border-[#22262f] transition-colors"
             >
-              <Plus className="w-3.5 h-3.5 text-[#F59E0B]" />
+              <Plus className="w-3.5 h-3.5 text-[#f2ca50]" />
               <span>New</span>
             </button>
           </div>
         </header>
 
-        {/* Message Feed / Welcome Screen */}
-        <div className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin">
+        {/* Message Feed / Welcome Screen (Rock-Solid Scrolling Container) */}
+        <div
+          ref={messagesContainerRef}
+          className="flex-1 overflow-y-auto px-4 py-6 scrollbar-thin overscroll-contain"
+        >
           <div className="max-w-3xl mx-auto space-y-6">
             {/* EMPTY STATE: Welcome Screen */}
             {messages.length === 0 && (
-              <div className="py-8 text-center space-y-8 animate-fade-in">
+              <div className="py-6 text-center space-y-8 animate-fade-in">
                 <div className="space-y-3">
-                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#141B2D] border border-[#F59E0B]/40 shadow-lg shadow-black/40">
+                  <div className="inline-flex items-center justify-center w-16 h-16 rounded-2xl bg-[#16191f] border border-[#B8643A]/50 shadow-lg shadow-black/60">
                     <NagarikEmblem className="w-10 h-10" size={40} />
                   </div>
                   <h1 className="text-2xl sm:text-3xl font-bold tracking-tight text-white">
@@ -930,7 +965,7 @@ export function App() {
                       ? 'నమస్కారం! మీరు ఏ ప్రభుత్వ పథకం లేదా సేవ కోసం చూస్తున్నారు?'
                       : 'Namaste! How can Nagarik AI assist you today?'}
                   </h1>
-                  <p className="text-sm text-[#94A3B8] max-w-lg mx-auto">
+                  <p className="text-sm text-[#8F93B5] max-w-lg mx-auto leading-relaxed">
                     {selectedLanguage === 'hi'
                       ? '5,210+ प्रमाणित केंद्रीय व राज्य योजनाओं, पात्रता नियमों और आधिकारिक पोर्टलों की सीधी जानकारी।'
                       : selectedLanguage === 'te'
@@ -938,37 +973,46 @@ export function App() {
                       : 'Verified guidance across 5,210 Central & State welfare schemes, eligibility rules, and official portals.'}
                   </p>
 
-                  {/* Voice Agent Quick Launcher Pill */}
-                  <div className="pt-2">
+                  {/* Quick Feature Pills */}
+                  <div className="pt-2 flex flex-wrap items-center justify-center gap-2.5">
                     <button
                       onClick={() => setVoiceAgentOpen(true)}
-                      className="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-[#161D2E] border border-[#F59E0B]/40 text-xs font-semibold text-[#F59E0B] hover:bg-[#1E293B] shadow-sm transition-all"
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#16191f] border border-[#ffb692]/40 text-xs font-semibold text-[#ffb692] hover:bg-[#22262f] shadow-sm transition-all"
                     >
-                      <Radio className="w-3.5 h-3.5 text-[#F59E0B] animate-pulse" />
-                      <span>Try Hands-Free Voice Agent Mode</span>
-                      <ArrowRight className="w-3 h-3 text-[#F59E0B]" />
+                      <Radio className="w-3.5 h-3.5 text-[#ffb692] animate-pulse" />
+                      <span>Hands-Free Voice Agent</span>
+                      <ArrowRight className="w-3 h-3 text-[#ffb692]" />
+                    </button>
+
+                    <button
+                      onClick={() => setShowExtensionModal(true)}
+                      className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-[#16191f] border border-[#f2ca50]/40 text-xs font-semibold text-[#f2ca50] hover:bg-[#22262f] shadow-sm transition-all"
+                    >
+                      <Monitor className="w-3.5 h-3.5 text-[#f2ca50]" />
+                      <span>AI Saathi Browser Extension</span>
+                      <ArrowRight className="w-3 h-3 text-[#f2ca50]" />
                     </button>
                   </div>
                 </div>
 
-                {/* 6 Clean Prompt Cards */}
+                {/* 6 Clean Prompt Cards from Nagarik_AI_frontend */}
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 text-left">
                   {promptCards.map((card, idx) => (
                     <button
                       key={idx}
                       onClick={() => handleSendChat(card.query)}
-                      className="group flex flex-col justify-between p-4 rounded-xl bg-[#0E131F] border border-[#1E2638] hover:border-[#F59E0B]/50 hover:bg-[#141B2D] transition-all text-left shadow-sm"
+                      className="hover-pop-card group flex flex-col justify-between p-4 rounded-xl bg-[#16191f] border border-[#22262f] hover:border-[#f2ca50]/50 hover:bg-[#1e2330] transition-all text-left shadow-sm"
                     >
                       <div className="space-y-1">
                         <div className="text-2xl mb-1">{card.icon}</div>
-                        <h2 className="font-semibold text-sm text-[#F1F5F9] group-hover:text-[#F59E0B] transition-colors">
+                        <h2 className="font-semibold text-sm text-[#e2e2e6] group-hover:text-[#f2ca50] transition-colors">
                           {card.title}
                         </h2>
-                        <p className="text-xs text-[#94A3B8] leading-relaxed line-clamp-2">
+                        <p className="text-xs text-[#8F93B5] leading-relaxed line-clamp-2">
                           {card.desc}
                         </p>
                       </div>
-                      <div className="flex items-center gap-1 mt-3 text-[11px] font-medium text-[#F59E0B] opacity-0 group-hover:opacity-100 transition-opacity">
+                      <div className="flex items-center gap-1 mt-3 text-[11px] font-medium text-[#f2ca50] opacity-0 group-hover:opacity-100 transition-opacity">
                         <span>Ask now</span>
                         <ArrowRight className="w-3 h-3" />
                       </div>
@@ -979,8 +1023,9 @@ export function App() {
             )}
 
             {/* CONVERSATION MESSAGES */}
-            {messages.map((msg) => {
+            {messages.map((msg, idx) => {
               const isUser = msg.role === 'user';
+              const isLatestBotMessage = !isUser && idx === messages.length - 1;
               return (
                 <div
                   key={msg.id}
@@ -988,7 +1033,7 @@ export function App() {
                 >
                   {/* Bot Avatar */}
                   {!isUser && (
-                    <div className="w-8 h-8 rounded-xl bg-[#161D2E] border border-[#F59E0B]/40 flex items-center justify-center shrink-0 mt-0.5">
+                    <div className="w-8 h-8 rounded-xl bg-[#16191f] border border-[#B8643A]/50 flex items-center justify-center shrink-0 mt-0.5">
                       <NagarikEmblem className="w-5 h-5" size={20} />
                     </div>
                   )}
@@ -997,26 +1042,31 @@ export function App() {
                   <div
                     className={`max-w-[85%] sm:max-w-[78%] rounded-2xl p-4 text-sm leading-relaxed ${
                       isUser
-                        ? 'bg-[#1E293B] text-white rounded-tr-sm border border-[#334155]'
-                        : 'bg-[#0E131F] text-[#E2E8F0] rounded-tl-sm border border-[#1E2638] shadow-md'
+                        ? 'bg-[#1e2330] text-white rounded-tr-sm border border-[#2b303b] shadow-sm'
+                        : 'bg-[#121418] text-[#e2e2e6] rounded-tl-sm border border-[#22262f] shadow-md'
                     }`}
                   >
                     {isUser ? (
                       <p className="whitespace-pre-wrap">{msg.content}</p>
                     ) : (
                       <div className="space-y-3">
-                        {/* Bot Content */}
-                        <div
-                          className="prose-gov"
-                          dangerouslySetInnerHTML={{
-                            __html: marked.parse(msg.content || '') as string
-                          }}
-                        />
+                        {/* Bot Content with live streaming cursor */}
+                        <div className="relative">
+                          <div
+                            className="prose-civic"
+                            dangerouslySetInnerHTML={{
+                              __html: marked.parse(msg.content || '') as string
+                            }}
+                          />
+                          {isGenerating && isLatestBotMessage && (
+                            <span className="streaming-cursor" title="Streaming response..." />
+                          )}
+                        </div>
 
                         {/* Official Citations & Portals */}
                         {msg.citations && msg.citations.length > 0 && (
-                          <div className="pt-3 border-t border-[#1E2638] space-y-2">
-                            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#F59E0B]">
+                          <div className="pt-3 border-t border-[#22262f] space-y-2">
+                            <div className="flex items-center gap-1.5 text-xs font-semibold text-[#f2ca50]">
                               <Globe className="w-3.5 h-3.5" />
                               <span>Verified Official Portals:</span>
                             </div>
@@ -1027,10 +1077,10 @@ export function App() {
                                   href={cite.official_url}
                                   target="_blank"
                                   rel="noreferrer"
-                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#141B2D] border border-[#1E2638] hover:border-[#F59E0B]/60 text-xs text-[#38BDF8] hover:text-[#7DD3FC] transition-colors"
+                                  className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-[#16191f] border border-[#22262f] hover:border-[#f2ca50]/60 text-xs text-[#ffb692] hover:text-[#f2ca50] transition-colors"
                                 >
                                   <span>{cite.name}</span>
-                                  <ExternalLink className="w-3 h-3 text-[#94A3B8]" />
+                                  <ExternalLink className="w-3 h-3 text-[#8F93B5]" />
                                 </a>
                               ))}
                             </div>
@@ -1044,7 +1094,7 @@ export function App() {
                               <button
                                 key={fIdx}
                                 onClick={() => handleSendChat(followup)}
-                                className="px-2.5 py-1 rounded-full bg-[#161D2E] border border-[#1E2638] hover:border-[#F59E0B]/40 text-xs text-[#CBD5E1] hover:text-white transition-colors"
+                                className="px-2.5 py-1 rounded-full bg-[#1a1d24] border border-[#22262f] hover:border-[#f2ca50]/40 text-xs text-[#c5cfdb] hover:text-white transition-colors"
                               >
                                 {followup}
                               </button>
@@ -1053,16 +1103,16 @@ export function App() {
                         )}
 
                         {/* Bottom Actions Bar */}
-                        <div className="flex items-center gap-3 pt-2 text-xs text-[#64748B]">
+                        <div className="flex items-center gap-3 pt-2 text-xs text-[#8F93B5]">
                           <button
                             onClick={() => handleToggleSpeak(msg.id, msg.content)}
-                            className="flex items-center gap-1 hover:text-[#E2E8F0] transition-colors"
+                            className="flex items-center gap-1 hover:text-white transition-colors"
                             title="Listen"
                           >
                             {speakingId === msg.id ? (
                               <>
-                                <VolumeX className="w-3.5 h-3.5 text-[#F59E0B]" />
-                                <span className="text-[#F59E0B]">Stop</span>
+                                <VolumeX className="w-3.5 h-3.5 text-[#f2ca50]" />
+                                <span className="text-[#f2ca50]">Stop</span>
                               </>
                             ) : (
                               <>
@@ -1074,13 +1124,13 @@ export function App() {
 
                           <button
                             onClick={() => handleCopy(msg.id, msg.content)}
-                            className="flex items-center gap-1 hover:text-[#E2E8F0] transition-colors"
+                            className="flex items-center gap-1 hover:text-white transition-colors"
                             title="Copy text"
                           >
                             {copiedId === msg.id ? (
                               <>
-                                <Check className="w-3.5 h-3.5 text-green-400" />
-                                <span className="text-green-400">Copied</span>
+                                <Check className="w-3.5 h-3.5 text-emerald-400" />
+                                <span className="text-emerald-400">Copied</span>
                               </>
                             ) : (
                               <>
@@ -1099,27 +1149,25 @@ export function App() {
 
             {/* Stable Live Reasoning Status (Zero layout shift) */}
             {isGenerating && (
-              <div className="flex items-center gap-3 px-3 py-2 rounded-xl bg-[#0E131F] border border-[#1E2638] max-w-md text-xs text-[#94A3B8]">
-                <div className="w-2 h-2 rounded-full bg-[#F59E0B] animate-ping" />
+              <div className="flex items-center gap-2.5 px-3 py-1.5 rounded-xl bg-[#16191f] border border-[#f2ca50]/30 max-w-md text-xs text-[#8F93B5]">
+                <div className="w-2 h-2 rounded-full bg-[#f2ca50] animate-ping" />
                 <span className="truncate">{generationStep || 'Searching gazettes...'}</span>
               </div>
             )}
-
-            <div ref={chatBottomRef} />
           </div>
         </div>
 
         {/* ================================================================= */}
-        {/* 3. PINNED BOTTOM INPUT BAR                                        */}
+        {/* 3. PINNED BOTTOM INPUT BAR (SOVEREIGN GLOW)                       */}
         {/* ================================================================= */}
-        <div className="p-4 border-t border-[#1E2638] bg-[#0E131F]/90 backdrop-blur-md">
+        <div className="p-4 border-t border-[#22262f] bg-[#101216]/95 backdrop-blur-md shrink-0">
           <div className="max-w-3xl mx-auto space-y-2">
             <form
               onSubmit={(e) => {
                 e.preventDefault();
                 handleSendChat();
               }}
-              className="relative flex items-center bg-[#141B2D] border border-[#1E2638] rounded-2xl shadow-lg focus-within:border-[#F59E0B]/60 focus-within:ring-1 focus-within:ring-[#F59E0B]/30 transition-all"
+              className="input-bar-glow relative flex items-center bg-[#16191f] border border-[#22262f] rounded-2xl shadow-xl focus-within:border-[#f2ca50]/60 focus-within:ring-1 focus-within:ring-[#f2ca50]/30 transition-all"
             >
               {/* Mic / Voice Search */}
               <button
@@ -1128,7 +1176,7 @@ export function App() {
                 className={`p-3 rounded-l-2xl transition-colors ${
                   isListening
                     ? 'text-red-500 animate-pulse bg-red-500/10'
-                    : 'text-[#64748B] hover:text-[#E2E8F0]'
+                    : 'text-[#8F93B5] hover:text-white'
                 }`}
                 title={isListening ? 'Listening... speak now' : 'Voice typing'}
               >
@@ -1151,7 +1199,7 @@ export function App() {
                     : 'Ask about any government scheme, eligibility, or civic service...')
                 }
                 disabled={isGenerating}
-                className="flex-1 bg-transparent py-3 px-2 text-sm text-[#F1F5F9] placeholder-[#64748B] focus:outline-none disabled:opacity-50"
+                className="flex-1 bg-transparent py-3 px-2 text-sm text-[#e2e2e6] placeholder-[#8F93B5] focus:outline-none disabled:opacity-50"
               />
 
               {/* Send Button */}
@@ -1160,17 +1208,17 @@ export function App() {
                 disabled={!inputQuery.trim() || isGenerating}
                 className={`p-2.5 mr-1.5 rounded-xl transition-all ${
                   inputQuery.trim() && !isGenerating
-                    ? 'bg-gradient-to-r from-[#EA580C] to-[#F59E0B] text-white shadow-md hover:opacity-95 cursor-pointer'
-                    : 'text-[#475569] cursor-not-allowed'
+                    ? 'bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] shadow-md hover:opacity-95 cursor-pointer font-bold'
+                    : 'text-[#3f3a2f] cursor-not-allowed'
                 }`}
               >
                 <Send className="w-4 h-4" />
               </button>
             </form>
 
-            <div className="flex items-center justify-between px-2 text-[11px] text-[#64748B]">
+            <div className="flex items-center justify-between px-2 text-[11px] text-[#8F93B5]">
               <span className="truncate flex items-center gap-1.5">
-                <ShieldCheck className="w-3 h-3 text-[#4ADE80]" />
+                <ShieldCheck className="w-3 h-3 text-emerald-400" />
                 UIDAI Aadhaar Redacted • Voice Enabled in 22 Official Languages
               </span>
               <span className="hidden sm:inline">Press Enter to send</span>
@@ -1180,20 +1228,20 @@ export function App() {
       </main>
 
       {/* ================================================================= */}
-      {/* 4. DEDICATED FULL VOICE AGENT MODAL (INTERACTIVE DIALOG)          */}
+      {/* 4. DEDICATED FULL VOICE AGENT MODAL                               */}
       {/* ================================================================= */}
       {voiceAgentOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/85 backdrop-blur-md animate-fade-in">
-          <div className="relative w-full max-w-lg bg-[#0E131F] border border-[#F59E0B]/30 rounded-3xl p-6 sm:p-8 text-center shadow-2xl space-y-6">
+          <div className="relative w-full max-w-lg bg-[#121418] border border-[#f2ca50]/40 rounded-3xl p-6 sm:p-8 text-center shadow-2xl space-y-6">
             {/* Top Close Bar */}
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <span className="w-2.5 h-2.5 rounded-full bg-[#4ADE80] animate-ping" />
-                <span className="text-xs font-bold uppercase tracking-wider text-[#F59E0B]">Nagarik Voice Agent</span>
+                <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 animate-ping" />
+                <span className="text-xs font-bold uppercase tracking-wider text-[#f2ca50]">Nagarik Voice Agent</span>
               </div>
               <button
                 onClick={() => setVoiceAgentOpen(false)}
-                className="p-1.5 rounded-full text-[#94A3B8] hover:text-white hover:bg-[#1E2638] transition-colors"
+                className="p-1.5 rounded-full text-[#8F93B5] hover:text-white hover:bg-[#22262f] transition-colors"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1202,36 +1250,33 @@ export function App() {
             {/* Central Animated Civic Aura */}
             <div className="py-6 flex flex-col items-center justify-center relative">
               <div className="relative flex items-center justify-center">
-                {/* Outer Pulsating Ring */}
                 <div
                   className={`absolute w-44 h-44 rounded-full border-2 transition-all duration-700 ${
                     voiceAgentState === 'listening'
-                      ? 'border-[#EA580C]/60 animate-ping opacity-60'
+                      ? 'border-[#ffb692]/60 animate-ping opacity-60'
                       : voiceAgentState === 'speaking'
-                      ? 'border-[#38BDF8]/60 animate-pulse opacity-70'
+                      ? 'border-[#f2ca50]/60 animate-pulse opacity-70'
                       : voiceAgentState === 'thinking'
-                      ? 'border-[#F59E0B]/60 animate-spin opacity-50'
+                      ? 'border-[#d4af37]/60 animate-spin opacity-50'
                       : 'border-transparent'
                   }`}
                 />
 
-                {/* Inner Glow Circle */}
                 <div
                   className={`w-32 h-32 rounded-full flex items-center justify-center shadow-2xl transition-all duration-500 ${
                     voiceAgentState === 'listening'
-                      ? 'bg-gradient-to-tr from-[#EA580C] to-[#F59E0B] shadow-[#EA580C]/50 scale-105'
+                      ? 'bg-gradient-to-tr from-[#d4af37] to-[#ffb692] shadow-[#ffb692]/40 scale-105'
                       : voiceAgentState === 'speaking'
-                      ? 'bg-gradient-to-tr from-[#0284C7] to-[#38BDF8] shadow-[#38BDF8]/50 scale-105'
+                      ? 'bg-gradient-to-tr from-[#d4af37] to-[#f2ca50] shadow-[#f2ca50]/40 scale-105'
                       : voiceAgentState === 'thinking'
-                      ? 'bg-gradient-to-tr from-[#D97706] to-[#FBBF24] shadow-[#F59E0B]/40 animate-pulse'
-                      : 'bg-[#161D2E] border border-[#1E2638]'
+                      ? 'bg-gradient-to-tr from-[#883800] to-[#f2ca50] shadow-[#f2ca50]/40 animate-pulse'
+                      : 'bg-[#16191f] border border-[#22262f]'
                   }`}
                 >
                   <NagarikEmblem className="w-16 h-16" size={64} />
                 </div>
               </div>
 
-              {/* Status Message */}
               <div className="mt-6 space-y-1">
                 <h3 className="text-base font-bold text-white">
                   {voiceAgentState === 'listening'
@@ -1242,41 +1287,30 @@ export function App() {
                     ? (selectedLanguage === 'hi' ? 'उत्तर सुना रहा हूँ...' : selectedLanguage === 'te' ? 'సమాధానం వివరిస్తున్నాను...' : 'Speaking answer out loud...')
                     : (selectedLanguage === 'hi' ? 'पूछने के लिए माइक दबाएँ' : selectedLanguage === 'te' ? 'ప్రశ్నించడానికి మైక్ నొక్కండి' : 'Tap mic below to speak')}
                 </h3>
-                <p className="text-xs text-[#94A3B8]">
+                <p className="text-xs text-[#8F93B5]">
                   {selectedLanguage === 'hi' ? 'हिंदी, अंग्रेज़ी व तेलुगु में स्पष्ट बोलें' : selectedLanguage === 'te' ? 'తెలుగు, ఇంగ్లీష్ లేదా హిందీలో మాట్లాడండి' : 'Speak naturally in English, Hindi, or Telugu'}
                 </p>
               </div>
-
-              {/* Animated Acoustic Bars (When Speaking or Listening) */}
-              {(voiceAgentState === 'listening' || voiceAgentState === 'speaking') && (
-                <div className="flex items-center gap-1.5 mt-3 h-5">
-                  <span className="w-1 bg-[#F59E0B] rounded-full animate-bounce h-3" />
-                  <span className="w-1 bg-[#EA580C] rounded-full animate-bounce h-5 delay-75" />
-                  <span className="w-1 bg-[#38BDF8] rounded-full animate-bounce h-4 delay-150" />
-                  <span className="w-1 bg-[#F59E0B] rounded-full animate-bounce h-5 delay-100" />
-                  <span className="w-1 bg-[#EA580C] rounded-full animate-bounce h-2 delay-200" />
-                </div>
-              )}
             </div>
 
             {/* Live Transcript Display */}
-            <div className="p-4 rounded-2xl bg-[#0A0D14] border border-[#1E2638] text-left text-xs min-h-[90px] max-h-36 overflow-y-auto space-y-2 scrollbar-thin">
+            <div className="p-4 rounded-2xl bg-[#0c0e11] border border-[#22262f] text-left text-xs min-h-[90px] max-h-36 overflow-y-auto space-y-2 scrollbar-thin">
               {voiceTranscript ? (
                 <div>
-                  <span className="font-semibold text-[#F59E0B]">You: </span>
-                  <span className="text-[#F1F5F9]">{voiceTranscript}</span>
+                  <span className="font-semibold text-[#f2ca50]">You: </span>
+                  <span className="text-[#e2e2e6]">{voiceTranscript}</span>
                 </div>
               ) : null}
 
               {voiceAssistantReply ? (
                 <div>
-                  <span className="font-semibold text-[#38BDF8]">Nagarik AI: </span>
-                  <span className="text-[#CBD5E1] line-clamp-3">{voiceAssistantReply}</span>
+                  <span className="font-semibold text-[#ffb692]">Nagarik AI: </span>
+                  <span className="text-[#c5cfdb] line-clamp-3">{voiceAssistantReply}</span>
                 </div>
               ) : null}
 
               {!voiceTranscript && !voiceAssistantReply && (
-                <div className="text-center text-[#64748B] italic pt-5">
+                <div className="text-center text-[#8F93B5] italic pt-5">
                   Try asking: "What are the rules for PM-KISAN?" or "How to get a driving licence online?"
                 </div>
               )}
@@ -1306,7 +1340,7 @@ export function App() {
               ) : (
                 <button
                   onClick={startVoiceAgentListening}
-                  className="flex items-center gap-2 px-8 py-3 rounded-2xl bg-gradient-to-r from-[#EA580C] to-[#F59E0B] text-white font-bold text-sm shadow-lg hover:opacity-95 transition-all"
+                  className="hover-pop-btn-orange flex items-center gap-2 px-8 py-3 rounded-2xl bg-gradient-to-r from-[#d4af37] via-[#f2ca50] to-[#ffb692] text-[#241a00] font-bold text-sm shadow-lg hover:opacity-95 transition-all"
                 >
                   <Mic className="w-4 h-4" />
                   <span>Speak Now</span>
@@ -1315,8 +1349,8 @@ export function App() {
             </div>
 
             {/* Language & Continuous Mode Toggle */}
-            <div className="flex items-center justify-between pt-2 border-t border-[#1E2638] text-xs">
-              <div className="flex items-center gap-1.5 bg-[#141B2D] p-1 rounded-lg border border-[#1E2638]">
+            <div className="flex items-center justify-between pt-2 border-t border-[#22262f] text-xs">
+              <div className="flex items-center gap-1.5 bg-[#16191f] p-1 rounded-lg border border-[#22262f]">
                 {(['en', 'hi', 'te'] as CivicLanguage[]).map(lang => (
                   <button
                     key={lang}
@@ -1325,7 +1359,7 @@ export function App() {
                       stopVoiceAgent();
                     }}
                     className={`px-2 py-0.5 rounded font-medium ${
-                      selectedLanguage === lang ? 'bg-[#F59E0B] text-black font-bold' : 'text-[#94A3B8]'
+                      selectedLanguage === lang ? 'bg-[#f2ca50] text-[#241a00] font-bold' : 'text-[#8F93B5]'
                     }`}
                   >
                     {lang === 'en' ? 'EN' : lang === 'hi' ? 'हिंदी' : 'తెలుగు'}
@@ -1333,12 +1367,12 @@ export function App() {
                 ))}
               </div>
 
-              <label className="flex items-center gap-1.5 text-[#94A3B8] cursor-pointer">
+              <label className="flex items-center gap-1.5 text-[#8F93B5] cursor-pointer">
                 <input
                   type="checkbox"
                   checked={autoVoiceLoop}
                   onChange={(e) => setAutoVoiceLoop(e.target.checked)}
-                  className="rounded bg-[#141B2D] border-[#1E2638] text-[#F59E0B] focus:ring-0"
+                  className="rounded bg-[#16191f] border-[#22262f] text-[#f2ca50] focus:ring-0"
                 />
                 <span>Auto-listen loop</span>
               </label>
@@ -1348,24 +1382,31 @@ export function App() {
       )}
 
       {/* ================================================================= */}
-      {/* 5. CLEAN MODALS FOR ELIGIBILITY & WHATSAPP                         */}
+      {/* 5. MODALS: AI SAATHI EXTENSION, ELIGIBILITY, WHATSAPP             */}
       {/* ================================================================= */}
+
+      {/* AI Saathi Browser Extension Modal */}
+      <AISaathiExtensionModal
+        isOpen={showExtensionModal}
+        onClose={() => setShowExtensionModal(false)}
+        selectedLanguage={selectedLanguage}
+      />
 
       {/* Eligibility Calculator Modal */}
       {showEligibilityModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#0E131F] border border-[#1E2638] rounded-2xl overflow-y-auto shadow-2xl p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-[#1E2638] mb-6">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-4xl max-h-[90vh] bg-[#121418] border border-[#22262f] rounded-2xl overflow-y-auto shadow-2xl p-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[#22262f] mb-6">
               <div className="flex items-center gap-3">
-                <Calculator className="w-6 h-6 text-[#38BDF8]" />
+                <Calculator className="w-6 h-6 text-[#f2ca50]" />
                 <div>
                   <h2 className="text-lg font-bold text-white">Civic Entitlement Calculator</h2>
-                  <p className="text-xs text-[#94A3B8]">Determine your official benefits based on age, income, and category</p>
+                  <p className="text-xs text-[#8F93B5]">Determine your official benefits based on age, income, and category</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowEligibilityModal(false)}
-                className="p-1.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-[#1E2638]"
+                className="p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#22262f]"
               >
                 <X className="w-5 h-5" />
               </button>
@@ -1384,19 +1425,19 @@ export function App() {
 
       {/* WhatsApp Citizen Bot Modal */}
       {showWhatsAppModal && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/75 backdrop-blur-sm animate-fade-in">
-          <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#0E131F] border border-[#1E2638] rounded-2xl overflow-y-auto shadow-2xl p-6">
-            <div className="flex items-center justify-between pb-4 border-b border-[#1E2638] mb-4">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-sm animate-fade-in">
+          <div className="relative w-full max-w-2xl max-h-[90vh] bg-[#121418] border border-[#22262f] rounded-2xl overflow-y-auto shadow-2xl p-6">
+            <div className="flex items-center justify-between pb-4 border-b border-[#22262f] mb-4">
               <div className="flex items-center gap-3">
-                <Smartphone className="w-6 h-6 text-[#4ADE80]" />
+                <Smartphone className="w-6 h-6 text-[#ffb692]" />
                 <div>
                   <h2 className="text-lg font-bold text-white">WhatsApp Citizen Gateway</h2>
-                  <p className="text-xs text-[#94A3B8]">Access Nagarik AI on WhatsApp with zero app install</p>
+                  <p className="text-xs text-[#8F93B5]">Access Nagarik AI on WhatsApp with zero app install</p>
                 </div>
               </div>
               <button
                 onClick={() => setShowWhatsAppModal(false)}
-                className="p-1.5 rounded-lg text-[#94A3B8] hover:text-white hover:bg-[#1E2638]"
+                className="p-1.5 rounded-lg text-[#8F93B5] hover:text-white hover:bg-[#22262f]"
               >
                 <X className="w-5 h-5" />
               </button>

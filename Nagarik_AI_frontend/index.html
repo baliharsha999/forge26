@@ -170,6 +170,13 @@
 
     <!-- Navigation & Action Controls -->
     <div class="flex items-center gap-2 sm:gap-3">
+      <!-- AI Saathi Extension Button -->
+      <button onclick="openExtensionModal()" class="hover-pop-btn-slate flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-surface-container-high border border-primary/40 text-xs font-semibold text-primary transition-colors shadow-sm" title="AI Saathi Civic Copilot Extension" type="button">
+        <span class="material-symbols-outlined text-[17px] text-primary">extension</span>
+        <span class="font-semibold text-primary">AI Saathi</span>
+        <span class="text-[9px] px-1.5 py-0.5 bg-primary/20 text-primary font-mono rounded border border-primary/30">Extension</span>
+      </button>
+
       <!-- Voice Mode Button -->
       <button id="headerVoiceBtn" onclick="toggleSpeechRecognition()" class="hover-pop-btn-slate flex items-center gap-1.5 px-3 py-1.5 rounded-lg bg-surface-container hover:bg-[#2F3558] border border-outline-variant/30 text-xs font-semibold text-[#8F93B5] hover:text-[#E8E9F2] transition-colors" title="Voice Guidance Assistant" type="button">
         <span class="material-symbols-outlined text-[17px] text-secondary">mic</span>
@@ -508,7 +515,7 @@
       </div>
     `;
     thread.appendChild(userMsgDiv);
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    scrollPageToBottom(true);
 
     // 2. Prepare Streaming Card
     const streamingCard = document.getElementById('streamingCard');
@@ -522,7 +529,7 @@
     streamingCitations.classList.add('hidden');
     stepBadge.innerText = "Step 1: STAIR Intent Routing...";
     streamingCard.classList.remove('hidden');
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    scrollPageToBottom(true);
 
     let rawAccumulatedText = "";
     let receivedCitations = [];
@@ -590,7 +597,7 @@
             } else if (parsed.type === "chunk") {
               rawAccumulatedText += parsed.text;
               streamingContent.innerHTML = marked.parse(rawAccumulatedText, { breaks: true, gfm: true });
-              window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+              scrollPageToBottom();
             } else if (parsed.type === "done") {
               stepBadge.innerText = "Verified by Gazette Engine";
             }
@@ -741,7 +748,7 @@
     `;
 
     thread.appendChild(botMsgDiv);
-    window.scrollTo({ top: document.body.scrollHeight, behavior: 'smooth' });
+    scrollPageToBottom(true);
   }
 
   function escapeHtml(text) {
@@ -749,6 +756,181 @@
     div.innerText = text;
     return div.innerHTML;
   }
+
+    // Rock-Solid, Zero-Jitter Scroll: Auto pins without bouncing animation
+    function scrollPageToBottom(force = false) {
+      const isNearBottom = (window.innerHeight + window.scrollY) >= (document.documentElement.scrollHeight - 350);
+      if (force || isNearBottom) {
+        window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'auto' });
+      }
+    }
+
+
+  // AI Saathi Extension Modal Handlers
+  function openExtensionModal() {
+    const m = document.getElementById('extensionModal');
+    if (m) {
+      m.classList.remove('hidden');
+      document.body.style.overflow = 'hidden';
+    }
+  }
+
+  function closeExtensionModal() {
+    const m = document.getElementById('extensionModal');
+    if (m) {
+      m.classList.add('hidden');
+      document.body.style.overflow = '';
+    }
+  }
+
+  // Close modal when clicking outside
+  window.addEventListener('click', (e) => {
+    const m = document.getElementById('extensionModal');
+    if (e.target === m) {
+      closeExtensionModal();
+    }
+  });
+
+  // Keyboard shortcut Esc to close modal
+  window.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      closeExtensionModal();
+    }
+  });
+
 </script>
+
+  <!-- AI Saathi Extension Modal -->
+  <div id="extensionModal" class="hidden fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4">
+    <div class="relative w-full max-w-3xl max-h-[90vh] bg-surface border border-outline-variant/40 rounded-2xl shadow-2xl flex flex-col overflow-hidden text-on-surface">
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between p-5 border-b border-surface-container-high bg-surface-container-low">
+        <div class="flex items-center gap-3">
+          <div class="w-10 h-10 rounded-xl bg-surface-container-high border border-primary/40 flex items-center justify-center text-primary shadow-inner">
+            <span class="material-symbols-outlined text-2xl">extension</span>
+          </div>
+          <div>
+            <div class="flex items-center gap-2">
+              <h3 class="font-sans font-bold text-lg text-on-surface">Nagarik AI Saathi (Extension)</h3>
+              <span class="text-[10px] font-mono px-2 py-0.5 rounded-full bg-primary/20 text-primary border border-primary/30 font-semibold">Manifest V3</span>
+            </div>
+            <p class="text-xs text-[#8F93B5]">In-browser civic copilot for municipal complaint auto-filing &amp; PII masking</p>
+          </div>
+        </div>
+        <button onclick="closeExtensionModal()" class="w-8 h-8 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-[#8F93B5] hover:text-white flex items-center justify-center transition-colors">
+          <span class="material-symbols-outlined text-lg">close</span>
+        </button>
+      </div>
+
+      <!-- Modal Body (Scrollable) -->
+      <div class="flex-1 overflow-y-auto p-6 space-y-6">
+        <!-- Quick Action Hero -->
+        <div class="bg-gradient-to-r from-surface-container to-surface-container-high border border-primary/20 rounded-xl p-5 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div>
+            <h4 class="text-sm font-bold text-primary flex items-center gap-2">
+              <span class="material-symbols-outlined text-base">download</span>
+              Chrome / Edge Extension Package
+            </h4>
+            <p class="text-xs text-tertiary mt-1 max-w-md">
+              Download the fully functional, zero-telemetry extension package ready to load in developer mode.
+            </p>
+          </div>
+          <a href="./nagarik-extension.zip" download="nagarik-extension.zip" class="hover-pop-btn-orange px-5 py-2.5 rounded-xl bg-gradient-to-r from-primary to-[#ffb692] text-black font-bold text-xs flex items-center gap-2 shadow-lg shadow-black/40 shrink-0">
+            <span class="material-symbols-outlined text-base text-black">file_download</span>
+            <span>Download ZIP (365 KB)</span>
+          </a>
+        </div>
+
+        <!-- 3-Step Setup Guide -->
+        <div>
+          <h4 class="text-xs font-mono uppercase tracking-wider text-secondary font-bold mb-3 flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">checklist</span>
+            Quick Installation (3 Steps)
+          </h4>
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-3">
+            <div class="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4">
+              <div class="w-6 h-6 rounded-full bg-primary/20 text-primary font-mono text-xs flex items-center justify-center font-bold mb-2">1</div>
+              <h5 class="text-xs font-bold text-on-surface mb-1">Unzip Package</h5>
+              <p class="text-[11px] text-[#8F93B5] leading-relaxed">
+                Download <code class="text-primary font-mono bg-surface-container px-1 py-0.5 rounded">nagarik-extension.zip</code> and extract the contents to a folder on your computer.
+              </p>
+            </div>
+            <div class="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4">
+              <div class="w-6 h-6 rounded-full bg-primary/20 text-primary font-mono text-xs flex items-center justify-center font-bold mb-2">2</div>
+              <h5 class="text-xs font-bold text-on-surface mb-1">Developer Mode</h5>
+              <p class="text-[11px] text-[#8F93B5] leading-relaxed">
+                Open <code class="text-secondary font-mono bg-surface-container px-1 py-0.5 rounded">chrome://extensions</code> in Chrome/Brave/Edge and toggle <strong>Developer mode</strong> in the top-right.
+              </p>
+            </div>
+            <div class="bg-surface-container-low border border-outline-variant/30 rounded-xl p-4">
+              <div class="w-6 h-6 rounded-full bg-primary/20 text-primary font-mono text-xs flex items-center justify-center font-bold mb-2">3</div>
+              <h5 class="text-xs font-bold text-on-surface mb-1">Load Unpacked</h5>
+              <p class="text-[11px] text-[#8F93B5] leading-relaxed">
+                Click <strong>Load unpacked</strong> and select the unzipped directory containing <code class="text-tertiary font-mono bg-surface-container px-1 py-0.5 rounded">manifest.json</code>.
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <!-- Capability Highlights -->
+        <div>
+          <h4 class="text-xs font-mono uppercase tracking-wider text-secondary font-bold mb-3 flex items-center gap-2">
+            <span class="material-symbols-outlined text-base">verified_user</span>
+            AI Saathi Core Features
+          </h4>
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div class="bg-surface-container-low border border-outline-variant/30 rounded-xl p-3.5 flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant/40 flex items-center justify-center shrink-0 text-primary">
+                <span class="material-symbols-outlined text-base">auto_fix_high</span>
+              </div>
+              <div>
+                <h5 class="text-xs font-bold text-on-surface">Municipal Grievance Autofill</h5>
+                <p class="text-[11px] text-[#8F93B5] mt-0.5">Detects civic grievance forms on CPGRAMS, MeeSeva, and municipal portals, generating structured legal complaint drafts in 1 click.</p>
+              </div>
+            </div>
+            <div class="bg-surface-container-low border border-outline-variant/30 rounded-xl p-3.5 flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant/40 flex items-center justify-center shrink-0 text-secondary">
+                <span class="material-symbols-outlined text-base">security</span>
+              </div>
+              <div>
+                <h5 class="text-xs font-bold text-on-surface">Zero-Knowledge PII Masking</h5>
+                <p class="text-[11px] text-[#8F93B5] mt-0.5">Masks Aadhaar (XXXX-XXXX-1234), PAN, and mobile numbers entirely on device before sending drafts to external APIs.</p>
+              </div>
+            </div>
+            <div class="bg-surface-container-low border border-outline-variant/30 rounded-xl p-3.5 flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant/40 flex items-center justify-center shrink-0 text-tertiary">
+                <span class="material-symbols-outlined text-base">mic</span>
+              </div>
+              <div>
+                <h5 class="text-xs font-bold text-on-surface">Vernacular Voice Assistance</h5>
+                <p class="text-[11px] text-[#8F93B5] mt-0.5">Voice guidance in Telugu, Hindi, and English so non-English literate citizens can file municipal complaints without middlemen.</p>
+              </div>
+            </div>
+            <div class="bg-surface-container-low border border-outline-variant/30 rounded-xl p-3.5 flex items-start gap-3">
+              <div class="w-8 h-8 rounded-lg bg-surface-container-high border border-outline-variant/40 flex items-center justify-center shrink-0 text-primary">
+                <span class="material-symbols-outlined text-base">dock_to_left</span>
+              </div>
+              <div>
+                <h5 class="text-xs font-bold text-on-surface">Chrome SidePanel Integration</h5>
+                <p class="text-[11px] text-[#8F93B5] mt-0.5">Docks natively alongside any open portal tab using Chrome's SidePanel API without obscuring portal contents.</p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="p-4 border-t border-surface-container-high bg-surface-container-low flex items-center justify-between">
+        <span class="text-[11px] text-[#8F93B5] flex items-center gap-1.5 font-mono">
+          <span class="w-1.5 h-1.5 rounded-full bg-primary animate-pulse"></span>
+          Ready for Chrome, Edge &amp; Brave
+        </span>
+        <button onclick="closeExtensionModal()" class="px-4 py-1.5 rounded-lg bg-surface-container-high hover:bg-surface-container-highest text-on-surface text-xs font-semibold">
+          Close
+        </button>
+      </div>
+    </div>
+  </div>
+
 </body>
 </html>
