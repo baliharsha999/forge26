@@ -131,6 +131,9 @@ class EligibilityCheckRequest(BaseModel):
     gender: Optional[str] = Field("any", description="female, male, other")
     age: Optional[int] = Field(32, description="Age in years")
     landholder: Optional[bool] = Field(True, description="Owns cultivable land")
+    state: Optional[str] = Field("All-India", description="State or Union Territory of residence")
+    has_school_children: Optional[bool] = Field(False, description="Has children studying in Class 1 to 12")
+    caste: Optional[str] = Field("general", description="sc, st, obc, general")
 
 class EligibilityCheckResult(BaseModel):
     likely_eligible_schemes: List[Dict[str, Any]]

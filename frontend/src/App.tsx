@@ -5,9 +5,10 @@ import {
   Bot, User, Sparkles, Search, Mic, MicOff, Send, Volume2, VolumeX,
   Copy, Check, Download, ExternalLink, ShieldCheck, ShieldAlert,
   Layers, Zap, CheckCircle2, RefreshCw, X, ChevronRight, FastForward,
-  FileCheck, FileText, ArrowRight, Share2, Activity
+  FileCheck, FileText, ArrowRight, Share2, Activity, Printer
 } from 'lucide-react';
 import { WhatsAppBotView } from './components/WhatsAppBotView';
+import { CivicEligibilityCalculator } from './components/CivicEligibilityCalculator';
 
 const API_BASE = 'http://localhost:8000/api/v1';
 
@@ -95,6 +96,7 @@ Select a quick topic below or type your question in English, Hindi (हिंद
   const [copiedMessageId, setCopiedMessageId] = useState<string | null>(null);
   const [isChatListening, setIsChatListening] = useState(false);
   const chatBottomRef = useRef<HTMLDivElement>(null);
+  const chatInputRef = useRef<HTMLInputElement>(null);
 
   // Quick Prompt Pills
   const quickPrompts = [
@@ -180,6 +182,36 @@ Select a quick topic below or type your question in English, Hindi (हिंद
       chatBottomRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   }, [chatMessages, isGenerating]);
+
+  // Global Keyboard Shortcuts (WCAG 2.2 AA & Power User Ergonomics)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ctrl+K or Cmd+K -> Focus Chat Input
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        setActiveTab('chatbot');
+        setTimeout(() => chatInputRef.current?.focus(), 50);
+      }
+      // Escape -> Close active modals
+      if (e.key === 'Escape') {
+        setShowTelemetryModal(false);
+        setShowDbtWizardModal(false);
+        setSelectedEscalation(null);
+      }
+      // Alt+1 to Alt+7 Quick Tab Navigation
+      if (e.altKey) {
+        if (e.key === '1') { e.preventDefault(); setActiveTab('chatbot'); }
+        if (e.key === '2') { e.preventDefault(); setActiveTab('schemes'); }
+        if (e.key === '3') { e.preventDefault(); setActiveTab('grievance'); }
+        if (e.key === '4') { e.preventDefault(); setActiveTab('factcheck'); }
+        if (e.key === '5') { e.preventDefault(); setActiveTab('ledger'); }
+        if (e.key === '6') { e.preventDefault(); setActiveTab('extension'); }
+        if (e.key === '7') { e.preventDefault(); setActiveTab('whatsapp'); }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, []);
 
   // Timer for reasoning simulation
   useEffect(() => {
@@ -474,6 +506,49 @@ ${content.replace(/[*#_`]/g, '')}
     link.click();
     document.body.removeChild(link);
     URL.revokeObjectURL(url);
+  };
+
+  // Print / Save as Official Statutory Letterhead PDF
+  const printOfficialLetter = (esc: any) => {
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) return;
+    printWindow.document.write(`
+      <!DOCTYPE html>
+      <html>
+        <head>
+          <title>${esc.subject_line || 'Statutory Notice'}</title>
+          <style>
+            body { font-family: 'Times New Roman', serif; margin: 40px; color: #111; line-height: 1.6; }
+            .header { text-align: center; border-bottom: 2px solid #333; padding-bottom: 15px; margin-bottom: 25px; }
+            .emblem { font-size: 22px; font-weight: bold; letter-spacing: 2px; }
+            .subhead { font-size: 13px; text-transform: uppercase; color: #444; margin-top: 4px; }
+            .statute-box { border: 1px solid #666; background: #f9f9f9; padding: 10px; margin-bottom: 20px; font-size: 12px; }
+            .content { white-space: pre-wrap; font-size: 14px; font-family: 'Times New Roman', serif; }
+            .footer { margin-top: 50px; font-size: 11px; border-top: 1px solid #ccc; padding-top: 10px; text-align: center; color: #666; }
+            @media print { body { margin: 20mm; } }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <div class="emblem">🏛️ REPUBLIC OF INDIA / PUBLIC GRIEVANCE COMMISSION</div>
+            <div class="subhead">OFFICIAL STATUTORY NOTICE & ESCALATION SUBMISSION</div>
+            <div style="font-size: 11px; margin-top: 6px;">Tracking Reference: <strong>${esc.tracking_id}</strong> | Dated: ${new Date().toLocaleDateString('en-IN')}</div>
+          </div>
+          <div class="statute-box">
+            <strong>STATUTORY GROUNDING:</strong> ${esc.statutory_act_quoted || 'Citizen Charter Standards'}<br/>
+            <strong>ESCALATION TYPE:</strong> ${(esc.escalation_type || 'formal').toUpperCase()} (${esc.days_overdue || 0} Days Past SLA Deadline)
+          </div>
+          <div class="content">${esc.letter_body}</div>
+          <div class="footer">
+            Generated via Nagarik AI Sovereign Civic Governance Engine • Grounded in Indian Public Services & RTI Acts
+          </div>
+          <script>
+            window.onload = function() { window.print(); }
+          </script>
+        </body>
+      </html>
+    `);
+    printWindow.document.close();
   };
 
   // Speech Recognition for Chat Input
@@ -1419,6 +1494,7 @@ Nagarik AI Grievance Escalation Studio`
 
                 {/* Text Input */}
                 <input
+                  ref={chatInputRef}
                   type="text"
                   value={chatInput}
                   onChange={e => setChatInput(e.target.value)}
@@ -1462,6 +1538,14 @@ Nagarik AI Grievance Escalation Studio`
         {/* ============================================================ */}
         {activeTab === 'schemes' && (
           <div className="space-y-6">
+            {/* Interactive Civic Entitlement Calculator */}
+            <CivicEligibilityCalculator
+              onAskCopilot={(query: string) => {
+                setActiveTab('chatbot');
+                handleSendChat(query);
+              }}
+              selectedLanguage={selectedLanguage}
+            />
             <div className="glass-panel p-6">
               
               <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
@@ -2216,6 +2300,13 @@ Nagarik AI Grievance Escalation Studio`
                 className="btn-primary-orange px-4 py-2.5 text-xs flex items-center gap-2"
               >
                 <Download className="w-4 h-4" /> Download .txt Draft
+              </button>
+              <button
+                onClick={() => printOfficialLetter(selectedEscalation)}
+                className="btn-slate-action px-4 py-2.5 text-xs font-bold flex items-center gap-2 hover:bg-[#2F3558] text-[#ffb692]"
+                title="Print Official Letterhead / Save to PDF"
+              >
+                <Printer className="w-4 h-4 text-[#F06A25]" /> Print / Official PDF
               </button>
             </div>
           </div>

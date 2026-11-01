@@ -189,20 +189,76 @@ async def api_check_eligibility(req: EligibilityCheckRequest):
     all_schemes = await provider.get_schemes()
     
     likely_matches = []
+    state_norm = (req.state or "all-india").lower()
+    caste_norm = (req.caste or "general").lower()
+
     for s in all_schemes:
         match_reasons = []
-        # Check occupation
-        if req.occupation and req.occupation.lower() in s.category.lower():
+        s_id = s.id
+        s_state = getattr(s, "state", "All-India").lower()
+
+        # State filter: skip scheme if it belongs to a different state
+        if s_state != "all-india" and state_norm != "all-india" and s_state != state_norm:
+            continue
+
+        # 1. Thalliki Vandanam (SCHEME-016)
+        if s_id == "SCHEME-016" and req.has_school_children:
+            if state_norm in ["all-india", "andhra pradesh", "ap"]:
+                match_reasons.append("Eligible for ₹15,000/yr DBT per school-going child in Andhra Pradesh")
+
+        # 2. PM-KISAN (SCHEME-001)
+        if s_id == "SCHEME-001" and req.landholder and req.occupation == "farmer":
+            match_reasons.append("Eligible landholder farmer for ₹6,000/yr DBT in 3 installments")
+
+        # 3. YSR Rythu Bharosa (SCHEME-009)
+        if s_id == "SCHEME-009" and req.landholder and state_norm in ["all-india", "andhra pradesh", "ap"]:
+            match_reasons.append("Eligible farmer in Andhra Pradesh for ₹13,500/yr financial support")
+
+        # 4. Ayushman Bharat PM-JAY (SCHEME-002)
+        if s_id == "SCHEME-002":
+            if req.age and req.age >= 70:
+                match_reasons.append(f"Senior citizen (Age {req.age}) eligible for Universal ₹5 Lakh health cover (2024 Expansion)")
+            elif req.annual_income and req.annual_income <= 250000:
+                match_reasons.append("Household income meets SECC BPL criteria for ₹5 Lakh cashless health cover")
+
+        # 5. Stand Up India (SCHEME-013)
+        if s_id == "SCHEME-013" and (req.gender == "female" or caste_norm in ["sc", "st"]):
+            match_reasons.append("Eligible as SC/ST/Woman entrepreneur for ₹10 Lakh to ₹1 Crore greenfield business credit")
+
+        # 6. PM Vishwakarma (SCHEME-011)
+        if s_id == "SCHEME-011" and req.occupation in ["artisan", "craftsperson", "carpenter", "blacksmith", "tailor", "potter", "barber"]:
+            match_reasons.append("Traditional artisan/craftsperson eligible for collateral-free ₹1L-₹2L loans at 5% + ₹15k toolkit e-voucher")
+
+        # 7. Student Scholarships (SCHEME-004)
+        if s_id == "SCHEME-004" and req.occupation == "student":
+            if req.annual_income and req.annual_income <= 450000:
+                match_reasons.append("Eligible student with household income under ₹4.5 Lakhs (CSSS / Post-Matric)")
+            elif caste_norm in ["sc", "st", "obc"]:
+                match_reasons.append(f"Eligible student under {caste_norm.upper()} reserved category scholarship")
+
+        # 8. General Category & Demographic Checks
+        if req.occupation and req.occupation.lower() in s.category.lower() and not match_reasons:
             match_reasons.append(f"Matches category '{s.category}'")
-        if req.landholder and s.category == "farmer":
+        if req.landholder and s.category == "farmer" and not match_reasons:
             match_reasons.append("Eligible as landholder farmer")
-        if req.gender == "female" and s.category == "women":
+        if req.gender == "female" and s.category == "women" and not match_reasons:
             match_reasons.append("Eligible under women empowerment initiative")
-        if req.age and req.age >= 60 and s.category == "senior":
+        if req.age and req.age >= 60 and s.category == "senior" and not match_reasons:
             match_reasons.append(f"Senior citizen criteria satisfied (Age {req.age})")
 
         if match_reasons:
+            relevance_score = len(match_reasons) * 10
+            if s_state != "all-india" and s_state == state_norm:
+                relevance_score += 30  # High priority for citizen's home state
+            if req.has_school_children and ("education" in s.category or "student" in s.category):
+                relevance_score += 25
+            if req.age and req.age >= 70 and s.id == "SCHEME-002":
+                relevance_score += 25
+            if caste_norm in ["sc", "st"] and s.id == "SCHEME-013":
+                relevance_score += 25
+
             likely_matches.append({
+                "_score": relevance_score,
                 "scheme_id": s.id,
                 "scheme_name": s.name,
                 "official_url": s.official_url,
@@ -211,8 +267,14 @@ async def api_check_eligibility(req: EligibilityCheckRequest):
                 "next_step": f"Confirm exact documentation at {s.official_url}"
             })
 
+    # Sort by relevance score descending so the most pertinent schemes appear first
+    likely_matches.sort(key=lambda x: x["_score"], reverse=True)
+    # Remove internal _score key before returning
+    for m in likely_matches:
+        m.pop("_score", None)
+
     return EligibilityCheckResult(
-        likely_eligible_schemes=likely_matches[:5],
+        likely_eligible_schemes=likely_matches[:6],
         disclaimer="Non-definitive evaluation based on citizen-provided details. Always verify at official portal."
     )
 
