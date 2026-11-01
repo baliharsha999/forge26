@@ -290,7 +290,7 @@ export const AISaathiExtensionModal: React.FC<AISaathiExtensionModalProps> = ({
                         onClick={() => setSimStep(3)}
                         className="w-full py-1.5 rounded-lg bg-[#f2ca50] text-[#241a00] font-bold text-xs hover:opacity-95"
                       >
-                        Proceed to Evidence Upload
+                        Proceed to Portal Review
                       </button>
                     </div>
                   )}

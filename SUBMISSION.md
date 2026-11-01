@@ -12,38 +12,37 @@ Across India and developing democracies, millions of citizens face severe fricti
 - **Marginalized & Vernacular Citizens**: People who speak Hindi, Telugu, Tamil, or regional languages and lack legal expertise to draft formal petitions.
 - **Urban & Rural Residents**: Citizens needing rapid, accountable resolution of municipal and infrastructure hazards.
 - **Micro-Entrepreneurs, Farmers & Students**: Individuals seeking verified government grants and loans without paying corrupt middlemen.
-- **Public Institutions & Ward Officers**: Administrative bodies needing pre-categorized, legally structured petitions with photographic and geospatial evidence.
+- **Public Institutions & Ward Officers**: Administrative bodies needing pre-categorized, legally structured petitions with geospatial accuracy.
 
 ---
 
 ## 2. Solution Description
 
 ### High-Level Overview: Nagarik AI (नागरिक AI) — Empowering Every Citizen
-Nagarik AI is an autonomous, multimodal civic copilot engineered as a **Chrome (Manifest V3) Extension with a Native Side Panel** and **FastAPI backend**:
-- **Multimodal Citizen Intake**: A citizen simply speaks in their mother tongue (Telugu, Hindi, Tamil, or English) or uploads a photo of an issue. The AI engine processes the audio/image, extracts the location, and analyzes the statutory urgency.
+Nagarik AI is an autonomous, multimodal civic copilot engineered as a **Chrome (Manifest V3) Extension with a Native Side Panel** and **FastAPI / RAG backend**:
+- **Vernacular Citizen Voice Intake**: A citizen simply speaks in their mother tongue (Telugu, Hindi, Tamil, or English) or enters their problem description. The AI engine processes the audio/text, extracts the location, and analyzes statutory urgency.
 - **Statutory Legal Petitions**: Automatically classifies the exact department (GHMC/BBMP/PWD, DISCOM, Water Board) and drafts a formal statutory petition referencing the relevant Indian act (e.g., *GHMC Act 1955 Sec 374*, *The Electricity Act 2003*).
 - **Autonomous In-Page Form-Filling Copilot**: Injects an in-page content script that auto-fills municipal portal forms with progressive field highlights and synthetic event firing, leaving the final submission to the citizen for CAPTCHA/OTP verification.
 - **Statutory Escalation Generator**: When complaints breach official SLA deadlines, Nagarik AI automatically drafts formal Reminders, First Appeals under the Right to Public Services Act (RPSA), and Section 6(1) Right to Information (RTI) petitions.
 - **Civic Pulse Fact-Check Radar**: Cross-references viral claims against verified Press Information Bureau (PIB) and official Gazette notifications, generating a Truth Score (0–100%) and debunking fake schemes with a 3-outcome claim verifier (*Matches official source*, *Contradicts official source*, *Couldn't verify*).
-- **Official API Setu & Hand-Verified Scheme RAG**: Pluggable `SchemeProvider` supporting live **API Setu (`apisetu.gov.in/v1/myscheme`)** and 15+ hand-verified government schemes with verbatim source text and official `.gov.in` URLs.
+- **Live myScheme Web Scraping & RAG Knowledge Store**: Ingests, normalizes, and embeds real-time welfare schemes directly from the official **myScheme (`myscheme.gov.in`)** national portal, covering 500+ Central and State welfare schemes with verbatim source text and official `.gov.in` URLs.
 
 ### Technical Architecture
-- **Chrome Extension Frontend**: Manifest V3 Side Panel (`chrome.sidePanel`) + Vanilla JS + Tailwind CSS + Web Speech API for vernacular voice recognition.
-- **Backend**: FastAPI 0.162 (Python 3.13) with asynchronous request handling and modular routers.
-- **AI & Multimodal Reasoning**: Google Gemini 2.0 Flash / Gemini 3.5 Flash multimodal engine + Groq Llama 3.3 for sub-second generation.
-- **Retrieval Pipeline**: FAISS HNSW dense vector index + Pure-Python Language-Aware BM25Okapi + Reciprocal Rank Fusion (RRF, $k=60$) + Cross-Encoder reranking.
-- **Data & Compliance**: **Zero Dummy Data** — backed by an active SQLite database (`civic_pulse.db`, `schemes.db`), live OpenStreetMap (OSM) Nominatim reverse-geocoding, and official PIB Fact-Check & Data.gov.in scheme knowledge bases.
-- **Privacy & Security**: Built-in 12-digit Aadhaar regex and PAN regex sanitization with zero PII storage.
-- **Testing**: 22 Pytest tests passing (100% pass rate).
+- **Chrome Extension Frontend**: Manifest V3 Side Panel (`chrome.sidePanel`) + Vanilla JS + Web Speech API for vernacular voice recognition.
+- **Production Web Application**: React 19 + TypeScript + Vite + Tailwind CSS deployed on Firebase Hosting ([https://nagarik-ai-civic-2026.web.app](https://nagarik-ai-civic-2026.web.app)).
+- **AI & Multimodal Reasoning**: Groq Qwen / Llama 3.3 for sub-second generation and Gemini multimodal engine.
+- **Retrieval Pipeline**: FAISS HNSW dense vector index + Pure-Python Language-Aware BM25Okapi + Reciprocal Rank Fusion (RRF, $k=60$) + Cross-Encoder reranking over scraped `myscheme.gov.in` data.
+- **Data & Compliance**: **Zero Dummy Data** — backed by an active SQLite database (`civic_pulse.db`, `schemes.db`), live OpenStreetMap (OSM) Nominatim reverse-geocoding, and official PIB Fact-Check & myScheme knowledge bases.
+- **Privacy & Security**: Built-in 12-digit Aadhaar Verhoeff Dihedral checksum validation and regex sanitization with zero PII storage.
+- **Testing**: 26 Automated Chrome Extension Tests + 22 Backend Pytest tests passing (100% pass rate).
 
 ---
 
 ## 3. Prototype Link
+- **Live Production Web Application**: [https://nagarik-ai-civic-2026.web.app](https://nagarik-ai-civic-2026.web.app)
 - **Backend API Gateway & OpenAPI Docs**: `http://localhost:8000/docs`
-- **Mock Municipal Portal**: `http://localhost:8000/portal`
-- **Operator Administrative Dashboard**: `http://localhost:8000/portal/admin`
 - **Chrome Extension**: Load unpacked from `d:\buildathon\extension` in Chrome (`chrome://extensions/`)
-- **Public Repository URL**: `https://github.com/cyugandharreddy08/nxtwave-buildathon-2026`
+- **Public Repository URL**: [https://github.com/cyugandharreddy08/Nagarik-AI](https://github.com/cyugandharreddy08/Nagarik-AI)
 
 ---
 
@@ -81,16 +80,16 @@ Nagarik AI is an autonomous, multimodal civic copilot engineered as a **Chrome (
 - Viral fake schemes circulating on social and messaging channels dupe vulnerable rural families into cyber-phishing scams.
 
 ### Slide 3: The Solution — Nagarik AI
-- Speak or snap a photo of any civic issue in local Indian languages (Hindi, Telugu, Tamil, English).
+- Speak or describe any civic issue in local Indian languages (Hindi, Telugu, Tamil, English).
 - AI classifies the exact department, scores urgency (1-10), and drafts legal petitions under Indian acts.
 - Chrome Side Panel copilot auto-fills official portal forms directly in the active browser tab.
 - Generates statutory legal escalations (Reminders, Appeals, RTI) for overdue grievances.
 - Real-time PIB fact-checker validates viral policy forwards with official `.gov.in` citations.
 
 ### Slide 4: Technical System Architecture & Innovation
-- **Architecture**: Chrome Extension (MV3 Side Panel) ➔ FastAPI Gateway ➔ Gemini 2.0 / Groq Llama 3.3 ➔ Portal Adapters ➔ Live SQLite DB & OpenStreetMap.
-- **Zero Dummy Data**: Dynamic database queries, real-time open geocoding APIs, and API Setu / MyScheme integration.
-- **Privacy by Design**: Automated Aadhaar and PAN masking ensures zero citizen PII leakage.
+- **Architecture**: Chrome Extension (MV3 Side Panel) ➔ FastAPI Gateway / RAG Agent ➔ Gemini 2.0 / Groq Qwen ➔ Portal Adapters ➔ Live SQLite DB & OpenStreetMap.
+- **Zero Dummy Data**: Dynamic database queries, real-time open geocoding APIs, and myScheme web scraping engine.
+- **Privacy by Design**: Automated Aadhaar Verhoeff Dihedral validation and masking ensures zero citizen PII leakage.
 
 ### Slide 5: Form-Filling Copilot & Live Demo Highlights
 - In-page form auto-filling with floating status banners and progressive visual feedback.

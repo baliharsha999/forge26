@@ -44,38 +44,6 @@ class BasePortalAdapter {
   }
 
   /**
-   * Attaches image file using browser DataTransfer API
-   */
-  setFileInputWithDataTransfer(inputElement, base64Data, fileName = "evidence.png") {
-    if (!inputElement || !base64Data) return false;
-    try {
-      const parts = base64Data.split(";base64,");
-      const contentType = parts.length > 1 ? parts[0].replace("data:", "") : "image/png";
-      const rawBase64 = parts.length > 1 ? parts[1] : parts[0];
-      
-      const byteCharacters = atob(rawBase64);
-      const byteNumbers = new Array(byteCharacters.length);
-      for (let i = 0; i < byteCharacters.length; i++) {
-        byteNumbers[i] = byteCharacters.charCodeAt(i);
-      }
-      const byteArray = new Uint8Array(byteNumbers);
-      const blob = new Blob([byteArray], { type: contentType });
-      const file = new File([blob], fileName, { type: contentType });
-
-      const dt = new DataTransfer();
-      dt.items.add(file);
-      inputElement.files = dt.files;
-      inputElement.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
-      inputElement.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
-      inputElement.classList.add("jansetu-highlight");
-      return true;
-    } catch (e) {
-      console.warn("Nagarik AI: DataTransfer file attachment note:", e);
-      return false;
-    }
-  }
-
-  /**
    * Universal batch filler: loops through each key in fieldsMap
    * and delegates to concrete fillSingleField(key, value)
    */
