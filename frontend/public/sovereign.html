@@ -529,7 +529,8 @@
     activeAbortController = new AbortController();
 
     // 3. Initiate Real-time Stream from Local FastAPI or Supabase Cloud
-    let streamUrl = LOCAL_STREAM_URL;
+    const isLocalHost = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1';
+    let streamUrl = isLocalHost ? LOCAL_STREAM_URL : SUPABASE_STREAM_URL;
     let streamPayload = { query: userText, language: currentLanguage, stream: true };
 
     try {

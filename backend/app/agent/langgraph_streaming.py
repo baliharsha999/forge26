@@ -306,19 +306,24 @@ async def stream_langgraph_execution(query: str, requested_lang: str = "en") -> 
     groq_streamed_success = False
     accumulated_text = ""
 
-    if groq_key and citations:
+    if groq_key:
         target_code = current_state.get("target_code", "en")
         lang_name = "Hindi" if target_code == "hi" else ("Telugu" if target_code == "te" else "English")
-        context_str = "\n\n".join([
-            f"### {c.get('name')}\n- State: {c.get('state')} ({c.get('level')})\n- Benefit: {c.get('benefit')}\n- Eligibility: {c.get('eligibility_summary')}\n- Portal: {c.get('official_url')}"
-            for c in citations
-        ])
-
-        system_prompt = f"""You are Nagarik AI, India's Sovereign Civic Intelligence Copilot.
+        if citations:
+            context_str = "\n\n".join([
+                f"### {c.get('name')}\n- State: {c.get('state')} ({c.get('level')})\n- Benefit: {c.get('benefit')}\n- Eligibility: {c.get('eligibility_summary')}\n- Portal: {c.get('official_url')}"
+                for c in citations
+            ])
+            system_prompt = f"""You are Nagarik AI, India's Sovereign Civic Intelligence Copilot.
 Provide authoritative citizen guidance regarding the requested welfare schemes strictly based on verified statutory context.
 Format cleanly in Markdown with bold key benefits, bullet points for eligibility criteria, and authentic .gov.in links.
 Respond naturally in {lang_name}."""
-        user_prompt = f"Citizen Query: {current_state['cleaned_query']}\n\nVerified Statutory Context:\n{context_str}"
+            user_prompt = f"Citizen Query: {current_state['cleaned_query']}\n\nVerified Statutory Context:\n{context_str}"
+        else:
+            system_prompt = f"""You are Nagarik AI, India's Sovereign Civic Intelligence Copilot.
+Answer the citizen's question accurately, concisely, and helpfully in {lang_name}.
+If the topic is outside Indian government welfare schemes, answer the query factually and politely note that Nagarik AI specializes in official Indian welfare schemes, driving licences, scholarships, pensions, and civic public services."""
+            user_prompt = current_state['cleaned_query']
 
         try:
             async with httpx.AsyncClient(timeout=20.0) as client:
