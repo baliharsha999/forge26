@@ -136,17 +136,24 @@
       textareaProto.call(element, value);
     } else if (element.tagName === "SELECT" && selectProto) {
       selectProto.call(element, value);
-    } else {
-      element.value = value;
     }
+    try {
+      element.value = value;
+    } catch (e) {}
 
     try {
       element.dispatchEvent(new Event("focus", { bubbles: true }));
+      try {
+        element.dispatchEvent(new KeyboardEvent("keydown", { bubbles: true, composed: true, key: "0" }));
+      } catch (e) {}
       try {
         element.dispatchEvent(new InputEvent("input", { bubbles: true, composed: true, data: String(value) }));
       } catch (ie) {}
       element.dispatchEvent(new Event("input", { bubbles: true, composed: true }));
       element.dispatchEvent(new Event("change", { bubbles: true, composed: true }));
+      try {
+        element.dispatchEvent(new KeyboardEvent("keyup", { bubbles: true, composed: true, key: "0" }));
+      } catch (e) {}
       element.dispatchEvent(new Event("blur", { bubbles: true }));
     } catch (e) {}
 
@@ -453,14 +460,26 @@
     let filledCount = 0;
     const filledKeys = [];
     const filledItems = [];
+    const filledInThisRun = new Set();
+
+    // Reset any previous run markers so fields can be cleanly re-populated
+    allInputs.forEach(el => {
+      try {
+        delete el.dataset.nagarikFilled;
+      } catch (e) {}
+    });
 
     // Helper to test if element matches keyword pattern
     function matchesKeywords(el, keywords) {
+      if (!el) return false;
       const name = (el.name || "").toLowerCase();
       const id = (el.id || "").toLowerCase();
-      const ph = (el.placeholder || "").toLowerCase();
+      const ph = (el.placeholder || el.getAttribute("data-placeholder") || el.getAttribute("aria-placeholder") || "").toLowerCase();
       const aria = (el.getAttribute("aria-label") || "").toLowerCase();
       const title = (el.title || "").toLowerCase();
+      const formControlName = (el.getAttribute("formcontrolname") || el.getAttribute("ng-reflect-name") || "").toLowerCase();
+      const autocomplete = (el.getAttribute("autocomplete") || "").toLowerCase();
+
       let labelText = "";
       if (el.id) {
         const lbl = document.querySelector(`label[for='${el.id}']`);
@@ -472,8 +491,11 @@
       }
       if (!labelText && el.parentElement) {
         labelText = (el.parentElement.innerText || "").toLowerCase();
+        if (el.parentElement.parentElement) {
+          labelText += " " + (el.parentElement.parentElement.innerText || "").toLowerCase();
+        }
       }
-      const combined = `${name} ${id} ${ph} ${aria} ${title} ${labelText}`;
+      const combined = `${name} ${id} ${ph} ${aria} ${title} ${formControlName} ${autocomplete} ${labelText.substring(0, 300)}`;
       return keywords.some(k => combined.includes(k.toLowerCase()));
     }
 
@@ -601,15 +623,22 @@
       // Pass 1: Try preferred tag match (explicitly avoiding Captcha/SecPin)
       let matchedEl = null;
       if (mapping.preferTag) {
-        matchedEl = allInputs.find(el => !el.dataset.nagarikFilled && el.tagName === mapping.preferTag && matchesKeywords(el, mapping.domKeywords) && !isSecPinOrCaptcha(el));
+        matchedEl = allInputs.find(el => !filledInThisRun.has(el) && el.tagName === mapping.preferTag && matchesKeywords(el, mapping.domKeywords) && !isSecPinOrCaptcha(el));
       }
       // Pass 2: Any matching element (explicitly avoiding Captcha/SecPin)
       if (!matchedEl) {
-        matchedEl = allInputs.find(el => !el.dataset.nagarikFilled && matchesKeywords(el, mapping.domKeywords) && !isSecPinOrCaptcha(el));
+        matchedEl = allInputs.find(el => !filledInThisRun.has(el) && matchesKeywords(el, mapping.domKeywords) && !isSecPinOrCaptcha(el));
+      }
+
+      // UIDAI / Aadhaar Portal Specialized Fallback:
+      // If filling identity (Aadhaar) on UIDAI / login page and no match found yet:
+      if (!matchedEl && mapping.isIdentity && (/uidai/i.test(window.location.hostname) || /uidai/i.test(window.location.href) || /aadhaar|aadhar/i.test(document.title) || /aadhaar/i.test(document.body ? document.body.innerText.substring(0, 500) : ""))) {
+        matchedEl = allInputs.find(el => !filledInThisRun.has(el) && !isSecPinOrCaptcha(el) && el.tagName === "INPUT" && (el.type === "text" || el.type === "tel" || el.type === "number" || !el.type));
       }
 
       if (matchedEl) {
         const el = matchedEl;
+        filledInThisRun.add(el);
         if (el.tagName === "SELECT") {
           const valStr = String(val).toLowerCase();
           // 1. Direct substring search
@@ -698,10 +727,11 @@
       let val = rawVal;
 
       for (const el of allInputs) {
-        if (el.dataset.nagarikFilled) continue;
+        if (filledInThisRun.has(el)) continue;
         if (isSecPinOrCaptcha(el)) continue; // STRICTLY PREVENT FILLING CAPTCHA / SECURITY PIN
         if (matchesKeywords(el, [key])) {
           setNativeValue(el, val);
+          filledInThisRun.add(el);
           el.dataset.nagarikFilled = "true";
           filledCount++;
           filledItems.push({
