@@ -239,7 +239,7 @@ To preserve safety and legal compliance:
 
 ---
 
-## 🚀 Setup & Judging Verification Guide
+## 🚀 Setup & Verification Guide
 
 Follow these steps to clone, run, and evaluate the complete repository.
 
