@@ -13,7 +13,7 @@ import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
 import { AISaathiExtensionModal } from './components/AISaathiExtensionModal';
 import { CivicSettingsModal, type SettingsLanguage } from './components/CivicSettingsModal';
 import { CivicHelplineModal } from './components/CivicHelplineModal';
-import { speakCivicText, stopAllSpeech } from './utils/civicAudioEngine';
+import { speakCivicText, stopAllSpeech, deduplicateConsecutiveWords } from './utils/civicAudioEngine';
 
 // Civic Language Support
 export type CivicLanguage = 'en' | 'hi' | 'te' | 'ta';
@@ -270,10 +270,15 @@ export function App() {
     if (isListening) {
       if (recognitionRef.current) {
         try {
+          recognitionRef.current.onstart = null;
+          recognitionRef.current.onresult = null;
+          recognitionRef.current.onerror = null;
+          recognitionRef.current.onend = null;
           recognitionRef.current.stop();
         } catch {
           // ignore
         }
+        recognitionRef.current = null;
       }
       setIsListening(false);
       return;
@@ -285,6 +290,20 @@ export function App() {
       return;
     }
 
+    // Safely cleanup previous instance if any
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.onstart = null;
+        recognitionRef.current.onresult = null;
+        recognitionRef.current.onerror = null;
+        recognitionRef.current.onend = null;
+        recognitionRef.current.abort();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
+
     try {
       const rec = new SpeechRecognition();
       rec.continuous = true;
@@ -293,19 +312,36 @@ export function App() {
 
       rec.onstart = () => setIsListening(true);
       rec.onresult = (event: any) => {
-        let transcript = '';
+        let finalTranscript = '';
+        let interimTranscript = '';
         for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+          const item = event.results[i];
+          if (item.isFinal) {
+            finalTranscript += item[0].transcript + ' ';
+          } else {
+            interimTranscript += item[0].transcript;
+          }
         }
-        setInputQuery(transcript);
+        const combined = (finalTranscript + interimTranscript).trim();
+        const cleaned = deduplicateConsecutiveWords(combined);
+        if (cleaned) {
+          setInputQuery(cleaned);
+        }
       };
-      rec.onerror = () => setIsListening(false);
-      rec.onend = () => setIsListening(false);
+      rec.onerror = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
+      rec.onend = () => {
+        setIsListening(false);
+        recognitionRef.current = null;
+      };
 
       recognitionRef.current = rec;
       rec.start();
     } catch {
       setIsListening(false);
+      recognitionRef.current = null;
     }
   };
 

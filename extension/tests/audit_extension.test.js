@@ -961,7 +961,7 @@ describe('Chrome Extension Test Audit', () => {
 
   describe('7. Zero-Knowledge Privacy & Security Audit', () => {
     // Audit real production citizen input parser directly from citizen_parser.js
-    const { parseCitizenInput, wordsToDigits, convertIndicDigits } = require('../sidepanel/citizen_parser.js');
+    const { parseCitizenInput, wordsToDigits, convertIndicDigits, deduplicateConsecutiveWords } = require('../sidepanel/citizen_parser.js');
 
     test('Multilingual wordsToDigits: converts English, Hindi, and Telugu speech transcripts and numerals to digits', () => {
       // 1. English words
@@ -1041,6 +1041,34 @@ describe('Chrome Extension Test Audit', () => {
       assert.strictEqual(parsedTe2.extractedAadhaar, '228654705324');
       assert.strictEqual(parsedTe2.extractedPhone, '9876543210');
       assert.strictEqual(parsedTe2.extractedPin, '500081');
+    });
+
+    test('deduplicateConsecutiveWords: suppresses stuttered duplicate words and phrases from streaming speech in Telugu, Hindi, and English', () => {
+      // 1. Telugu duplicate words
+      assert.strictEqual(
+        deduplicateConsecutiveWords('నమస్కారం నమస్కారం నా పేరు రమేష్ రమేష్'),
+        'నమస్కారం నా పేరు రమేష్'
+      );
+      // 2. Telugu repeated 2-word phrase
+      assert.strictEqual(
+        deduplicateConsecutiveWords('రైతు భరోసా రైతు భరోసా పథకం కావాలి'),
+        'రైతు భరోసా పథకం కావాలి'
+      );
+      // 3. Hindi duplicate words
+      assert.strictEqual(
+        deduplicateConsecutiveWords('नमस्ते नमस्ते मेरा नाम राहुल राहुल है'),
+        'नमस्ते मेरा नाम राहुल है'
+      );
+      // 4. Hindi repeated 2-word phrase
+      assert.strictEqual(
+        deduplicateConsecutiveWords('पीएम किसान पीएम किसान योजना में आवेदन'),
+        'पीएम किसान योजना में आवेदन'
+      );
+      // 5. English duplicate words
+      assert.strictEqual(
+        deduplicateConsecutiveWords('water water leakage pipeline pipeline near road road'),
+        'water leakage pipeline near road'
+      );
     });
 
     test('parseCitizenInput: regex-extracts Aadhaar UID (12 digits, grouped or continuous) with 0 network leakage', () => {

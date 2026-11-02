@@ -96,6 +96,40 @@ export function chunkSpokenText(text: string, maxLen = 140): string[] {
 }
 
 /**
+ * Deduplicates adjacent repeated words and repeated 2-word phrases caused
+ * by streaming speech-to-text interim buffer updates.
+ * Works seamlessly across English, Telugu, and Hindi scripts.
+ */
+export function deduplicateConsecutiveWords(text: string): string {
+  if (!text || typeof text !== 'string') return '';
+  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  if (tokens.length <= 1) return text.trim();
+
+  const result: string[] = [];
+  for (let i = 0; i < tokens.length; i++) {
+    const curr = tokens[i];
+    const prev = result.length > 0 ? result[result.length - 1] : null;
+    // Suppress single adjacent duplicate
+    if (prev && curr.toLowerCase() === prev.toLowerCase()) {
+      continue;
+    }
+    result.push(curr);
+
+    // Check 2-word phrase duplicate at end: [..., A, B, A, B]
+    const len = result.length;
+    if (len >= 4) {
+      if (
+        result[len - 2].toLowerCase() === result[len - 4].toLowerCase() &&
+        result[len - 1].toLowerCase() === result[len - 3].toLowerCase()
+      ) {
+        result.splice(len - 2, 2);
+      }
+    }
+  }
+  return result.join(' ');
+}
+
+/**
  * Cancels and silences any current audio playback across both Web Audio and SpeechSynthesis.
  */
 export function stopAllSpeech(): void {

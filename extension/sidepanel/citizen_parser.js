@@ -88,6 +88,40 @@
   }
 
   /**
+   * Deduplicates adjacent repeated words and repeated 2-word phrases caused
+   * by streaming speech-to-text interim buffer updates.
+   * Works across English, Telugu, and Hindi scripts.
+   */
+  function deduplicateConsecutiveWords(text) {
+    if (!text || typeof text !== 'string') return '';
+    const tokens = text.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length <= 1) return text.trim();
+
+    const result = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const curr = tokens[i];
+      const prev = result.length > 0 ? result[result.length - 1] : null;
+      // Suppress single adjacent duplicate
+      if (prev && curr.toLowerCase() === prev.toLowerCase()) {
+        continue;
+      }
+      result.push(curr);
+
+      // Check 2-word phrase duplicate at end: [..., A, B, A, B]
+      const len = result.length;
+      if (len >= 4) {
+        if (
+          result[len - 2].toLowerCase() === result[len - 4].toLowerCase() &&
+          result[len - 1].toLowerCase() === result[len - 3].toLowerCase()
+        ) {
+          result.splice(len - 2, 2);
+        }
+      }
+    }
+    return result.join(' ');
+  }
+
+  /**
    * Pure deterministic entity extractor for citizen speech and text input.
    * Extracts Aadhaar (12 digits), phone (10 digits starting 6-9), pincode, email, citizen name, and location.
    * Fully supports English, Hindi, and Telugu Indic scripts and terminology.
@@ -224,6 +258,7 @@ Submitted in good faith by ${name}, Contact: ${phone}.`.trim();
     CIVIC_CONCEPT_SYNONYMS,
     convertIndicDigits,
     wordsToDigits,
+    deduplicateConsecutiveWords,
     parseCitizenInput,
     inferCivicDepartment,
     inferCategory,

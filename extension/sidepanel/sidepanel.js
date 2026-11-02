@@ -300,11 +300,19 @@ document.addEventListener("DOMContentLoaded", () => {
 
     recognition.onresult = (event) => {
       let finalTranscript = "";
-      for (let i = event.resultIndex; i < event.results.length; ++i) {
-        finalTranscript += event.results[i][0].transcript;
+      let interimTranscript = "";
+      for (let i = 0; i < event.results.length; ++i) {
+        const item = event.results[i];
+        if (item.isFinal) {
+          finalTranscript += item[0].transcript + " ";
+        } else {
+          interimTranscript += item[0].transcript;
+        }
       }
-      if (finalTranscript.trim()) {
-        citizenProblemInput.value = finalTranscript.trim();
+      const combined = (finalTranscript + interimTranscript).trim();
+      const cleaned = deduplicateConsecutiveWords(combined);
+      if (cleaned) {
+        citizenProblemInput.value = cleaned;
       }
     };
 
@@ -442,6 +450,36 @@ document.addEventListener("DOMContentLoaded", () => {
     return text.replace(/\D/g, "");
   }
 
+  function deduplicateConsecutiveWords(text) {
+    if (typeof window !== "undefined" && window.deduplicateConsecutiveWords) {
+      return window.deduplicateConsecutiveWords(text);
+    }
+    if (!text || typeof text !== "string") return "";
+    const tokens = text.trim().split(/\s+/).filter(Boolean);
+    if (tokens.length <= 1) return text.trim();
+
+    const result = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const curr = tokens[i];
+      const prev = result.length > 0 ? result[result.length - 1] : null;
+      if (prev && curr.toLowerCase() === prev.toLowerCase()) {
+        continue;
+      }
+      result.push(curr);
+
+      const len = result.length;
+      if (len >= 4) {
+        if (
+          result[len - 2].toLowerCase() === result[len - 4].toLowerCase() &&
+          result[len - 1].toLowerCase() === result[len - 3].toLowerCase()
+        ) {
+          result.splice(len - 2, 2);
+        }
+      }
+    }
+    return result.join(" ");
+  }
+
   let aadhaarSpeechRec = null;
   function startAadhaarVoiceInput() {
     if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
@@ -482,11 +520,18 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     aadhaarSpeechRec.onresult = (evt) => {
-      let spoken = "";
-      for (let i = evt.resultIndex; i < evt.results.length; ++i) {
-        spoken += evt.results[i][0].transcript;
+      let finalTranscript = "";
+      let interimTranscript = "";
+      for (let i = 0; i < evt.results.length; ++i) {
+        const item = evt.results[i];
+        if (item.isFinal) {
+          finalTranscript += item[0].transcript + " ";
+        } else {
+          interimTranscript += item[0].transcript;
+        }
       }
-      const digits = wordsToDigits(spoken);
+      const combined = (finalTranscript + interimTranscript).trim();
+      const digits = wordsToDigits(combined);
       if (aadhaarDirectInput) aadhaarDirectInput.value = digits;
       if (digits.length >= 12) {
         const candidate = digits.slice(0, 12);
