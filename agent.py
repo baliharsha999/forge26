@@ -11,16 +11,17 @@ from typing import Dict, Any, Optional, List
 from dotenv import load_dotenv
 from groq import Groq
 
-# Load environment configuration from current or workspace directory
-load_dotenv(r"d:\forge26\.env")
-load_dotenv(r"C:\Users\HARSHA\OneDrive\Desktop\scheme-assistant\.env")
+# Load environment configuration from the workspace .env (no hardcoded paths)
+_WORKSPACE = os.path.dirname(os.path.abspath(__file__))
+load_dotenv(os.path.join(_WORKSPACE, ".env"))
 
 from db import SchemeDatabase, DEFAULT_DB_PATH
 from scraper import MySchemeScraper
 
 
 class SchemeAgent:
-    def __init__(self, data_dir: str = r"d:\forge26\data", db_path: str = DEFAULT_DB_PATH):
+    def __init__(self, data_dir: str = None, db_path: str = DEFAULT_DB_PATH):
+        data_dir = data_dir or os.getenv("SCHEMES_INDEX_DIR", "data")
         self.scraper = MySchemeScraper(data_dir=data_dir, db_path=db_path)
         self.db = self.scraper.db
         self.api_key = os.getenv("GROQ_API_KEY", "")

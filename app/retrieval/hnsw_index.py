@@ -81,15 +81,21 @@ class FAISSHNSWIndex:
         for i, doc in enumerate(documents):
             chunk_id = doc.metadata.get("chunk_id", f"chunk_{self.next_id}")
 
-            # If chunk already indexed, update content in doc_store without duplicating vector
+            # Chunk already indexed: keep its vector when the text is unchanged.
             if chunk_id in self.chunk_id_to_int_id:
                 existing_int_id = self.chunk_id_to_int_id[chunk_id]
-                self.doc_store[existing_int_id] = {
-                    "page_content": doc.page_content,
-                    "metadata": doc.metadata
-                }
-                assigned_ids.append(existing_int_id)
-                continue
+                existing = self.doc_store.get(existing_int_id)
+
+                if existing is not None and existing.get("page_content") == doc.page_content:
+                    existing["metadata"] = doc.metadata
+                    assigned_ids.append(existing_int_id)
+                    continue
+
+                # Text changed: the stored vector no longer represents this chunk.
+                # Retire it (unmapped ids are skipped on search) and index the new
+                # text as a fresh vector instead of leaving text/vector mismatched.
+                self.doc_store.pop(existing_int_id, None)
+                self.chunk_id_to_int_id.pop(chunk_id, None)
 
             current_id = self.next_id
             self.doc_store[current_id] = {
@@ -154,8 +160,6 @@ class FAISSHNSWIndex:
         idx_file = os.path.join(save_dir, "hnsw_index.bin")
         meta_file = os.path.join(save_dir, "metadata_store.json")
 
-        faiss.write_index(self.index, idx_file)
-
         # Convert int keys to str for JSON serialization
         payload = {
             "dimension": self.dimension,
@@ -166,10 +170,18 @@ class FAISSHNSWIndex:
             "doc_store": {str(k): v for k, v in self.doc_store.items()},
             "chunk_id_to_int_id": self.chunk_id_to_int_id
         }
-        with open(meta_file, "w", encoding="utf-8") as f:
-            json.dump(payload, f, ensure_ascii=False, indent=2)
+
+        try:
+            faiss.write_index(self.index, idx_file)
+            with open(meta_file, "w", encoding="utf-8") as f:
+                json.dump(payload, f, ensure_ascii=False, indent=2)
+        except OSError as e:
+            # Ephemeral/read-only disks: keep serving from the in-memory index.
+            logger.warning(f"Could not persist FAISS index to {save_dir}: {e}")
+            return False
 
         logger.info(f"Successfully persisted FAISS HNSW index with {self.index.ntotal} vectors to {save_dir}")
+        return True
 
     def load(self, index_dir: Optional[str] = None) -> bool:
         """Loads FAISS HNSW index and metadata store from disk."""

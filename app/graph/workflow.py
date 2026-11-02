@@ -64,6 +64,7 @@ from app.graph.edges import (
     route_after_knowledge_refinement,
     route_after_answerability,
     route_after_faithfulness,
+    route_after_source_discovery,
 )
 
 
@@ -85,7 +86,16 @@ def build_ingestion_graph():
     workflow.add_node("faiss_indexing", faiss_indexing_node)
 
     workflow.add_edge(START, "source_discovery")
-    workflow.add_edge("source_discovery", "web_scraping")
+    # Only discover and scrape when the workflow actually needs new documents;
+    # re-indexing already stored documents must not scrape the live portal.
+    workflow.add_conditional_edges(
+        "source_discovery",
+        route_after_source_discovery,
+        {
+            "web_scraping": "web_scraping",
+            "database_storage": "database_storage",
+        }
+    )
     workflow.add_edge("web_scraping", "html_extraction")
     workflow.add_edge("html_extraction", "database_storage")
     workflow.add_edge("database_storage", "html_retrieval")

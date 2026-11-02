@@ -5,6 +5,7 @@ Re-scores RRF candidate chunks using Cross-Encoder with dual-query evaluation
 """
 
 from typing import List, Dict, Any, Optional
+import os
 import logging
 import numpy as np
 
@@ -69,7 +70,10 @@ class GovernmentReranker:
                 sim_orig = float(sims_orig[idx])
                 sim_trans = float(sims_trans[idx]) if t_emb is not None else -1.0
                 best_sim = max(sim_orig, sim_trans)
-                rrf_score = item.get("score", 0.0)
+                # Fused candidates carry their rank-fusion score as 'rrf_score'.
+                # Reading only 'score' silently discarded the fusion signal and
+                # ranked purely on truncated snippet similarity.
+                rrf_score = item.get("rrf_score", item.get("score", 0.0)) or 0.0
                 combined = 0.7 * best_sim + 0.3 * min(1.0, rrf_score * 30.0)
                 item["rerank_score"] = float(combined)
                 item["rerank_probability"] = float(1.0 / (1.0 + np.exp(-best_sim * 2.0)))
@@ -105,7 +109,7 @@ class GovernmentReranker:
         # Memory optimization for Render Free 512MB Tier
         if settings.LOW_MEMORY_MODE or os.getenv("RENDER"):
             logger.info("[Reranker] LOW_MEMORY_MODE enabled: Preserving 512MB RAM by utilizing embedding similarity alignment.")
-            return self._fallback_embedding_rerank(query, top_candidates[:k_out], translated_query)
+            return self._fallback_embedding_rerank(query, top_candidates, translated_query)
 
         try:
             pairs = []

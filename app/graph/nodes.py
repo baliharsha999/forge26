@@ -19,6 +19,7 @@ Features:
 - Citation Validation (Provenance verification against database)
 """
 
+import threading
 from typing import Dict, Any, List, Optional
 from langchain_core.documents import Document
 
@@ -53,6 +54,9 @@ from app.security.guardrails import GovernmentRAGGuardrails
 
 # Lazy instance cache
 _instances: Dict[str, Any] = {}
+
+# Serialises FAISS mutation + persistence across concurrent requests
+_INDEX_WRITE_LOCK = threading.Lock()
 
 
 def get_query_agent() -> QueryAnalysisAgent:
@@ -440,26 +444,71 @@ def document_availability_check_node(state: RAGState) -> Dict[str, Any]:
 
     # 1. Exact catalog match check: does the query ask about an official scheme?
     try:
-        from scraper import MySchemeScraper
-        ms_scraper = MySchemeScraper(db_path=db.db_path)
-        candidate_schemes = ms_scraper.search_schemes(state.original_query, top_k=2)
+        from scraper import get_shared_scraper
+        ms_scraper = get_shared_scraper(db_path=db.db_path)
+        candidate_schemes = ms_scraper.search_schemes(
+            state.original_query, top_k=2, min_score=30, min_overlap=2
+        )
         if candidate_schemes:
             top_candidate = candidate_schemes[0]
             top_slug = top_candidate.get("slug")
             if top_slug:
-                in_db = db.get_document_by_id(top_slug) is not None
-                in_faiss = hnsw.has_document_chunks(top_slug) if in_db else False
-                if not in_db or not in_faiss:
-                    print(f"[DocAvailability] Identified unstored scheme '{top_slug}'. Triggering scraping...")
+                # The catalog slug and the stored document_id are not always the
+                # same (e.g. catalog "pmrf" vs stored "pmrf-right-to-fellowship"),
+                # so resolve the stored record by id *and* by canonical URL.
+                scheme_url = f"https://www.myscheme.gov.in/schemes/{top_slug}"
+                stored_doc = db.get_document_by_id(top_slug) or db.get_document_by_url(scheme_url)
+                stored_id = stored_doc.get("document_id") if stored_doc else None
+                has_vectors = hnsw.has_document_chunks(stored_id) if stored_id else False
+
+                if stored_id and bool(stored_doc.get("is_indexed")) and has_vectors:
+                    print(f"[DocAvailability] Scheme '{top_slug}' is already stored as indexed document '{stored_id}'.")
                     return {
-                        "document_search_results": [{"document_id": top_slug, "status": "missing_from_store"}],
-                        "existing_documents": [],
-                        "missing_documents": [state.original_query],
-                        "indexed_document_ids": [],
-                        "unindexed_document_ids": [top_slug] if in_db else [],
-                        "scraping_required": True,
-                        "document_ids": [top_slug]
+                        "document_search_results": [{
+                            "document_id": stored_id,
+                            "title": stored_doc.get("title"),
+                            "status": "indexed_in_faiss",
+                            "in_db": True,
+                            "in_faiss": True
+                        }],
+                        "existing_documents": [stored_doc],
+                        "missing_documents": [],
+                        "indexed_document_ids": [stored_id],
+                        "unindexed_document_ids": [],
+                        "scraping_required": False,
+                        "document_ids": [stored_id]
                     }
+
+                if stored_id and not has_vectors:
+                    # Present in SQLite but absent from the vector store: index the
+                    # stored HTML locally instead of re-scraping the live portal.
+                    print(f"[DocAvailability] Document '{stored_id}' is stored but not indexed. Indexing locally...")
+                    return {
+                        "document_search_results": [{
+                            "document_id": stored_id,
+                            "title": stored_doc.get("title"),
+                            "status": "in_db_not_indexed",
+                            "in_db": True,
+                            "in_faiss": False
+                        }],
+                        "existing_documents": [stored_doc],
+                        "missing_documents": [],
+                        "indexed_document_ids": [],
+                        "unindexed_document_ids": [stored_id],
+                        "scraping_required": False,
+                        "document_ids": [stored_id]
+                    }
+
+                print(f"[DocAvailability] Identified unstored scheme '{top_slug}'. Triggering scraping...")
+                return {
+                    "document_search_results": [{"document_id": top_slug, "status": "missing_from_store"}],
+                    "existing_documents": [],
+                    "missing_documents": [state.original_query],
+                    "indexed_document_ids": [],
+                    "unindexed_document_ids": [],
+                    "scraping_required": True,
+                    "document_ids": [top_slug]
+                }
     except Exception as e:
         print(f"[DocAvailability] Catalog check error: {e}")
 
@@ -517,13 +566,15 @@ def document_availability_check_node(state: RAGState) -> Dict[str, Any]:
     matched_docs = db.search_documents(keywords=distinctive_keywords, department=dept, limit=5)
 
     # Filter matched_docs: A document is truly relevant only if at least one distinctive keyword
-    # matches its title, document_id, or category (or if there are no distinctive keywords, e.g. broad query)
+    # matches its title, document_id or URL slug (or if there are no distinctive keywords, e.g. broad query).
+    # Category is intentionally excluded: broad category words (e.g. "women", "welfare") otherwise make
+    # an unrelated stored scheme look like the answer, which skips scraping for genuinely new schemes.
     truly_matched_docs: List[Dict[str, Any]] = []
     for doc in matched_docs:
         if not distinctive_keywords:
             truly_matched_docs.append(doc)
             continue
-        title_id = f"{(doc.get('title') or '')} {(doc.get('document_id') or '')} {(doc.get('category') or '')}".lower()
+        title_id = f"{(doc.get('title') or '')} {(doc.get('document_id') or '')} {(doc.get('url') or '')}".lower()
         if any(dk in title_id for dk in distinctive_keywords):
             truly_matched_docs.append(doc)
 
@@ -561,14 +612,29 @@ def document_availability_check_node(state: RAGState) -> Dict[str, Any]:
     missing_docs: List[str] = []
     scraping_required = False
 
-    if not existing_docs or not indexed_doc_ids:
-        # Missing from SQLite or FAISS -> Trigger live web scraping & ingestion
+    if state.knowledge_refinement_queries and state.refinement_attempts > 0:
+        # Refinement loops must stay inside the existing corpus: re-scraping on
+        # every attempt multiplies latency and usually yields the same documents.
+        return {
+            "document_search_results": search_summaries,
+            "existing_documents": existing_docs,
+            "missing_documents": [],
+            "indexed_document_ids": indexed_doc_ids,
+            "unindexed_document_ids": unindexed_doc_ids,
+            "scraping_required": False,
+            "skip_discovery": True,
+            "document_ids": [d["document_id"] for d in existing_docs]
+        }
+
+    if not existing_docs:
+        # Absent from SQLite -> trigger live web discovery, scraping and ingestion
         scraping_required = True
         missing_docs.append(state.original_query)
         if state.translated_query and state.translated_query != state.original_query:
             missing_docs.append(state.translated_query)
-    elif state.knowledge_refinement_queries and state.refinement_attempts > 0:
-        # Never trigger blocking web scrape during refinement loops
+    else:
+        # Already stored (even if not yet embedded): index the stored HTML only.
+        # Scraping again would be wasted work and can overwrite curated content.
         scraping_required = False
 
     return {
@@ -635,8 +701,8 @@ def web_scraping_node(state: RAGState) -> Dict[str, Any]:
         if slug_match:
             slug = slug_match.group(1).lower()
             try:
-                from scraper import MySchemeScraper
-                legacy_scraper = MySchemeScraper(db_path=db.db_path)
+                from scraper import get_shared_scraper
+                legacy_scraper = get_shared_scraper(db_path=db.db_path)
                 rec = legacy_scraper.scrape_and_save(slug)
                 if rec:
                     db._sync_legacy_schemes_if_any()
@@ -761,10 +827,24 @@ def database_storage_node(state: RAGState) -> Dict[str, Any]:
 # ----------------------------------------------------
 
 def html_retrieval_node(state: RAGState) -> Dict[str, Any]:
-    """Fetches full HTML payloads and metadata for unindexed documents from SQLite."""
+    """
+    Fetches full HTML payloads and metadata for the documents being ingested.
+
+    Only the explicitly targeted documents are loaded. Falling back to the whole
+    corpus here made a query whose scrape produced nothing re-chunk and re-embed
+    every stored document, which stalls the request and returns unrelated answers.
+    """
     db = get_db()
-    target_ids = state.unindexed_document_ids or state.document_ids or None
-    raw_html_docs = db.fetch_html_documents(target_ids)
+    target_ids = state.unindexed_document_ids or state.document_ids
+
+    if target_ids:
+        raw_html_docs = db.fetch_html_documents(target_ids)
+    elif state.ingest_all_documents:
+        # Explicit full-corpus re-index (POST /ingest)
+        raw_html_docs = db.fetch_html_documents(None)
+    else:
+        raw_html_docs = []
+
     return {"html_documents": raw_html_docs}
 
 
@@ -810,13 +890,15 @@ def embedding_generation_node(state: RAGState) -> Dict[str, Any]:
         texts = [c.page_content for c in chunks_to_embed]
         embeddings = service.embed_texts(texts)
 
-        hnsw.add_documents(chunks_to_embed, embeddings)
-        hnsw.save()
+        with _INDEX_WRITE_LOCK:
+            hnsw.add_documents(chunks_to_embed, embeddings)
+            hnsw.save()
 
-        for chunk, h in zip(chunks_to_embed, new_hashes):
-            cid = chunk.metadata.get("chunk_id", "")
-            if cid:
-                service.update_hash_cache(cid, h)
+            for chunk, h in zip(chunks_to_embed, new_hashes):
+                cid = chunk.metadata.get("chunk_id", "")
+                if cid:
+                    service.update_hash_cache(cid, h, persist=False)
+            service.save_hashes()
 
     return {"embeddings_status": "completed"}
 
@@ -833,7 +915,10 @@ def faiss_indexing_node(state: RAGState) -> Dict[str, Any]:
         for v in hnsw.doc_store.values()
     ]
     if all_chunks:
-        bm25.index_documents(all_chunks)
+        try:
+            bm25.index_documents(all_chunks)
+        except Exception as e:
+            print(f"[FAISSIndexing] BM25 re-index warning (continuing): {e}")
 
     indexing_status = dict(state.indexing_status)
     newly_indexed: List[str] = []
@@ -1225,7 +1310,7 @@ def source_discovery_node(state: RAGState) -> Dict[str, Any]:
     """Identifies whether necessary government documents already exist or need discovery (ingestion graph)."""
     db = get_db()
     total_docs = db.count_documents()
-    need_scrape = total_docs == 0 or state.is_ingestion_needed
+    need_scrape = state.is_ingestion_needed or (total_docs == 0 and not state.ingest_all_documents)
     return {
         "is_ingestion_needed": need_scrape,
         "search_results": [{"status": "existing_indexed", "count": total_docs}]

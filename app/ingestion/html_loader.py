@@ -15,6 +15,7 @@ class GovernmentHTMLLoader:
     def __init__(self, remove_selectors: Optional[List[str]] = None):
         self.remove_selectors = remove_selectors or [
             "nav", "footer", "header", "script", "style", "noscript",
+            "head", "title", "link", "meta",
             ".navbar", ".footer", ".nav", ".menu", ".sidebar", ".advertisement",
             ".cookie-banner", "#header", "#footer", "#nav"
         ]
@@ -63,7 +64,7 @@ class GovernmentHTMLLoader:
         # In case cleaned_text is very sparse, prepend title and department
         title = record.get("title", "Government Scheme")
         dept = record.get("department", "Government of India")
-        header = f"# {title}\n**Department**: {dept}\n\n"
+        header = f"# {title}\n**Department**: {dept}\n"
         if not cleaned_text.startswith("#"):
             cleaned_text = header + cleaned_text
 

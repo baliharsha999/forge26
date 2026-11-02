@@ -35,9 +35,11 @@ class ScrapingAgent:
 
         # 1. High precision catalog ranking via MySchemeScraper
         try:
-            from scraper import MySchemeScraper
-            ms_scraper = MySchemeScraper(db_path=self.db.db_path)
-            ranked = ms_scraper.search_schemes(query, top_k=max_results)
+            from scraper import get_shared_scraper
+            ms_scraper = get_shared_scraper(db_path=self.db.db_path)
+            ranked = ms_scraper.search_schemes(
+                query, top_k=max_results, min_score=30, min_overlap=2
+            )
             for item in ranked:
                 slug = item.get("slug")
                 if slug:

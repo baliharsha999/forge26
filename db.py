@@ -19,7 +19,10 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-DEFAULT_DB_PATH = r"d:\forge26\schemes.db"
+# Portable default: resolved next to this module (override with DB_PATH)
+DEFAULT_DB_PATH = os.getenv("DB_PATH") or os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "schemes.db"
+)
 
 
 def clean_str(val: Any) -> str:

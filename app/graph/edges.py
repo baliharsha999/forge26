@@ -33,6 +33,10 @@ def route_after_document_availability_check(state: RAGState) -> str:
     if bool(state.unindexed_document_ids):
         return "html_retrieval"
 
+    # Refinement rounds only re-run retrieval: never block on new web discovery
+    if getattr(state, "skip_discovery", False):
+        return "hybrid_retrieval_entry"
+
     # Case 3: Missing from DB or web scraping required -> web search & scraping
     if getattr(state, "scraping_required", False) or bool(state.missing_documents) or not bool(state.existing_documents):
         return "web_search"
@@ -71,8 +75,8 @@ def route_after_knowledge_refinement(state: RAGState) -> str:
       - 'controlled_fallback' if refinement attempts are exhausted.
     Prevents timeout cascades on Render free tier.
     """
-    # Cap refinement attempts to 1 to guarantee response within Render 30s budget
-    if state.refinement_attempts < 1 and bool(state.knowledge_refinement_queries):
+    # Bounded to 2 iterative refinements before giving up
+    if state.refinement_attempts < 2 and bool(state.knowledge_refinement_queries):
         return "query_rewriting"
     return "controlled_fallback"
 
@@ -94,7 +98,7 @@ def route_after_answerability(state: RAGState) -> str:
     if is_answerable and float(score) >= 0.70:
         return "answer_generation"
 
-    if state.refinement_attempts < 1:
+    if state.refinement_attempts < 2:
         return "knowledge_refinement"
     return "controlled_fallback"
 

@@ -1,0 +1,1188 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Nagarik AI — Pitch Deck · Forge Buildathon</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Playfair+Display:ital,wght@0,600;0,700;1,600;1,700&family=Space+Grotesk:wght@400;500;600;700&family=Noto+Sans+Devanagari:wght@500;700&display=swap" rel="stylesheet">
+<style>
+/* ============ TOKENS ============ */
+:root{
+  --ink:#0B0C1E;          /* midnight ink   */
+  --card:#252A48;         /* slate indigo   */
+  --orange:#D97B4A;       /* sunset orange  */
+  --gold:#F2B84B;         /* diya gold (5%) */
+  --text:#E8E9F2;
+  --line:rgba(232,233,242,.16);
+  --serif:"Playfair Display",Georgia,"Times New Roman",serif;
+  --sans:"Space Grotesk",-apple-system,"Segoe UI",Roboto,sans-serif;
+  --deva:"Noto Sans Devanagari","Nirmala UI",sans-serif;
+}
+*{margin:0;padding:0;box-sizing:border-box}
+html,body{height:100%;background:#06070F;overflow:hidden}
+body{font-family:var(--sans);color:var(--text);-webkit-font-smoothing:antialiased}
+a{color:inherit}
+button{font:inherit;color:inherit;background:none;border:none;cursor:pointer}
+:focus-visible{outline:2px solid var(--gold);outline-offset:3px;border-radius:4px}
+
+/* ============ STAGE / SCALING ============ */
+#frame{position:fixed;inset:0;display:block}
+#stage{
+  position:absolute;left:50%;top:50%;
+  width:1280px;height:720px;
+  transform:translate(-50%,-50%) scale(1);
+  transform-origin:center center;
+  background:var(--ink);overflow:hidden;
+}
+
+/* ============ SLIDES ============ */
+.slide{
+  position:absolute;inset:0;
+  padding:56px 72px 78px;
+  visibility:hidden;pointer-events:none;
+  background:var(--ink);
+}
+.slide.on{visibility:visible;pointer-events:auto}
+
+/* layered reveal system */
+.layer{
+  opacity:0;
+  transform:translateY(26px);
+  clip-path:inset(0 0 100% 0);
+  transition:
+    opacity .55s cubic-bezier(.16,1,.3,1) var(--d,0ms),
+    transform .55s cubic-bezier(.16,1,.3,1) var(--d,0ms),
+    clip-path .55s cubic-bezier(.16,1,.3,1) var(--d,0ms);
+}
+.slide.on .layer{opacity:1;transform:none;clip-path:inset(0 0 0 0)}
+
+/* build-step elements */
+.build{
+  opacity:0;transform:translateY(24px);
+  clip-path:inset(0 0 100% 0);
+  transition:opacity .5s cubic-bezier(.16,1,.3,1),transform .5s cubic-bezier(.16,1,.3,1),clip-path .5s cubic-bezier(.16,1,.3,1);
+  transition-delay:calc(var(--bidx,0) * 90ms);
+}
+.build.in{opacity:1;transform:none;clip-path:inset(0 0 0 0)}
+
+/* ============ TYPO ============ */
+.kicker{
+  font-size:13px;font-weight:600;letter-spacing:.22em;text-transform:uppercase;
+  color:var(--orange);display:flex;align-items:center;gap:14px;
+}
+.kicker::after{content:"";height:1px;width:64px;background:var(--orange);opacity:.6}
+.title{font-family:var(--serif);font-weight:700;font-size:46px;line-height:1.1;margin-top:14px}
+.title .gold{color:var(--gold);font-style:italic}
+.deva{font-family:var(--deva)}
+.ghost{
+  position:absolute;top:34px;right:60px;
+  font-family:var(--serif);font-size:150px;font-weight:700;line-height:1;
+  color:var(--text);opacity:.045;pointer-events:none;user-select:none;
+}
+
+/* ============ MANDALA ============ */
+.mandala{position:absolute;pointer-events:none;color:var(--text);opacity:.07}
+.mandala.tr{top:-96px;right:-90px;width:430px;height:430px}
+.mandala.bl{bottom:-120px;left:-110px;width:390px;height:390px;transform:rotate(15deg)}
+
+/* ============ ORANGE SLIDES ============ */
+.slide.orange{background:var(--orange);color:var(--ink)}
+.slide.orange .mandala{color:var(--ink);opacity:.08}
+
+/* ============ CARDS (hover lift + drawn border + tooltip) ============ */
+.card{
+  position:relative;background:var(--card);
+  border:1px solid var(--line);border-radius:10px;
+  transition:transform .28s cubic-bezier(.16,1,.3,1),border-color .28s;
+}
+.card:hover,.card:focus-visible{transform:translateY(-6px);border-color:transparent}
+.card .frame{position:absolute;inset:-1px;pointer-events:none;overflow:visible}
+.card .frame rect{
+  fill:none;stroke:var(--orange);stroke-width:2;rx:10;
+  stroke-dasharray:100;stroke-dashoffset:100;
+  transition:stroke-dashoffset .55s ease-out;
+}
+.card:hover .frame rect,.card:focus-visible .frame rect{stroke-dashoffset:0}
+.card .ic path,.card .ic circle,.card .ic rect,.card .ic line,.card .ic polyline{
+  fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+}
+.card .ic .fl{fill:transparent;transition:fill .25s}
+.card:hover .ic .fl,.card:focus-visible .ic .fl{fill:currentColor}
+.card .tip{
+  position:absolute;top:-13px;left:14px;z-index:5;
+  background:var(--ink);border:1px solid var(--orange);border-radius:8px;
+  color:var(--text);font-size:11.5px;letter-spacing:.02em;
+  padding:5px 10px;white-space:nowrap;
+  opacity:0;transform:translateY(6px);pointer-events:none;
+  transition:opacity .25s .08s,transform .25s .08s;
+}
+.card:hover .tip,.card:focus-visible .tip{opacity:1;transform:translateY(0)}
+
+/* ============ CHIPS ============ */
+.chip{
+  display:inline-flex;align-items:center;gap:8px;
+  border:1px solid var(--line);border-radius:8px;
+  padding:7px 13px;font-size:12.5px;font-weight:500;letter-spacing:.04em;
+  color:rgba(232,233,242,.82);background:rgba(37,42,72,.5);
+}
+.chip .dot{width:6px;height:6px;border-radius:50%;background:var(--orange)}
+.slide.orange .chip{
+  border-color:rgba(11,12,30,.35);background:rgba(11,12,30,.08);color:var(--ink);font-weight:600;
+}
+
+/* ============ NAV: dots + hint ============ */
+#dots{position:absolute;left:72px;bottom:30px;display:flex;gap:11px;z-index:40}
+#dots button{
+  width:9px;height:9px;border-radius:50%;
+  background:transparent;border:1px solid rgba(232,233,242,.4);
+  transition:background .25s,transform .25s,border-color .25s;
+}
+#dots button.cur{background:var(--orange);border-color:var(--orange);transform:scale(1.25)}
+#dots button:hover{border-color:var(--gold)}
+.slide-orange-dot{}
+#hint{
+  position:absolute;right:72px;bottom:26px;z-index:40;
+  font-size:11.5px;letter-spacing:.08em;color:rgba(232,233,242,.55);
+  display:flex;align-items:center;gap:14px;
+}
+#hint .bnext{color:var(--orange);font-weight:600}
+body.s7 #dots button{border-color:rgba(11,12,30,.45)}
+body.s7 #dots button.cur{background:var(--ink);border-color:var(--ink)}
+body.s7 #hint{color:rgba(11,12,30,.6)}
+body.s7 #hint .bnext{color:var(--ink)}
+
+/* ============ WIPE TRANSITION ============ */
+#wipe{
+  position:absolute;inset:0;background:var(--orange);
+  transform:translateX(-106%);z-index:60;pointer-events:none;
+}
+#wipe.run{animation:wipe .5s ease-out forwards}
+@keyframes wipe{
+  0%{transform:translateX(-106%)}
+  50%{transform:translateX(0)}
+  100%{transform:translateX(106%)}
+}
+
+/* ============ SPEAKER NOTES ============ */
+#notes{
+  position:fixed;top:0;right:0;height:100%;width:380px;z-index:100;
+  background:#12142A;border-left:1px solid var(--line);
+  padding:30px 26px;overflow-y:auto;
+  transform:translateX(102%);transition:transform .35s ease-out;
+}
+#notes.open{transform:translateX(0)}
+#notes h2{font-family:var(--serif);font-size:20px;margin-bottom:4px}
+#notes .ns{font-size:11px;letter-spacing:.18em;text-transform:uppercase;color:var(--orange);margin-bottom:18px}
+#notes ol{list-style:none;counter-reset:n}
+#notes li{
+  counter-increment:n;font-size:13.5px;line-height:1.55;color:rgba(232,233,242,.88);
+  padding:12px 0 12px 34px;border-bottom:1px solid rgba(232,233,242,.09);position:relative;
+}
+#notes li::before{
+  content:counter(n,decimal-leading-zero);position:absolute;left:0;top:12px;
+  font-family:var(--serif);font-size:15px;color:var(--gold);
+}
+#notes li b{color:var(--text)}
+#notes .nclose{position:absolute;top:14px;right:16px;font-size:12px;color:rgba(232,233,242,.6)}
+
+/* ================= SLIDE 1 — HOOK ================= */
+#s1 .wrap{position:relative;z-index:2;max-width:820px;padding-top:96px}
+#s1 .eyebrow{font-size:14px;font-weight:600;letter-spacing:.24em;text-transform:uppercase;color:rgba(11,12,30,.72);display:flex;align-items:center;gap:14px}
+#s1 .eyebrow::after{content:"";height:1px;width:70px;background:rgba(11,12,30,.5)}
+#s1 h1{font-family:var(--serif);font-size:104px;font-weight:700;line-height:1;margin-top:26px;letter-spacing:-.01em}
+#s1 .deva{display:block;font-size:40px;font-weight:700;margin-top:12px;letter-spacing:.02em}
+#s1 .tag{margin-top:14px;font-size:19px;font-weight:500;letter-spacing:.06em;color:rgba(11,12,30,.78)}
+#s1 .hook{
+  margin-top:44px;font-family:var(--serif);font-style:italic;font-size:34px;line-height:1.25;
+  max-width:620px;border-left:3px solid var(--ink);padding-left:22px;
+}
+#s1 .hook b{font-style:normal;font-weight:700}
+#s1 .chips{margin-top:40px;display:flex;gap:12px;flex-wrap:wrap;align-items:center}
+#s1 .live{margin-top:16px;font-size:14px;font-weight:600}
+#s1 .live a{color:var(--ink);text-decoration-thickness:1px;text-underline-offset:3px}
+#s1 .diya{position:absolute;right:88px;bottom:96px;width:330px;height:360px;z-index:1}
+.flame-g{transform-box:fill-box;transform-origin:50% 92%;animation:breathe 3.4s ease-in-out infinite alternate}
+@keyframes breathe{from{transform:scale(1);opacity:.88}to{transform:scale(1.07);opacity:1}}
+.bit{
+  font-family:var(--sans);font-size:13px;font-weight:700;fill:#0B0C1E;opacity:0;
+  animation:floatbit 6.4s linear infinite;
+}
+@keyframes floatbit{
+  0%{opacity:0;transform:translateY(0)}
+  18%{opacity:.5}
+  70%{opacity:.28}
+  100%{opacity:0;transform:translateY(-46px)}
+}
+
+/* ================= SLIDE 2 — PROBLEM ================= */
+#s2 .journey{display:flex;align-items:stretch;gap:0;margin-top:34px}
+#s2 .jstage{
+  width:216px;border:1px solid var(--line);border-radius:10px;background:rgba(37,42,72,.55);
+  padding:14px 16px;display:flex;flex-direction:column;gap:8px;
+}
+#s2 .jstage .jn{font-family:var(--serif);font-size:22px;color:var(--orange)}
+#s2 .jstage .jt{font-size:14.5px;font-weight:600}
+#s2 .jstage .js{font-size:11.5px;color:rgba(232,233,242,.62);line-height:1.35}
+#s2 .jstage .ic{color:rgba(232,233,242,.85);width:22px;height:22px}
+#s2 .jstage .ic path,#s2 .jstage .ic circle,#s2 .jstage .ic line,#s2 .jstage .ic polyline,#s2 .jstage .ic rect{
+  fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+}
+#s2 .jstage.dead{border-color:rgba(217,123,74,.65);background:rgba(217,123,74,.09)}
+#s2 .jlink{flex:1;display:flex;align-items:center;justify-content:center;position:relative;min-width:36px}
+#s2 .jlink .dashes{width:100%;height:2px;background:repeating-linear-gradient(90deg,rgba(232,233,242,.45) 0 8px,transparent 8px 16px)}
+#s2 .jlink.brk .dashes{
+  background:repeating-linear-gradient(90deg,rgba(217,123,74,.85) 0 8px,transparent 8px 16px);
+  clip-path:polygon(0 0,40% 0,46% 100%,54% 0,60% 0,100% 0,100% 100%,62% 100%,55% 20%,45% 100%,38% 100%,0 100%);
+}
+#s2 .jlink .brkx{position:absolute;color:var(--orange);font-size:15px;font-weight:700;top:-20px}
+#s2 .fcards{display:flex;gap:16px;margin-top:30px}
+#s2 .fcard{
+  flex:1;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:14px 15px;
+  transition:transform .28s cubic-bezier(.16,1,.3,1);
+}
+#s2 .fcard:hover{transform:translateY(-6px)}
+#s2 .fcard .n{font-family:var(--serif);font-size:15px;color:var(--orange)}
+#s2 .fcard h4{font-size:14.5px;margin:5px 0 4px}
+#s2 .fcard p{font-size:11.5px;line-height:1.4;color:rgba(232,233,242,.66)}
+#s2 .fcard .ic{width:22px;height:22px;color:rgba(232,233,242,.85);margin-bottom:6px}
+#s2 .fcard .ic path,#s2 .fcard .ic circle,#s2 .fcard .ic line,#s2 .fcard .ic polyline,#s2 .fcard .ic rect{
+  fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+}
+#s2 .evidence{
+  margin-top:22px;border:1px dashed rgba(242,184,75,.5);border-radius:10px;
+  padding:11px 18px;font-size:12.5px;color:rgba(232,233,242,.8);line-height:1.5;
+}
+#s2 .evidence b{color:var(--gold);font-weight:600}
+
+/* ================= SLIDE 3 — SOLUTION ================= */
+#s3 .looprow{display:flex;align-items:center;gap:0;margin-top:30px}
+#s3 .step{
+  width:224px;background:var(--card);border:1px solid var(--line);border-radius:10px;
+  padding:15px 17px;transition:transform .28s cubic-bezier(.16,1,.3,1);
+}
+#s3 .step:hover{transform:translateY(-6px)}
+#s3 .step .sn{font-family:var(--serif);font-size:26px;color:var(--orange);line-height:1}
+#s3 .step h4{font-size:16px;margin:7px 0 4px;display:flex;align-items:center;gap:8px}
+#s3 .step h4 .ic{width:18px;height:18px;color:var(--gold)}
+#s3 .step h4 .ic path,#s3 .step h4 .ic circle,#s3 .step h4 .ic line,#s3 .step h4 .ic polyline{
+  fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;
+}
+#s3 .step p{font-size:12px;color:rgba(232,233,242,.68);line-height:1.4}
+#s3 .arw{flex:1;display:flex;align-items:center;justify-content:center;color:rgba(232,233,242,.5);font-size:19px}
+#s3 .returnrow{margin-top:6px;position:relative;height:44px}
+#s3 .returnrow svg{position:absolute;inset:0;width:100%;height:100%;color:rgba(217,123,74,.75)}
+#s3 .returnlbl{
+  position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);
+  background:var(--ink);padding:2px 14px;font-size:12px;letter-spacing:.1em;text-transform:uppercase;color:var(--orange);font-weight:600;
+}
+#s3 .ba{display:flex;gap:22px;margin-top:30px;align-items:stretch}
+#s3 .ba .today{flex:0 0 42%;border:1px solid var(--line);border-radius:10px;padding:18px 22px;background:rgba(37,42,72,.35)}
+#s3 .ba .now{flex:1;border:1px solid var(--orange);border-radius:10px;padding:18px 22px;background:rgba(217,123,74,.1)}
+#s3 .ba .lbl{font-size:11.5px;letter-spacing:.2em;text-transform:uppercase;font-weight:600;color:rgba(232,233,242,.6);margin-bottom:8px}
+#s3 .ba .now .lbl{color:var(--orange)}
+#s3 .ba .big{font-family:var(--serif);font-size:31px;line-height:1.15}
+#s3 .ba .today .big{color:rgba(232,233,242,.55);text-decoration:line-through;text-decoration-color:rgba(217,123,74,.8);text-decoration-thickness:2px}
+#s3 .ba .now .big .gold{color:var(--gold);font-style:italic}
+#s3 .ba .sub{font-size:12px;color:rgba(232,233,242,.62);margin-top:6px}
+
+/* ================= SLIDE 4 — FEATURES ================= */
+#s4 .grid{display:grid;grid-template-columns:repeat(3,1fr);gap:22px;margin-top:32px}
+#s4 .fcard2{padding:20px 20px 18px;min-height:158px;display:flex;flex-direction:column}
+#s4 .fcard2 .ic{width:30px;height:30px;color:var(--orange);margin-bottom:auto}
+#s4 .fcard2 h4{font-size:16.5px;margin:14px 0 6px}
+#s4 .fcard2 p{font-size:12.5px;line-height:1.45;color:rgba(232,233,242,.72)}
+#s4 .strip{
+  margin-top:24px;border:1px solid var(--line);border-left:3px solid var(--gold);border-radius:0 10px 10px 0;
+  padding:12px 20px;font-size:13px;color:rgba(232,233,242,.82);background:rgba(37,42,72,.4);
+}
+#s4 .strip b{color:var(--gold)}
+
+/* ================= SLIDE 5 — ARCHITECTURE ================= */
+#s5 .diagram{position:absolute;left:72px;top:150px;right:72px;bottom:0}
+#s5 svg.wires{position:absolute;left:0;top:0;width:100%;height:420px;overflow:visible}
+#s5 .edge{stroke:rgba(232,233,242,.32);stroke-width:2;fill:none;transition:stroke .25s,opacity .3s}
+#s5 .pulse{stroke:var(--orange);stroke-width:2.5;fill:none;stroke-dasharray:12 300;opacity:.9;
+  animation:dashrun 2.8s linear infinite;transition:opacity .3s}
+@keyframes dashrun{from{stroke-dashoffset:312}to{stroke-dashoffset:0}}
+#s5 .node{
+  position:absolute;background:var(--card);border:1px solid var(--line);border-radius:8px;
+  padding:10px 12px;text-align:center;transition:opacity .3s,transform .25s cubic-bezier(.16,1,.3,1),border-color .25s;
+}
+#s5 .node .nt{font-size:13.5px;font-weight:600;letter-spacing:.02em}
+#s5 .node .ns{font-size:10.5px;color:rgba(232,233,242,.62);margin-top:3px;line-height:1.3}
+#s5 .node:hover,#s5 .node:focus-visible{transform:translateY(-4px);border-color:var(--orange)}
+#s5 .node.receipt{border-color:rgba(242,184,75,.7)}
+#s5 .node.receipt .nt{color:var(--gold)}
+#s5 .diagram.focused .node:not(.hot){opacity:.28}
+#s5 .diagram.focused .edge:not(.hot),#s5 .diagram.focused .pulse:not(.hot){opacity:.12}
+#s5 .edge.hot{stroke:var(--orange)}
+#s5 .railbl{
+  position:absolute;font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;
+  color:rgba(232,233,242,.55);font-weight:600;display:flex;align-items:center;gap:10px;
+}
+#s5 .railbl::after{content:"";height:1px;width:120px;background:rgba(232,233,242,.2)}
+#s5 .chipsrow{position:absolute;left:0;bottom:88px;display:flex;gap:10px;flex-wrap:wrap}
+#s5 .chipsrow .chip{font-size:11.5px;padding:5px 11px}
+#s5 .chip svg{width:13px;height:13px}
+#s5 .chip svg circle,#s5 .chip svg path,#s5 .chip svg line{fill:none;stroke:currentColor;stroke-width:1.6}
+#s5 .chip svg .solid{fill:currentColor;stroke:none}
+
+/* ================= SLIDE 6 — SIMPLICITY + TRUST ================= */
+#s6 .cols{display:flex;gap:40px;margin-top:30px}
+#s6 .demo{
+  flex:0 0 560px;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;
+}
+#s6 .demo .dhead{
+  display:flex;align-items:center;gap:8px;padding:10px 16px;border-bottom:1px solid var(--line);
+  font-size:11.5px;letter-spacing:.14em;text-transform:uppercase;color:rgba(232,233,242,.62);
+}
+#s6 .demo .dhead .d9{width:8px;height:8px;border-radius:50%;background:var(--orange)}
+#s6 .demo .dbody{padding:16px 18px 18px;display:flex;flex-direction:column;gap:12px}
+#s6 .dstep{display:flex;gap:12px;align-items:flex-start}
+#s6 .dstep .dn{font-family:var(--serif);font-size:19px;color:var(--orange);line-height:1.2;min-width:26px}
+#s6 .dstep .dmain{flex:1}
+#s6 .dstep .dlbl{font-size:11px;letter-spacing:.16em;text-transform:uppercase;color:rgba(232,233,242,.55);margin-bottom:6px}
+#s6 .bubble{
+  background:rgba(11,12,30,.55);border:1px solid var(--line);border-radius:10px;
+  padding:9px 13px;font-size:14px;min-height:38px;line-height:1.4;
+}
+#s6 .bubble .caret{display:inline-block;width:2px;height:15px;background:var(--orange);vertical-align:-2px;animation:blink .8s steps(1) infinite}
+@keyframes blink{50%{opacity:0}}
+#s6 .petit{
+  border:1px solid var(--line);border-radius:10px;padding:10px 13px;font-size:12.5px;
+  opacity:0;transform:translateY(10px);transition:opacity .45s,transform .45s cubic-bezier(.16,1,.3,1);
+}
+#s6 .petit.show{opacity:1;transform:none}
+#s6 .petit .row{display:flex;justify-content:space-between;padding:3px 0;color:rgba(232,233,242,.78)}
+#s6 .petit .row b{color:var(--text);font-weight:600}
+#s6 .confirm{
+  margin-top:7px;display:inline-block;font-size:11px;font-weight:600;letter-spacing:.08em;
+  color:var(--gold);border:1px solid rgba(242,184,75,.55);border-radius:8px;padding:3px 9px;
+}
+#s6 .fields{display:flex;flex-direction:column;gap:7px}
+#s6 .fld{
+  position:relative;border:1px solid var(--line);border-radius:8px;padding:8px 12px;
+  font-size:12.5px;color:rgba(232,233,242,.6);display:flex;justify-content:space-between;align-items:center;
+}
+#s6 .fld .val{color:var(--text);font-weight:500;opacity:0;transition:opacity .3s}
+#s6 .fld.filled{border-color:var(--orange)}
+#s6 .fld.filled .val{opacity:1}
+#s6 .fld .ring{
+  position:absolute;inset:-2px;border:2px solid var(--orange);border-radius:9px;
+  opacity:0;pointer-events:none;
+}
+#s6 .fld.filled .ring{animation:ringleft .7s ease-out forwards}
+@keyframes ringleft{0%{opacity:1;transform:scale(1.06)}100%{opacity:0;transform:scale(1)}}
+#s6 .fld .ck{color:var(--gold);font-size:13px;font-weight:700;opacity:0;transition:opacity .3s}
+#s6 .fld.filled .ck{opacity:1}
+#s6 .never{
+  margin-top:2px;font-size:11px;letter-spacing:.1em;text-transform:uppercase;color:var(--orange);font-weight:600;
+  opacity:0;transition:opacity .4s;
+}
+#s6 .never.show{opacity:1}
+#s6 .counters{flex:1;display:grid;grid-template-columns:1fr 1fr;grid-template-rows:1fr 1fr;gap:22px}
+#s6 .ctr{
+  background:rgba(37,42,72,.55);border:1px solid var(--line);border-radius:10px;
+  padding:20px 20px 16px;display:flex;flex-direction:column;justify-content:center;
+  transition:transform .28s cubic-bezier(.16,1,.3,1);
+}
+#s6 .ctr:hover{transform:translateY(-6px)}
+#s6 .ctr .num{font-family:var(--serif);font-size:52px;line-height:1;color:var(--gold)}
+#s6 .ctr .cl{font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:rgba(232,233,242,.7);margin-top:9px}
+#s6 .trust{
+  margin-top:22px;font-size:13px;color:rgba(232,233,242,.78);
+  border-left:3px solid var(--gold);padding:8px 16px;background:rgba(37,42,72,.4);
+}
+#s6 .trust b{color:var(--gold)}
+
+/* ================= SLIDE 7 — ROADMAP + CLOSE ================= */
+#s7 .timeline{position:relative;margin-top:70px;height:270px}
+#s7 .tline{position:absolute;left:0;right:0;top:135px;height:2px;background:linear-gradient(90deg,rgba(217,123,74,.9),rgba(232,233,242,.25))}
+#s7 .mile{position:absolute;width:170px;transform:translateX(-85px)}
+#s7 .mile .dotm{
+  width:13px;height:13px;border-radius:50%;background:var(--ink);
+  border:2px solid var(--orange);margin:0 auto;position:relative;z-index:2;
+}
+#s7 .mile:nth-child(odd) .dotm{background:var(--orange)}
+#s7 .mtxt{
+  background:var(--card);border:1px solid var(--line);border-radius:10px;padding:10px 12px;
+  font-size:12.5px;line-height:1.35;font-weight:500;
+}
+#s7 .mile .idx{font-family:var(--serif);font-size:15px;color:var(--orange);margin-bottom:3px}
+#s7 .mile.up{bottom:132px}
+#s7 .mile.dn{top:135px}
+#s7 .close{
+  position:absolute;inset:0;background:var(--orange);color:var(--ink);z-index:30;
+  transform:translateX(102%);transition:transform .6s cubic-bezier(.16,1,.3,1);
+  padding:64px 80px;display:flex;justify-content:space-between;align-items:center;
+}
+#s7 .close.show{transform:translateX(0)}
+#s7 .close .cleft{max-width:640px}
+#s7 .close h2{font-family:var(--serif);font-size:74px;line-height:1}
+#s7 .close .cdeva{font-family:var(--deva);font-size:26px;font-weight:700;margin-top:10px}
+#s7 .close .ctag{font-size:16px;margin-top:4px;color:rgba(11,12,30,.75)}
+#s7 .close .links{margin-top:30px;display:flex;flex-direction:column;gap:8px;font-size:15px;font-weight:600}
+#s7 .close .links a{color:var(--ink);text-decoration-thickness:1.5px;text-underline-offset:3px}
+#s7 .close .team{margin-top:26px;font-size:13.5px;font-weight:600;display:flex;flex-direction:column;gap:5px}
+#s7 .close .team span{color:rgba(11,12,30,.72);font-weight:500}
+#s7 .close .qrwrap{display:flex;flex-direction:column;align-items:center;gap:14px}
+#s7 .qrtile{background:#fff;border-radius:10px;padding:16px;border:1px solid rgba(11,12,30,.25)}
+#s7 .qrcap{font-size:12.5px;font-weight:600;letter-spacing:.06em;text-align:center;max-width:220px}
+#s7 .qrcap small{display:block;font-weight:500;margin-top:3px;opacity:.75}
+#s7 .close .cdiya{position:absolute;right:352px;top:52px;width:74px;height:82px;opacity:.95}
+
+/* ============ REDUCED MOTION ============ */
+@media (prefers-reduced-motion: reduce){
+  *,*::before,*::after{
+    animation-duration:.001ms !important;animation-iteration-count:1 !important;
+    transition-duration:.001ms !important;transition-delay:0ms !important;
+  }
+  #wipe{display:none}
+  .bit{opacity:.35;animation:none}
+}
+</style>
+</head>
+<body>
+<div id="frame">
+<div id="stage">
+
+<!-- shared SVG defs: mandala symbol -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mandala" viewBox="0 0 240 240">
+    <g fill="none" stroke="currentColor" stroke-width="1">
+      <circle cx="120" cy="120" r="112"/>
+      <circle cx="120" cy="120" r="104" stroke-dasharray="2 7"/>
+      <circle cx="120" cy="120" r="84"/>
+      <circle cx="120" cy="120" r="62" stroke-dasharray="1 6"/>
+      <circle cx="120" cy="120" r="34"/>
+      <path id="petal" d="M120 118 C106 92 106 62 120 38 C134 62 134 92 120 118 Z"/>
+      <use href="#petal" transform="rotate(30 120 120)"/>
+      <use href="#petal" transform="rotate(60 120 120)"/>
+      <use href="#petal" transform="rotate(90 120 120)"/>
+      <use href="#petal" transform="rotate(120 120 120)"/>
+      <use href="#petal" transform="rotate(150 120 120)"/>
+      <use href="#petal" transform="rotate(180 120 120)"/>
+      <use href="#petal" transform="rotate(210 120 120)"/>
+      <use href="#petal" transform="rotate(240 120 120)"/>
+      <use href="#petal" transform="rotate(270 120 120)"/>
+      <use href="#petal" transform="rotate(300 120 120)"/>
+      <use href="#petal" transform="rotate(330 120 120)"/>
+      <circle cx="120" cy="26" r="3"/>
+      <circle cx="120" cy="214" r="3"/>
+      <circle cx="26" cy="120" r="3"/>
+      <circle cx="214" cy="120" r="3"/>
+    </g>
+  </symbol>
+</svg>
+
+<!-- ============================ SLIDE 1 — HOOK ============================ -->
+<section class="slide orange" id="s1" aria-label="Slide 1: Hook">
+  <svg class="mandala tr" aria-hidden="true"><use href="#mandala"/></svg>
+  <div class="wrap">
+    <div class="layer eyebrow" style="--d:80ms">Forge&nbsp;Buildathon · 48&#8202;h</div>
+    <h1 class="layer" style="--d:200ms">Nagarik&nbsp;AI
+      <span class="deva">नागरिक&nbsp;AI</span>
+    </h1>
+    <div class="tag layer" style="--d:340ms">Empowering Every Citizen</div>
+    <div class="hook layer" style="--d:480ms">Millions qualify.<br><b>Few can find out.</b></div>
+    <div class="chips build" data-build="1" style="--bidx:0">
+      <span class="chip"><span class="dot"></span>Forge Buildathon</span>
+      <span class="chip">Civic Pulse · Digital Governance &amp; Public Information</span>
+      <span class="chip">48 hrs</span>
+    </div>
+    <div class="live build" data-build="1" style="--bidx:1">
+      Live — <a href="https://nagarik-ai-civic-2026.web.app" target="_blank" rel="noopener" class="no-advance">nagarik-ai-civic-2026.web.app</a>
+    </div>
+  </div>
+  <!-- diya motif: bowl + breathing gold flame + floating binary -->
+  <svg class="diya layer" style="--d:560ms" viewBox="0 0 330 360" aria-hidden="true">
+    <g stroke="#0B0C1E" fill="none" opacity=".55">
+      <circle cx="165" cy="200" r="150" stroke-dasharray="2 8"/>
+      <circle cx="165" cy="200" r="128"/>
+    </g>
+    <g transform="translate(165,196)">
+      <!-- flame -->
+      <g class="flame-g">
+        <path d="M0 -66 C13 -46 24 -30 24 -12 C24 6 13 20 0 20 C-13 20 -24 6 -24 -12 C-24 -30 -13 -46 0 -66 Z" fill="#F2B84B"/>
+        <path d="M0 -34 C7 -22 11 -15 11 -6 C11 5 6 12 0 12 C-6 12 -11 5 -11 -6 C-11 -15 -7 -22 0 -34 Z" fill="#0B0C1E" opacity=".22"/>
+      </g>
+      <!-- wick -->
+      <path d="M0 22 L0 30" stroke="#0B0C1E" stroke-width="3" stroke-linecap="round"/>
+      <!-- bowl -->
+      <path d="M-96 30 C-72 84 -34 98 0 98 C34 98 72 84 96 30 C52 48 -52 48 -96 30 Z"
+            fill="rgba(11,12,30,.08)" stroke="#0B0C1E" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M-58 96 C-44 110 44 110 58 96 L44 118 C30 126 -30 126 -44 118 Z"
+            fill="rgba(11,12,30,.08)" stroke="#0B0C1E" stroke-width="2.5" stroke-linejoin="round"/>
+      <path d="M-96 30 C-52 48 52 48 96 30" stroke="#0B0C1E" stroke-width="2" fill="none"/>
+      <!-- floating binary -->
+      <text class="bit" x="-46" y="-10" style="animation-delay:0s">01</text>
+      <text class="bit" x="30"  y="-26" style="animation-delay:1.6s">10</text>
+      <text class="bit" x="-8"  y="-48" style="animation-delay:3.2s">01</text>
+      <text class="bit" x="52"  y="4"   style="animation-delay:4.6s">11</text>
+    </g>
+  </svg>
+</section>
+
+<!-- ============================ SLIDE 2 — PROBLEM ============================ -->
+<section class="slide" id="s2" aria-label="Slide 2: Problem">
+  <svg class="mandala tr" aria-hidden="true"><use href="#mandala"/></svg>
+  <div class="ghost">02</div>
+  <div class="kicker layer" style="--d:60ms">Problem #2 · Awareness gap</div>
+  <h2 class="title layer" style="--d:160ms">Where the journey <span class="gold">breaks</span></h2>
+
+  <div class="journey layer" style="--d:300ms">
+    <div class="jstage">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M21 12a8 8 0 0 1-8 8H4l2.2-3A8 8 0 1 1 21 12z"/><line x1="8" y1="10" x2="14" y2="10"/><line x1="8" y1="13" x2="12" y2="13"/></svg>
+      <div class="jn">01</div><div class="jt">Ask around</div>
+      <div class="js">Relatives · local leaders · CSC operator</div>
+    </div>
+    <div class="jlink"><div class="dashes"></div></div>
+    <div class="jstage">
+      <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="4" width="18" height="14" rx="2"/><line x1="3" y1="9" x2="21" y2="9"/><line x1="8" y1="18" x2="8" y2="21"/><line x1="16" y1="18" x2="16" y2="21"/></svg>
+      <div class="jn">02</div><div class="jt">Many portals</div>
+      <div class="js">Ministry sites · state sites · PDFs</div>
+    </div>
+    <div class="jlink"><div class="dashes"></div></div>
+    <div class="jstage">
+      <svg class="ic" viewBox="0 0 24 24"><polyline points="17 2 21 6 17 10"/><path d="M3 12V10a4 4 0 0 1 4-4h14"/><polyline points="7 22 3 18 7 14"/><path d="M21 12v2a4 4 0 0 1-4 4H3"/></svg>
+      <div class="jn">03</div><div class="jt">Repeat visits</div>
+      <div class="js">Missing document · wrong window · re-queue</div>
+    </div>
+    <div class="jlink brk"><div class="dashes"></div><span class="brkx">✕</span></div>
+    <div class="jstage dead">
+      <svg class="ic" viewBox="0 0 24 24" style="color:#D97B4A"><circle cx="12" cy="12" r="9"/><line x1="8" y1="12" x2="16" y2="12"/></svg>
+      <div class="jn" style="color:#D97B4A">04</div><div class="jt">Give up — or pay an intermediary</div>
+      <div class="js">Benefit never reaches the citizen</div>
+    </div>
+  </div>
+
+  <div class="fcards">
+    <div class="fcard build" data-build="1" style="--bidx:0">
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="5" cy="6" r="2"/><circle cx="19" cy="6" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="5" cy="18" r="2"/><circle cx="19" cy="18" r="2"/><line x1="6.7" y1="7.2" x2="10.5" y2="10.8"/><line x1="17.3" y1="7.2" x2="13.5" y2="10.8"/></svg>
+      <div class="n">1</div><h4>Scattered</h4>
+      <p>Info spread across ministries, states and portals</p>
+    </div>
+    <div class="fcard build" data-build="1" style="--bidx:1">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M6 3h9l4 4v14H6z"/><line x1="9" y1="11" x2="15" y2="11"/><line x1="9" y1="14.5" x2="15" y2="14.5"/><path d="M15.6 17.4a1.8 1.8 0 1 1-2.4 1.7"/></svg>
+      <div class="n">2</div><h4>Legalese</h4>
+      <p>Eligibility rules that change and nobody decodes</p>
+    </div>
+    <div class="fcard build" data-build="1" style="--bidx:2">
+      <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"/><path d="M3 10h18"/><path d="M9 14h6"/><line x1="12" y1="14" x2="12" y2="17"/></svg>
+      <div class="n">3</div><h4>Hidden upfront</h4>
+      <p>Documents &amp; channels never stated before you go</p>
+    </div>
+    <div class="fcard build" data-build="1" style="--bidx:3">
+      <svg class="ic" viewBox="0 0 24 24"><path d="M3 6h9"/><path d="M7.5 6v1.5"/><path d="M10 6c0 4-3 7-7 8"/><path d="M5 10c1.5 2.5 3.5 3.8 6 4.5"/><path d="M13 20l4-9 4 9"/><line x1="14.5" y1="17" x2="19.5" y2="17"/></svg>
+      <div class="n">4</div><h4>Language lock</h4>
+      <p>Portals speak English plus one regional language</p>
+    </div>
+    <div class="fcard build" data-build="1" style="--bidx:4">
+      <svg class="ic" viewBox="0 0 24 24"><rect x="3" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="3" width="7.5" height="7.5" rx="1.5"/><rect x="3" y="13.5" width="7.5" height="7.5" rx="1.5"/><rect x="13.5" y="13.5" width="7.5" height="7.5" rx="1.5" stroke-dasharray="3 3"/></svg>
+      <div class="n">5</div><h4>No single view</h4>
+      <p>What qualifies · what is pending · what to do next</p>
+    </div>
+  </div>
+
+  <div class="evidence build" data-build="2">
+    Studies cite <b>low awareness and utilization</b>, low literacy, language barriers, documentation burden, repeated visits and digital exclusion — <b>severity: very high</b>. It is the first step of nearly every welfare journey, and benefits are often time-bound.
+  </div>
+</section>
+
+<!-- ============================ SLIDE 3 — SOLUTION ============================ -->
+<section class="slide" id="s3" aria-label="Slide 3: Solution">
+  <svg class="mandala tr" aria-hidden="true"><use href="#mandala"/></svg>
+  <div class="ghost">03</div>
+  <div class="kicker layer" style="--d:60ms">Solution</div>
+  <h2 class="title layer" style="--d:160ms">One <span class="gold">conversation</span>, end to end</h2>
+
+  <div class="looprow layer" style="--d:300ms">
+    <div class="step">
+      <div class="sn">01</div>
+      <h4><svg class="ic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21"/></svg>Speak</h4>
+      <p>Hindi, Telugu or English — or upload a photo</p>
+    </div>
+    <div class="arw">→</div>
+    <div class="step">
+      <div class="sn">02</div>
+      <h4><svg class="ic" viewBox="0 0 24 24"><circle cx="11" cy="11" r="7"/><line x1="16.5" y1="16.5" x2="21" y2="21"/></svg>Discover</h4>
+      <p>Ranked schemes you actually qualify for</p>
+    </div>
+    <div class="arw">→</div>
+    <div class="step">
+      <div class="sn">03</div>
+      <h4><svg class="ic" viewBox="0 0 24 24"><path d="M4 5h7v15H4z"/><path d="M13 5h7v15h-7z"/><line x1="6.5" y1="9" x2="8.5" y2="9"/><line x1="15.5" y1="9" x2="17.5" y2="9"/></svg>Understand</h4>
+      <p>Eligibility, documents and deadlines in plain words</p>
+    </div>
+    <div class="arw">→</div>
+    <div class="step">
+      <div class="sn">04</div>
+      <h4><svg class="ic" viewBox="0 0 24 24"><path d="M21 3 10.5 13.5"/><path d="M21 3l-6.5 18-4-8-8-4z"/></svg>Apply</h4>
+      <p>Auto-filled form — the citizen presses submit</p>
+    </div>
+  </div>
+  <div class="returnrow layer" style="--d:420ms">
+    <svg viewBox="0 0 1136 44" preserveAspectRatio="none" aria-hidden="true">
+      <path d="M1092 0 V18 Q1092 30 1080 30 H56 Q44 30 44 18 V2" fill="none" stroke="currentColor" stroke-width="2" stroke-dasharray="7 7"/>
+      <path d="M44 0 L38 12 L50 12 Z" fill="currentColor"/>
+    </svg>
+    <div class="returnlbl">+ follow up until it is done</div>
+  </div>
+
+  <div class="ba build" data-build="1">
+    <div class="today">
+      <div class="lbl">Today</div>
+      <div class="big">6 websites · 3 visits · an intermediary</div>
+      <div class="sub">Weeks of effort — with no guarantee of the right form</div>
+    </div>
+    <div class="now">
+      <div class="lbl">Nagarik AI</div>
+      <div class="big"><span class="gold">One conversation</span> in your own language</div>
+      <div class="sub">Side panel stays beside you — from scheme to receipt</div>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SLIDE 4 — FEATURES ============================ -->
+<section class="slide" id="s4" aria-label="Slide 4: Key features">
+  <svg class="mandala tr" aria-hidden="true"><use href="#mandala"/></svg>
+  <div class="ghost">04</div>
+  <div class="kicker layer" style="--d:60ms">Key features</div>
+  <h2 class="title layer" style="--d:160ms">Six features, <span class="gold">one</span> promise</h2>
+
+  <div class="grid">
+    <div class="card fcard2 layer" style="--d:260ms" tabindex="0">
+      <svg class="frame" aria-hidden="true"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" pathLength="100"/></svg>
+      <span class="tip">Side-panel speech → structured draft, confirmed by the citizen</span>
+      <svg class="ic" viewBox="0 0 24 24"><rect x="9" y="3" width="6" height="11" rx="3" class="fl"/><path d="M5 11a7 7 0 0 0 14 0"/><line x1="12" y1="18" x2="12" y2="21"/><line x1="8.5" y1="21" x2="15.5" y2="21"/></svg>
+      <h4>Voice in mother tongue</h4>
+      <p>Speak Hindi, Telugu or English — or upload a photo.</p>
+    </div>
+    <div class="card fcard2 layer" style="--d:350ms" tabindex="0">
+      <svg class="frame" aria-hidden="true"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" pathLength="100"/></svg>
+      <span class="tip">Live API Setu + local verified store, each with official_url</span>
+      <svg class="ic" viewBox="0 0 24 24"><path d="M12 3l7 3v5c0 5-3 8.5-7 10-4-1.5-7-5-7-10V6z" class="fl"/><polyline points="9 11.5 11.4 14 15.5 9.5"/></svg>
+      <h4>Verified schemes</h4>
+      <p>15 hand-verified schemes, each linked to its official source.</p>
+    </div>
+    <div class="card fcard2 layer" style="--d:440ms" tabindex="0">
+      <svg class="frame" aria-hidden="true"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" pathLength="100"/></svg>
+      <span class="tip">Criteria matcher ranks every scheme against the citizen's profile</span>
+      <svg class="ic" viewBox="0 0 24 24"><path d="M3 5h18l-7 8v6l-4 2v-8z" class="fl"/></svg>
+      <h4>Eligibility match</h4>
+      <p>A ranked list of what you actually qualify for.</p>
+    </div>
+    <div class="card fcard2 layer" style="--d:530ms" tabindex="0">
+      <svg class="frame" aria-hidden="true"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" pathLength="100"/></svg>
+      <span class="tip">Portal adapters + Guided Handoff fallback; you handle CAPTCHA/OTP</span>
+      <svg class="ic" viewBox="0 0 24 24"><rect x="4" y="3" width="16" height="18" rx="2" class="fl"/><line x1="8" y1="8" x2="16" y2="8"/><line x1="8" y1="12" x2="13" y2="12"/><polyline points="14.5 16.5 16.5 18.5 20 15"/></svg>
+      <h4>Safe auto-fill</h4>
+      <p>Fills every field. Never submits — you press the button.</p>
+    </div>
+    <div class="card fcard2 layer" style="--d:620ms" tabindex="0">
+      <svg class="frame" aria-hidden="true"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" pathLength="100"/></svg>
+      <span class="tip">Checked against verbatim source_text, with last-verified date</span>
+      <svg class="ic" viewBox="0 0 24 24"><circle cx="10.5" cy="10.5" r="6.5" class="fl"/><line x1="15.3" y1="15.3" x2="20" y2="20"/><polyline points="7.8 10.7 9.9 12.8 13.4 8.6"/></svg>
+      <h4>Claim verifier</h4>
+      <p>Matches · Contradicts · Couldn’t verify — against the source.</p>
+    </div>
+    <div class="card fcard2 layer" style="--d:710ms" tabindex="0">
+      <svg class="frame" aria-hidden="true"><rect x="1" y="1" width="calc(100% - 2px)" height="calc(100% - 2px)" pathLength="100"/></svg>
+      <span class="tip">Fires when the statutory SLA is missed; drafts ready to file</span>
+      <svg class="ic" viewBox="0 0 24 24"><line x1="12" y1="3.5" x2="12" y2="20.5"/><path d="M5 6h14"/><path d="M5 6 2.5 12a3.4 3.4 0 0 0 5 0z" class="fl"/><path d="M19 6l-2.5 6a3.4 3.4 0 0 0 5 0z" class="fl"/><line x1="8.5" y1="20.5" x2="15.5" y2="20.5"/></svg>
+      <h4>Escalation</h4>
+      <p>Reminder, First Appeal (RPSA) and Section 6(1) RTI — drafted.</p>
+    </div>
+  </div>
+
+  <div class="strip build" data-build="1">
+    <b>Aadhaar masked</b> on detection · every draft confirmed by the citizen · AI keys stay on the FastAPI backend — the extension asks only for <b>sidePanel, activeTab, storage</b>.
+  </div>
+</section>
+
+<!-- ============================ SLIDE 5 — ARCHITECTURE ============================ -->
+<section class="slide" id="s5" aria-label="Slide 5: Technical architecture">
+  <svg class="mandala tr" aria-hidden="true" style="opacity:.05"><use href="#mandala"/></svg>
+  <div class="ghost">05</div>
+  <div class="kicker layer" style="--d:60ms">Technical architecture</div>
+  <h2 class="title layer" style="--d:160ms">From voice to <span class="gold">receipt</span></h2>
+
+  <div class="diagram layer" id="diagram" style="--d:280ms">
+    <svg class="wires" viewBox="0 0 1136 420" preserveAspectRatio="none" aria-hidden="true">
+      <defs>
+        <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="rgba(232,233,242,.55)"/>
+        </marker>
+        <marker id="ahot" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M0 0 L10 5 L0 10 z" fill="#D97B4A"/>
+        </marker>
+      </defs>
+      <!-- row 1 arrows (coords relative to diagram box: y row1 mid = 42) -->
+      <g id="w1">
+        <path class="edge" data-from="n1" data-to="n2" d="M136 42 H176" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="n1" data-to="n2" d="M136 42 H176" style="animation-delay:0s"/>
+        <path class="edge" data-from="n2" data-to="n3" d="M356 42 H404" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="n2" data-to="n3" d="M356 42 H404" style="animation-delay:.3s"/>
+        <path class="edge" data-from="n3" data-to="n4" d="M572 42 H620" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="n3" data-to="n4" d="M572 42 H620" style="animation-delay:.6s"/>
+        <path class="edge" data-from="n4" data-to="n5" d="M752 42 H800" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="n4" data-to="n5" d="M752 42 H800" style="animation-delay:.9s"/>
+      </g>
+      <!-- wrap connector row1 -> row2 (right edge down, sweep left, into LLM top) -->
+      <g id="w2">
+        <path class="edge" data-from="n5" data-to="n6" d="M965 78 V96 Q965 108 953 108 H109 Q97 108 97 120 V152" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="n5" data-to="n6" d="M965 78 V96 Q965 108 953 108 H109 Q97 108 97 120 V152" style="animation-delay:1.2s"/>
+      </g>
+      <!-- row 2 arrows (row2 mid y = 188) -->
+      <g id="w3">
+        <path class="edge" data-from="n6" data-to="n7" d="M194 188 H238" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="n6" data-to="n7" d="M194 188 H238" style="animation-delay:1.5s"/>
+        <path class="edge" data-from="n7" data-to="n8" d="M474 188 H518" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="n7" data-to="n8" d="M474 188 H518" style="animation-delay:1.8s"/>
+        <path class="edge" data-from="n8" data-to="n9" d="M754 188 H798" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="n8" data-to="n9" d="M754 188 H798" style="animation-delay:2.1s"/>
+      </g>
+      <!-- ingestion -> RAG store return (build 1) -->
+      <g id="w4" class="build" data-build="1">
+        <path class="edge" data-from="i5" data-to="n5" d="M902 330 H1064 Q1082 330 1082 312 V82" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="i5" data-to="n5" d="M902 330 H1064 Q1082 330 1082 312 V82" style="animation-delay:2.4s"/>
+      </g>
+      <!-- ingestion row arrows (row3 mid y = 330) -->
+      <g id="w5" class="build" data-build="1">
+        <path class="edge" data-from="i1" data-to="i2" d="M202 330 H240" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="i1" data-to="i2" d="M202 330 H240" style="animation-delay:.15s"/>
+        <path class="edge" data-from="i2" data-to="i3" d="M382 330 H420" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="i2" data-to="i3" d="M382 330 H420" style="animation-delay:.45s"/>
+        <path class="edge" data-from="i3" data-to="i4" d="M562 330 H600" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="i3" data-to="i4" d="M562 330 H600" style="animation-delay:.75s"/>
+        <path class="edge" data-from="i4" data-to="i5" d="M742 330 H780" marker-end="url(#ah)"/>
+        <path class="pulse" data-from="i4" data-to="i5" d="M742 330 H780" style="animation-delay:1.05s"/>
+      </g>
+    </svg>
+
+    <!-- ROW 1 -->
+    <div class="node" id="n1" tabindex="0" style="left:0;top:6px;width:136px;height:72px">
+      <div class="nt">Citizen</div><div class="ns">speaks · uploads photo</div>
+    </div>
+    <div class="node" id="n2" tabindex="0" style="left:176px;top:6px;width:180px;height:72px">
+      <div class="nt">Chrome Side Panel</div><div class="ns">Manifest V3 · native panel</div>
+    </div>
+    <div class="node" id="n3" tabindex="0" style="left:404px;top:6px;width:168px;height:72px">
+      <div class="nt">Service Worker</div><div class="ns">routes messages · storage</div>
+    </div>
+    <div class="node" id="n4" tabindex="0" style="left:620px;top:6px;width:132px;height:72px">
+      <div class="nt">FastAPI</div><div class="ns">keys stay server-side</div>
+    </div>
+    <div class="node" id="n5" tabindex="0" style="left:800px;top:6px;width:330px;height:72px">
+      <div class="nt">RAG pipeline + SchemeProvider</div>
+      <div class="ns">API Setu myScheme · 15 verified schemes · Supabase</div>
+    </div>
+    <!-- ROW 2 -->
+    <div class="node" id="n6" tabindex="0" style="left:0;top:152px;width:194px;height:72px">
+      <div class="nt">LLM</div><div class="ns">Groq · Qwen 3.8 · strict JSON</div>
+    </div>
+    <div class="node" id="n7" tabindex="0" style="left:238px;top:152px;width:236px;height:72px">
+      <div class="nt">Portal Adapter</div><div class="ns">content script · Guided Handoff fallback</div>
+    </div>
+    <div class="node" id="n8" tabindex="0" style="left:518px;top:152px;width:236px;height:72px">
+      <div class="nt">Government portal</div><div class="ns">fields filled · citizen submits</div>
+    </div>
+    <div class="node receipt" id="n9" tabindex="0" style="left:798px;top:152px;width:250px;height:72px">
+      <div class="nt">Tracking-ID receipt</div><div class="ns">CP-2026-XXXXX — verified, shown in panel</div>
+    </div>
+    <!-- ROW 3 : ingestion -->
+    <div class="railbl" style="left:0;top:250px">Data ingestion · offline</div>
+    <div class="node build" data-build="1" id="i1" tabindex="0" style="left:0;top:300px;width:202px;height:58px">
+      <div class="nt">Sources</div><div class="ns">govt portals · PDFs · API Setu</div>
+    </div>
+    <div class="node build" data-build="1" id="i2" tabindex="0" style="left:240px;top:300px;width:142px;height:58px">
+      <div class="nt">Clean</div><div class="ns">dedupe · normalize</div>
+    </div>
+    <div class="node build" data-build="1" id="i3" tabindex="0" style="left:420px;top:300px;width:142px;height:58px">
+      <div class="nt">Chunk</div><div class="ns">section-aware</div>
+    </div>
+    <div class="node build" data-build="1" id="i4" tabindex="0" style="left:600px;top:300px;width:142px;height:58px">
+      <div class="nt">Embed</div><div class="ns">multilingual MiniLM</div>
+    </div>
+    <div class="node build" data-build="1" id="i5" tabindex="0" style="left:780px;top:300px;width:122px;height:58px">
+      <div class="nt">Index</div><div class="ns">FAISS · schemes.db</div>
+    </div>
+
+    <div class="chipsrow layer" style="--d:760ms">
+      <span class="chip"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="3.6" class="solid"/><line x1="12" y1="3" x2="12" y2="8.4"/><line x1="4.2" y1="16.5" x2="8.9" y2="13.8"/><line x1="19.8" y1="16.5" x2="15.1" y2="13.8"/></svg>Chrome MV3</span>
+      <span class="chip">FastAPI</span>
+      <span class="chip">Python</span>
+      <span class="chip">Supabase</span>
+      <span class="chip">Firebase Hosting</span>
+      <span class="chip">GitHub Actions</span>
+      <span class="chip">14/14 tests green</span>
+    </div>
+  </div>
+</section>
+
+<!-- ============================ SLIDE 6 — SIMPLICITY + TRUST ============================ -->
+<section class="slide" id="s6" aria-label="Slide 6: Simplicity and trust">
+  <svg class="mandala bl" aria-hidden="true"><use href="#mandala"/></svg>
+  <div class="ghost">06</div>
+  <div class="kicker layer" style="--d:60ms">Simplicity + trust</div>
+  <h2 class="title layer" style="--d:160ms">Three steps. <span class="gold">Zero</span> auto-submits.</h2>
+
+  <div class="cols">
+    <div class="demo layer" style="--d:280ms">
+      <div class="dhead"><span class="d9"></span>Nagarik AI · side panel</div>
+      <div class="dbody">
+        <div class="dstep">
+          <div class="dn">01</div>
+          <div class="dmain">
+            <div class="dlbl">Speak</div>
+            <div class="bubble"><span id="typed"></span><span class="caret" id="caret"></span></div>
+          </div>
+        </div>
+        <div class="dstep">
+          <div class="dn">02</div>
+          <div class="dmain">
+            <div class="dlbl">Confirm the petition</div>
+            <div class="petit" id="petit">
+              <div class="row"><span>Scheme</span><b>Widow Pension (विधवा पेंशन)</b></div>
+              <div class="row"><span>Department</span><b>Social Welfare</b></div>
+              <div class="row"><span>Location</span><b>Warangal, Telangana</b></div>
+              <span class="confirm">✓ Citizen confirmed — editable</span>
+            </div>
+          </div>
+        </div>
+        <div class="dstep">
+          <div class="dn">03</div>
+          <div class="dmain">
+            <div class="dlbl">Form fills — you press submit</div>
+            <div class="fields">
+              <div class="fld" id="f1"><span>Full name</span><span class="val">S. Lakshmamma</span><span class="ck">✓</span><span class="ring"></span></div>
+              <div class="fld" id="f2"><span>Scheme</span><span class="val">Widow Pension</span><span class="ck">✓</span><span class="ring"></span></div>
+              <div class="fld" id="f3"><span>Aadhaar</span><span class="val">XXXX XXXX 4821</span><span class="ck">✓</span><span class="ring"></span></div>
+            </div>
+            <div class="never" id="never">— never auto-submits. CAPTCHA / OTP stay with you.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="counters">
+      <div class="ctr layer" style="--d:380ms"><div class="num" data-target="14" data-suffix="/14">0/14</div><div class="cl">Automated tests passing</div></div>
+      <div class="ctr layer" style="--d:470ms"><div class="num" data-target="15" data-suffix="">0</div><div class="cl">Verified schemes</div></div>
+      <div class="ctr layer" style="--d:560ms"><div class="num" data-target="3" data-suffix="">0</div><div class="cl">Languages spoken</div></div>
+      <div class="ctr layer" style="--d:650ms"><div class="num" data-target="0" data-suffix="">0</div><div class="cl">Auto-submits. Ever.</div></div>
+    </div>
+  </div>
+
+  <div class="trust build" data-build="1">
+    Every scheme claim is checked against <b>verbatim source_text</b> with an <b>official_url</b> and <b>last_verified_date (2026-10-30)</b> — the verifier says Matches, Contradicts, or Couldn’t verify. Nothing is invented.
+  </div>
+</section>
+
+<!-- ============================ SLIDE 7 — FUTURE + CLOSE ============================ -->
+<section class="slide" id="s7" aria-label="Slide 7: Future scope and close">
+  <svg class="mandala tr" aria-hidden="true"><use href="#mandala"/></svg>
+  <div class="ghost">07</div>
+  <div class="kicker layer" style="--d:60ms">Future scope</div>
+  <h2 class="title layer" style="--d:160ms">Where it goes <span class="gold">next</span></h2>
+
+  <div class="timeline layer" style="--d:300ms">
+    <div class="tline"></div>
+    <div class="mile up" style="left:90px">
+      <div class="mtxt"><div class="idx">01</div>More states &amp; districts</div>
+      <div class="dotm"></div>
+    </div>
+    <div class="mile dn" style="left:281px">
+      <div class="dotm"></div>
+      <div class="mtxt"><div class="idx">02</div>More languages · voice-first &amp; IVR</div>
+    </div>
+    <div class="mile up" style="left:472px">
+      <div class="mtxt"><div class="idx">03</div>WhatsApp access</div>
+      <div class="dotm"></div>
+    </div>
+    <div class="mile dn" style="left:664px">
+      <div class="dotm"></div>
+      <div class="mtxt"><div class="idx">04</div>Deadline reminders</div>
+    </div>
+    <div class="mile up" style="left:855px">
+      <div class="mtxt"><div class="idx">05</div>CSC / NGO operator mode</div>
+      <div class="dotm"></div>
+    </div>
+    <div class="mile dn" style="left:1046px">
+      <div class="dotm"></div>
+      <div class="mtxt"><div class="idx">06</div>More portal adapters</div>
+    </div>
+  </div>
+
+  <!-- BUILD 1: orange closing panel -->
+  <div class="close build-host" id="closePanel">
+    <div class="cleft">
+      <h2>Thank you</h2>
+      <div class="cdeva">नागरिक AI — नागरिक के लिए</div>
+      <div class="ctag">Empowering Every Citizen</div>
+      <div class="links">
+        <div>Live — <a href="https://nagarik-ai-civic-2026.web.app" target="_blank" rel="noopener" class="no-advance">nagarik-ai-civic-2026.web.app</a></div>
+        <div>Code — <a href="https://github.com/cyugandharreddy08/Nagarik-AI" target="_blank" rel="noopener" class="no-advance">github.com/cyugandharreddy08/Nagarik-AI</a></div>
+      </div>
+      <div class="team">
+        <div>@cyugandharreddy08 <span>· architecture, backend, scheme providers</span></div>
+        <div>@baliharsha999 <span>· extension, side panel UX, content scripts</span></div>
+        <div>@Raghavendra-Kasireddy <span>· portal adapters, data pipeline, tests</span></div>
+      </div>
+    </div>
+    <svg class="cdiya" viewBox="0 0 80 90" aria-hidden="true">
+      <g class="flame-g" transform="translate(40,30)">
+        <path d="M0 -26 C5 -18 9 -11 9 -4 C9 3 5 8 0 8 C-5 8 -9 3 -9 -4 C-9 -11 -5 -18 0 -26 Z" fill="#F2B84B"/>
+      </g>
+      <path d="M14 38 C22 56 32 62 40 62 C48 62 58 56 66 38 C52 45 28 45 14 38 Z" fill="rgba(11,12,30,.12)" stroke="#0B0C1E" stroke-width="2"/>
+    </svg>
+    <div class="qrwrap no-advance">
+      <div class="qrtile">
+        <svg width="200" height="200" viewBox="-2 -2 33 33" shape-rendering="crispEdges" role="img" aria-label="QR code to https://nagarik-ai-civic-2026.web.app">
+          <rect x="-2" y="-2" width="33" height="33" fill="#ffffff"/>
+          <path fill="#0B0C1E" d="M0 0h7v1h-7zM9 0h1v1h-1zM14 0h1v1h-1zM16 0h5v1h-5zM22 0h7v1h-7zM0 1h1v1h-1zM6 1h1v1h-1zM11 1h1v1h-1zM15 1h1v1h-1zM18 1h1v1h-1zM22 1h1v1h-1zM28 1h1v1h-1zM0 2h1v1h-1zM2 2h3v1h-3zM6 2h1v1h-1zM8 2h1v1h-1zM10 2h2v1h-2zM15 2h1v1h-1zM19 2h2v1h-2zM22 2h1v1h-1zM24 2h3v1h-3zM28 2h1v1h-1zM0 3h1v1h-1zM2 3h3v1h-3zM6 3h1v1h-1zM8 3h5v1h-5zM15 3h3v1h-3zM20 3h1v1h-1zM22 3h1v1h-1zM24 3h3v1h-3zM28 3h1v1h-1zM0 4h1v1h-1zM2 4h3v1h-3zM6 4h1v1h-1zM8 4h1v1h-1zM10 4h1v1h-1zM16 4h1v1h-1zM18 4h3v1h-3zM22 4h1v1h-1zM24 4h3v1h-3zM28 4h1v1h-1zM0 5h1v1h-1zM6 5h1v1h-1zM8 5h1v1h-1zM12 5h1v1h-1zM15 5h4v1h-4zM20 5h1v1h-1zM22 5h1v1h-1zM28 5h1v1h-1zM0 6h7v1h-7zM8 6h1v1h-1zM10 6h1v1h-1zM12 6h1v1h-1zM14 6h1v1h-1zM16 6h1v1h-1zM18 6h1v1h-1zM20 6h1v1h-1zM22 6h7v1h-7zM8 7h1v1h-1zM11 7h2v1h-2zM15 7h1v1h-1zM0 8h1v1h-1zM2 8h5v1h-5zM9 8h1v1h-1zM12 8h1v1h-1zM15 8h1v1h-1zM17 8h3v1h-3zM22 8h5v1h-5zM1 9h1v1h-1zM3 9h2v1h-2zM7 9h3v1h-3zM13 9h1v1h-1zM16 9h5v1h-5zM22 9h3v1h-3zM28 9h1v1h-1zM0 10h2v1h-2zM3 10h1v1h-1zM6 10h1v1h-1zM9 10h3v1h-3zM13 10h3v1h-3zM20 10h2v1h-2zM23 10h2v1h-2zM3 11h3v1h-3zM7 11h1v1h-1zM12 11h2v1h-2zM16 11h1v1h-1zM19 11h1v1h-1zM21 11h2v1h-2zM24 11h2v1h-2zM27 11h1v1h-1zM1 12h1v1h-1zM3 12h2v1h-2zM6 12h1v1h-1zM8 12h1v1h-1zM10 12h3v1h-3zM14 12h1v1h-1zM17 12h2v1h-2zM25 12h2v1h-2zM2 13h2v1h-2zM19 13h6v1h-6zM28 13h1v1h-1zM1 14h1v1h-1zM3 14h4v1h-4zM9 14h1v1h-1zM11 14h1v1h-1zM15 14h1v1h-1zM17 14h2v1h-2zM20 14h4v1h-4zM25 14h2v1h-2zM0 15h4v1h-4zM8 15h1v1h-1zM11 15h2v1h-2zM14 15h1v1h-1zM18 15h1v1h-1zM20 15h1v1h-1zM23 15h2v1h-2zM27 15h1v1h-1zM1 16h1v1h-1zM3 16h1v1h-1zM5 16h3v1h-3zM12 16h1v1h-1zM15 16h1v1h-1zM17 16h3v1h-3zM25 16h2v1h-2zM0 17h1v1h-1zM4 17h1v1h-1zM7 17h1v1h-1zM10 17h2v1h-2zM13 17h2v1h-2zM16 17h1v1h-1zM19 17h1v1h-1zM21 17h4v1h-4zM26 17h1v1h-1zM28 17h1v1h-1zM0 18h1v1h-1zM2 18h2v1h-2zM6 18h3v1h-3zM11 18h1v1h-1zM13 18h4v1h-4zM18 18h1v1h-1zM20 18h5v1h-5zM26 18h1v1h-1zM0 19h1v1h-1zM3 19h1v1h-1zM7 19h1v1h-1zM9 19h2v1h-2zM12 19h2v1h-2zM15 19h2v1h-2zM18 19h1v1h-1zM22 19h1v1h-1zM24 19h1v1h-1zM27 19h1v1h-1zM0 20h1v1h-1zM2 20h5v1h-5zM12 20h1v1h-1zM14 20h2v1h-2zM17 20h8v1h-8zM26 20h3v1h-3zM8 21h2v1h-2zM11 21h2v1h-2zM16 21h1v1h-1zM20 21h1v1h-1zM24 21h5v1h-5zM0 22h7v1h-7zM15 22h6v1h-6zM22 22h1v1h-1zM24 22h3v1h-3zM0 23h1v1h-1zM6 23h1v1h-1zM8 23h1v1h-1zM10 23h3v1h-3zM14 23h1v1h-1zM16 23h1v1h-1zM18 23h3v1h-3zM24 23h1v1h-1zM0 24h1v1h-1zM2 24h3v1h-3zM6 24h1v1h-1zM8 24h4v1h-4zM15 24h4v1h-4zM20 24h5v1h-5zM26 24h1v1h-1zM0 25h1v1h-1zM2 25h3v1h-3zM6 25h1v1h-1zM8 25h4v1h-4zM14 25h1v1h-1zM16 25h1v1h-1zM19 25h1v1h-1zM21 25h1v1h-1zM25 25h4v1h-4zM0 26h1v1h-1zM2 26h3v1h-3zM6 26h1v1h-1zM8 26h1v1h-1zM11 26h3v1h-3zM15 26h1v1h-1zM17 26h1v1h-1zM21 26h7v1h-7zM0 27h1v1h-1zM6 27h1v1h-1zM9 27h3v1h-3zM14 27h1v1h-1zM16 27h1v1h-1zM18 27h1v1h-1zM20 27h1v1h-1zM22 27h1v1h-1zM25 27h1v1h-1zM27 27h1v1h-1zM0 28h7v1h-7zM8 28h1v1h-1zM10 28h3v1h-3zM14 28h1v1h-1zM17 28h3v1h-3zM23 28h1v1h-1zM26 28h1v1h-1z"/>
+        </svg>
+      </div>
+      <div class="qrcap">Scan to open the live build<small>nagarik-ai-civic-2026.web.app</small></div>
+    </div>
+  </div>
+</section>
+
+<!-- WIPE OVERLAY -->
+<div id="wipe" aria-hidden="true"></div>
+
+<!-- NAV -->
+<nav id="dots" aria-label="Slide navigation"></nav>
+<div id="hint"><span class="bnext" id="bnext">→ build</span><span>← → navigate</span><span>N notes</span><span>F fullscreen</span></div>
+
+</div><!-- /stage -->
+</div><!-- /frame -->
+
+<!-- SPEAKER NOTES -->
+<aside id="notes" aria-label="Speaker notes">
+  <button class="nclose" id="nclose" aria-label="Close notes">N ✕</button>
+  <h2>Speaker notes</h2>
+  <div class="ns">~3.5 min pitch</div>
+  <ol>
+    <li><b>Hook.</b> Millions of citizens qualify for welfare they never hear about — that gap is the entire pitch. Nagarik AI is a civic copilot that finds the right scheme, explains eligibility and helps apply — in the citizen's own language. Built in 48 hours for the Civic Pulse track. <i>→ So what does that broken journey actually look like?</i></li>
+    <li><b>Problem.</b> Today a citizen asks relatives, roams many portals, makes repeat visits — then gives up or pays an intermediary. Five failure points repeat in every scheme: scattered info, legalistic rules, hidden documents, language lock, and no single view of status. Studies keep finding the same thing: awareness and utilization stay low. <i>→ So what did we build?</i></li>
+    <li><b>Solution.</b> Four steps in one loop: speak, discover, understand, apply — then we keep following up. Where that used to mean six websites and three visits, it is now one conversation. The side panel lives beside the government portal the whole way. <i>→ Here are the six features that make it real.</i></li>
+    <li><b>Features.</b> Voice in Hindi, Telugu or English; 15 source-linked verified schemes; an eligibility matcher; auto-fill that never submits; a three-outcome claim verifier; and escalation drafts up to a Section 6(1) RTI. Every draft is citizen-confirmed, Aadhaar is masked, and API keys never leave the backend. <i>→ Next, how the system is put together.</i></li>
+    <li><b>Architecture.</b> The citizen talks to the side panel; the service worker calls FastAPI; RAG over verified scheme data plus live API Setu powers the answer; a content-script adapter fills the portal and captures the tracking ID back into the panel. A second ingestion row keeps the scheme store clean, chunked, embedded and indexed. Fourteen of fourteen contract tests pass. <i>→ The proof is in the numbers.</i></li>
+    <li><b>Simplicity + trust.</b> Watch the demo: speak, confirm an editable petition, and the form fills field by field — the citizen always presses submit. Behind it: 14 of 14 tests, 15 verified schemes, 3 languages, and zero auto-submits, ever. That is the trust story. <i>→ Finally, where this goes next.</i></li>
+    <li><b>Future + close.</b> Next: more states and districts, more languages with voice-first and IVR, WhatsApp access, deadline reminders, a CSC/NGO operator mode and more portal adapters. Scan the QR to try the live build — the code is open on GitHub. Team: Yugandhar, Harsha and Raghavendra. <i>→ Thank you — we're happy to take questions.</i></li>
+  </ol>
+</aside>
+
+<script>
+(function(){
+"use strict";
+var RM = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+/* ---------- responsive 16:9 scaling ---------- */
+var stage = document.getElementById("stage");
+function fit(){
+  var s = Math.min(window.innerWidth/1280, window.innerHeight/720);
+  stage.style.transform = "translate(-50%,-50%) scale(" + s + ")";
+}
+window.addEventListener("resize", fit); fit();
+
+/* ---------- build config ---------- */
+var slides = Array.prototype.slice.call(document.querySelectorAll(".slide"));
+var BMAX = [1,2,1,1,2,1,1];
+var cur = 0;
+var builds = [0,0,0,0,0,0,0];
+
+/* ---------- dots ---------- */
+var dots = document.getElementById("dots");
+slides.forEach(function(_,i){
+  var b = document.createElement("button");
+  b.setAttribute("aria-label","Go to slide "+(i+1));
+  b.addEventListener("click", function(e){ e.stopPropagation(); goTo(i); });
+  dots.appendChild(b);
+});
+function paintDots(){
+  Array.prototype.forEach.call(dots.children,function(d,i){ d.classList.toggle("cur", i===cur); });
+  document.body.classList.toggle("s7", cur===6 && builds[6]>=1);
+  var bn = document.getElementById("bnext");
+  bn.textContent = builds[cur] < BMAX[cur] ? "→ build" : (cur<6 ? "→ next slide" : "end");
+}
+
+/* ---------- wipe transition ---------- */
+var wipe = document.getElementById("wipe");
+var busy = false;
+function swapTo(i){
+  slides[cur].classList.remove("on");
+  cur = i;
+  builds[cur] = 0;
+  applyBuilds();
+  slides[cur].classList.add("on");
+  onEnter(cur);
+  paintDots();
+}
+function goTo(i){
+  if(busy || i===cur || i<0 || i>=slides.length) return;
+  if(RM){ swapTo(i); return; }
+  busy = true;
+  wipe.classList.remove("run"); void wipe.offsetWidth; wipe.classList.add("run");
+  slides[cur].classList.remove("on");
+  setTimeout(function(){ cur = i; builds[cur]=0; applyBuilds(); slides[cur].classList.add("on"); onEnter(cur); paintDots(); }, 250);
+  setTimeout(function(){ wipe.classList.remove("run"); busy=false; }, 520);
+}
+
+/* ---------- build steps ---------- */
+function applyBuilds(){
+  var els = slides[cur].querySelectorAll(".build");
+  Array.prototype.forEach.call(els,function(el){
+    var n = parseInt(el.getAttribute("data-build"),10);
+    el.classList.toggle("in", n <= builds[cur]);
+  });
+  if(cur===6){
+    document.getElementById("closePanel").classList.toggle("show", builds[6] >= 1);
+  }
+}
+function next(){
+  if(builds[cur] < BMAX[cur]){ builds[cur]++; applyBuilds(); paintDots();
+    if(cur===6 && builds[6]>=1) document.body.classList.add("s7");
+  }
+  else if(cur < slides.length-1) goTo(cur+1);
+}
+function prev(){
+  if(builds[cur] > 0){ builds[cur]--; applyBuilds(); paintDots();
+    if(cur===6 && builds[6]<1){ document.body.classList.remove("s7"); }
+  }
+  else if(cur > 0){
+    // land on target slide with its builds fully revealed? No: reset, presenter rebuilds.
+    goTo(cur-1);
+  }
+}
+
+/* ---------- keyboard ---------- */
+document.addEventListener("keydown", function(e){
+  if(e.key==="ArrowRight" || e.key==="PageDown" || e.key===" "){ e.preventDefault(); next(); }
+  else if(e.key==="ArrowLeft" || e.key==="PageUp"){ e.preventDefault(); prev(); }
+  else if(e.key==="Home"){ e.preventDefault(); goTo(0); }
+  else if(e.key==="End"){ e.preventDefault(); goTo(6); }
+  else if(e.key==="n" || e.key==="N"){ document.getElementById("notes").classList.toggle("open"); }
+  else if(e.key==="f" || e.key==="F"){
+    if(document.fullscreenElement) document.exitFullscreen();
+    else document.documentElement.requestFullscreen && document.documentElement.requestFullscreen();
+  }
+  else if(e.key==="Escape"){ document.getElementById("notes").classList.remove("open"); }
+});
+document.getElementById("nclose").addEventListener("click",function(){ document.getElementById("notes").classList.remove("open"); });
+
+/* ---------- click to advance ---------- */
+stage.addEventListener("click", function(e){
+  if(e.target.closest("a,button,.no-advance,#dots,#notes")) return;
+  next();
+});
+
+/* ================= SLIDE 5: architecture hover focus ================= */
+var diagram = document.getElementById("diagram");
+var nodes = diagram.querySelectorAll(".node");
+var wires = diagram.querySelectorAll(".edge,.pulse");
+function focusNode(id){
+  diagram.classList.add("focused");
+  Array.prototype.forEach.call(nodes,function(n){
+    n.classList.toggle("hot", n.id===id);
+    n.classList.remove("near");
+  });
+  Array.prototype.forEach.call(wires,function(w){
+    var f=w.getAttribute("data-from"), t=w.getAttribute("data-to");
+    var on = (f===id||t===id);
+    w.classList.toggle("hot", on);
+    if(on){
+      var other = f===id ? t : f;
+      var el = document.getElementById(other);
+      if(el) el.classList.add("near");
+    }
+  });
+}
+function unfocus(){
+  diagram.classList.remove("focused");
+  Array.prototype.forEach.call(nodes,function(n){ n.classList.remove("hot","near"); });
+  Array.prototype.forEach.call(wires,function(w){ w.classList.remove("hot"); });
+}
+Array.prototype.forEach.call(nodes,function(n){
+  n.addEventListener("mouseenter",function(){ focusNode(n.id); });
+  n.addEventListener("mouseleave",unfocus);
+  n.addEventListener("focus",function(){ focusNode(n.id); });
+  n.addEventListener("blur",unfocus);
+});
+
+/* ================= SLIDE 6: demo + counters ================= */
+var TYPE_TEXT = "मुझे विधवा पेंशन के लिए आवेदन करना है";
+var timers = [];
+function clearTimers(){ timers.forEach(clearTimeout); timers = []; }
+function T(fn,ms){ timers.push(setTimeout(fn, RM?0:ms)); }
+
+function resetDemo(){
+  clearTimers();
+  document.getElementById("typed").textContent = "";
+  document.getElementById("caret").style.display = "inline-block";
+  document.getElementById("petit").classList.remove("show");
+  ["f1","f2","f3"].forEach(function(id){ document.getElementById(id).classList.remove("filled"); });
+  document.getElementById("never").classList.remove("show");
+}
+function runDemo(){
+  resetDemo();
+  if(RM){
+    document.getElementById("typed").textContent = TYPE_TEXT;
+    document.getElementById("caret").style.display = "none";
+    document.getElementById("petit").classList.add("show");
+    ["f1","f2","f3"].forEach(function(id){ document.getElementById(id).classList.add("filled"); });
+    document.getElementById("never").classList.add("show");
+    return;
+  }
+  var i = 0;
+  (function tick(){
+    if(i <= TYPE_TEXT.length){
+      document.getElementById("typed").textContent = TYPE_TEXT.slice(0,i);
+      i++; timers.push(setTimeout(tick, 52));
+    } else {
+      timers.push(setTimeout(function(){ document.getElementById("caret").style.display="none"; }, 500));
+    }
+  })();
+  T(function(){ document.getElementById("petit").classList.add("show"); }, 2450);
+  T(function(){ document.getElementById("f1").classList.add("filled"); }, 3250);
+  T(function(){ document.getElementById("f2").classList.add("filled"); }, 3700);
+  T(function(){ document.getElementById("f3").classList.add("filled"); }, 4150);
+  T(function(){ document.getElementById("never").classList.add("show"); }, 4650);
+}
+
+function countUp(el){
+  var target = parseInt(el.getAttribute("data-target"),10);
+  var suffix = el.getAttribute("data-suffix") || "";
+  if(RM || target===0){ el.textContent = target + suffix; return; }
+  var start = null, dur = 1100;
+  function step(ts){
+    if(!start) start = ts;
+    var p = Math.min((ts-start)/dur, 1);
+    var eased = 1 - Math.pow(1-p, 3);
+    el.textContent = Math.round(eased*target) + suffix;
+    if(p<1) requestAnimationFrame(step);
+  }
+  requestAnimationFrame(step);
+}
+function runCounters(){
+  var ctrs = slides[5].querySelectorAll(".num");
+  Array.prototype.forEach.call(ctrs,function(el,i){ setTimeout(function(){ countUp(el); }, RM?0:(350+i*160)); });
+}
+
+/* ---------- per-slide enter hooks ---------- */
+function onEnter(i){
+  if(i===5){ runDemo(); runCounters(); }
+  if(i!==5){ clearTimers(); }
+}
+
+/* ---------- boot ---------- */
+slides[0].classList.add("on");
+applyBuilds();
+paintDots();
+onEnter(0);
+})();
+</script>
+</body>
+</html>

@@ -63,9 +63,13 @@ class EmbeddingService:
         return {}
 
     def _save_hash_cache(self):
-        """Saves current chunk hashes to cache file."""
-        with open(self.hash_cache_file, "w", encoding="utf-8") as f:
-            json.dump(self.chunk_hashes, f, indent=2)
+        """Saves current chunk hashes to cache file (best effort)."""
+        try:
+            with open(self.hash_cache_file, "w", encoding="utf-8") as f:
+                json.dump(self.chunk_hashes, f, indent=2)
+        except OSError as e:
+            # Read-only or ephemeral filesystems must not break ingestion.
+            print(f"[EmbeddingService] Warning: cannot persist chunk hash cache: {e}")
 
     @staticmethod
     def compute_hash(text: str) -> str:
@@ -140,7 +144,12 @@ class EmbeddingService:
 
         return indices_to_embed, new_hashes
 
-    def update_hash_cache(self, chunk_id: str, content_hash: str):
-        """Record newly embedded chunk hash and persist."""
+    def update_hash_cache(self, chunk_id: str, content_hash: str, persist: bool = True):
+        """Record newly embedded chunk hash, optionally persisting immediately."""
         self.chunk_hashes[chunk_id] = content_hash
+        if persist:
+            self._save_hash_cache()
+
+    def save_hashes(self):
+        """Persist the chunk hash cache once after a batch of updates."""
         self._save_hash_cache()

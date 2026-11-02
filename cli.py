@@ -14,7 +14,7 @@ if sys.platform == "win32":
     except Exception:
         pass
 
-# Add d:\forge26 to python path
+# Make the workspace importable
 sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 from agent import SchemeAgent

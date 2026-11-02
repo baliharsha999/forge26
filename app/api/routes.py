@@ -129,7 +129,10 @@ async def ingest_database_documents():
     Triggers the reusable document ingestion workflow over all documents in the SQLite database.
     Loads HTML, splits chunks, generates SentenceTransformer embeddings, and updates FAISS HNSW + BM25.
     """
-    initial_state = RAGState(original_query="Ingest all database documents")
+    initial_state = RAGState(
+        original_query="Ingest all database documents",
+        ingest_all_documents=True
+    )
     res = await asyncio.to_thread(ingestion_graph.invoke, initial_state)
     chunks_count = len(res.get("chunks", []))
     return IngestResponse(
@@ -145,12 +148,18 @@ async def ingest_url(request: IngestUrlRequest, background_tasks: BackgroundTask
     Scrapes a new official government URL, stores it in the database,
     and runs the ingestion pipeline.
     """
-    doc = scraping_agent.scrape_direct_url(request.url)
+    doc = await asyncio.to_thread(scraping_agent.scrape_direct_url, request.url)
     if not doc:
         raise HTTPException(status_code=400, detail="Failed to scrape or unauthorized non-government URL.")
 
-    # Run ingestion to update HNSW and BM25 index
-    res = ingestion_graph.invoke(RAGState(original_query=f"Ingest {request.url}"))
+    # Run ingestion (only for the freshly scraped document) to update HNSW and BM25
+    initial_state = RAGState(
+        original_query=f"Ingest {request.url}",
+        document_ids=[doc["document_id"]],
+        is_ingestion_needed=False,
+        ingest_all_documents=False,
+    )
+    res = await asyncio.to_thread(ingestion_graph.invoke, initial_state)
     return {
         "status": "success",
         "document_id": doc["document_id"],
@@ -239,6 +248,7 @@ async def health_check():
         "vector_engine": _cached_stats.get("vector_engine", settings.VECTOR_DB_TYPE),
         "total_documents_in_db": db.count_documents(),
         "indexed_vectors": _cached_stats.get("vectors", 0),
+        "faiss_hnsw_vectors": _cached_stats.get("vectors", 0),
         "bm25_documents_indexed": _cached_stats.get("bm25_count", 0),
         "embedding_model": settings.EMBEDDING_MODEL_NAME,
         "reranker_model": settings.RERANKING_MODEL_NAME if not settings.LOW_MEMORY_MODE else "RRF-Cosine-Fallback (Low Memory Mode)",

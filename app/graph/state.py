@@ -46,6 +46,7 @@ class RAGState(BaseModel):
     indexed_document_ids: List[str] = Field(default_factory=list, description="Document IDs confirmed present and indexed in FAISS")
     unindexed_document_ids: List[str] = Field(default_factory=list, description="Document IDs in database needing embedding/FAISS indexing")
     scraping_required: bool = Field(default=False, description="Whether web scraping is necessary")
+    skip_discovery: bool = Field(default=False, description="Refinement round: reuse indexed documents without scraping")
     scraping_results: List[Dict[str, Any]] = Field(default_factory=list, description="Outputs from web scraping stage")
     discovered_urls: List[str] = Field(default_factory=list, description="Raw URLs discovered from external search")
     validated_urls: List[str] = Field(default_factory=list, description="Whitelisted canonical URLs approved for scraping")
@@ -64,6 +65,7 @@ class RAGState(BaseModel):
     chunks: List[Dict[str, Any]] = Field(default_factory=list, description="Text chunks with preserved metadata")
     embeddings_status: str = Field(default="pending", description="Status of vector embeddings generation")
     is_ingestion_needed: bool = Field(default=False, description="Whether on-demand web ingestion was triggered")
+    ingest_all_documents: bool = Field(default=False, description="Re-index every document already stored in SQLite")
 
     # 3. Hybrid Retrieval & Ranking
     retrieved_documents: List[Dict[str, Any]] = Field(default_factory=list, description="Merged retrieved document chunks")

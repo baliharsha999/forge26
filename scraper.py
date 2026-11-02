@@ -11,6 +11,8 @@ import json
 import urllib.request
 import urllib.parse
 from datetime import datetime
+from typing import Any, Dict, List, Optional
+
 from db import SchemeDatabase, DEFAULT_DB_PATH
 
 # Ensure UTF-8 output on Windows console
@@ -146,14 +148,42 @@ def html_to_plain_text(html_text: str) -> str:
     return text.strip()
 
 
+_WORKSPACE_DIR = os.path.dirname(os.path.abspath(__file__))
+_SCRAPER_CACHE: Dict[str, "MySchemeScraper"] = {}
+
+
+def get_shared_scraper(db_path: Optional[str] = None) -> "MySchemeScraper":
+    """
+    Returns a process-wide MySchemeScraper for the given database.
+
+    The myScheme catalog holds 5,200+ entries, so it must be parsed (or
+    downloaded) only once per process rather than on every request.
+    """
+    key = os.path.abspath(db_path or DEFAULT_DB_PATH)
+    instance = _SCRAPER_CACHE.get(key)
+    if instance is None:
+        instance = MySchemeScraper(db_path=db_path or DEFAULT_DB_PATH)
+        _SCRAPER_CACHE[key] = instance
+    return instance
+
+
 class MySchemeScraper:
-    def __init__(self, data_dir: str = r"d:\forge26\data", db_path: str = DEFAULT_DB_PATH):
-        self.data_dir = data_dir
+    def __init__(self, data_dir: Optional[str] = None, db_path: str = DEFAULT_DB_PATH):
+        self.data_dir = (
+            data_dir
+            or os.getenv("SCHEMES_INDEX_DIR")
+            or os.path.join(_WORKSPACE_DIR, "data")
+        )
         self.db_path = db_path
         self.db = SchemeDatabase(db_path=self.db_path)
         self.index_path = os.path.join(self.data_dir, "schemes_index.json")
-        os.makedirs(self.data_dir, exist_ok=True)
+        try:
+            os.makedirs(self.data_dir, exist_ok=True)
+        except OSError as e:
+            # Read-only filesystems are fine: the bundled catalog is used as-is.
+            print(f"[Warning] Cannot create catalog directory '{self.data_dir}': {e}")
         self.schemes_index = self._load_index()
+        self._token_df: Optional[Dict[str, int]] = None
 
     def _load_index(self) -> List[Dict]:
         """Loads schemes catalog index from disk or downloads it live from myscheme.gov.in."""
@@ -186,10 +216,41 @@ class MySchemeScraper:
             print(f"[Error] Failed to fetch schemes index: {e}")
         return []
 
-    def search_schemes(self, query: str, top_k: int = 5) -> List[Dict]:
+    # A token appearing in more than this many scheme names is treated as
+    # generic (e.g. "financial", "yojana", "welfare") and cannot on its own
+    # identify the scheme a question is about.
+    RARE_TOKEN_MAX_DF = 50
+
+    def _catalog_token_df(self) -> Dict[str, int]:
+        """Document frequency of each token across the scheme catalog (cached)."""
+        if self._token_df is None:
+            counts: Dict[str, int] = {}
+            for item in self.schemes_index:
+                basic = (item.get("en") or {}).get("basicDetails") or {}
+                text = " ".join([
+                    basic.get("schemeName") or "",
+                    basic.get("schemeShortTitle") or "",
+                    item.get("slug") or "",
+                ]).lower()
+                for token in set(re.findall(r"\w+", text)):
+                    counts[token] = counts.get(token, 0) + 1
+            self._token_df = counts
+        return self._token_df
+
+    def search_schemes(
+        self,
+        query: str,
+        top_k: int = 5,
+        min_score: int = 0,
+        min_overlap: int = 0
+    ) -> List[Dict]:
         """
         Searches the schemes database using exact aliases, fuzzy token matching,
         and keyword relevance. Returns top matching schemes.
+
+        min_score / min_overlap raise the precision bar: query-time routing uses
+        them so that a single shared common word cannot be mistaken for a match
+        on an unrelated scheme.
         """
         if not query or not query.strip():
             return []
@@ -203,12 +264,24 @@ class MySchemeScraper:
                 for s in self.schemes_index:
                     if s.get("slug", "").lower() == target_slug.lower():
                         # Return this as top priority
-                        other_matches = self._keyword_search(q_norm, top_k - 1, exclude_slug=target_slug)
+                        other_matches = self._keyword_search(
+                            q_norm, max(0, top_k - 1), exclude_slug=target_slug,
+                            min_score=min_score, min_overlap=min_overlap
+                        )
                         return [s] + other_matches
 
-        return self._keyword_search(q_norm, top_k)
+        return self._keyword_search(
+            q_norm, top_k, min_score=min_score, min_overlap=min_overlap
+        )
 
-    def _keyword_search(self, q_norm: str, top_k: int = 5, exclude_slug: str = "") -> List[Dict]:
+    def _keyword_search(
+        self,
+        q_norm: str,
+        top_k: int = 5,
+        exclude_slug: str = "",
+        min_score: int = 0,
+        min_overlap: int = 0
+    ) -> List[Dict]:
         """Ranks schemes using token matching and substrings."""
         q_words = set(re.findall(r"\w+", q_norm))
         # Filter stop words
@@ -226,23 +299,45 @@ class MySchemeScraper:
             short_title = (basic.get("schemeShortTitle") or "").lower()
 
             score = 0
+            phrase_match = False
             # Exact matches
             if q_norm == slug or q_norm == short_title:
                 score += 120
+                phrase_match = True
             elif q_norm in name:
                 score += 70
+                phrase_match = True
             elif q_norm in slug:
                 score += 50
+                phrase_match = True
             elif q_norm in short_title:
                 score += 50
+                phrase_match = True
 
             # Keyword overlap
             name_words = set(re.findall(r"\w+", name)) | set(re.findall(r"\w+", short_title)) | set(re.findall(r"\w+", slug))
-            overlap = len(q_keywords & name_words)
+            overlap_words = q_keywords & name_words
+            overlap = len(overlap_words)
             score += overlap * 15
 
-            if score > 0:
-                results.append((score, s))
+            if score <= 0:
+                continue
+            if min_score and score < min_score:
+                continue
+            if min_overlap and not phrase_match:
+                if overlap < min_overlap:
+                    continue
+                # At least one shared word must be specific to a few schemes;
+                # otherwise every "financial"/"welfare" question matches junk.
+                token_df = self._catalog_token_df()
+                distinctive = [
+                    w for w in overlap_words
+                    if token_df.get(w, 0) <= self.RARE_TOKEN_MAX_DF
+                ]
+                if not distinctive:
+                    continue
+
+            results.append((score, s))
 
         results.sort(key=lambda x: x[0], reverse=True)
         return [item[1] for item in results[:top_k]]
@@ -339,8 +434,17 @@ class MySchemeScraper:
         nodal_ministry = basic.get("nodalMinistryName", {})
         ministry_name = nodal_ministry.get("label") if isinstance(nodal_ministry, dict) else str(nodal_ministry or "Government of India")
         department = basic.get("nodalDepartmentName", {}).get("label", "") if isinstance(basic.get("nodalDepartmentName"), dict) else str(basic.get("nodalDepartmentName") or "")
-        level = basic.get("level", "Central")
-        scheme_type = basic.get("schemeType", "Central Sector")
+        def _label(value: Any, default: str = "") -> str:
+            """Renders myScheme label objects ({"label": ...}) as plain text."""
+            if isinstance(value, dict):
+                return str(value.get("label") or value.get("value") or default)
+            if isinstance(value, list):
+                parts = [_label(v) for v in value]
+                return ", ".join(p for p in parts if p) or default
+            return str(value) if value not in (None, "") else default
+
+        level = _label(basic.get("level"), "Central")
+        scheme_type = _label(basic.get("schemeType"), "Central Sector")
         tags = basic.get("tags", [])
         beneficiaries = basic.get("targetBeneficiaries", [])
         dbt = "Yes" if basic.get("dbtScheme") else "No"

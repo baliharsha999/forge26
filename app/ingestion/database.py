@@ -271,39 +271,24 @@ class GovernmentDatabase:
             ).fetchall()
             return [dict(r) for r in rows]
 
-        """
-        Checks whether document exists by canonical URL and whether its content has changed.
-        Returns:
-            exists: bool
-            is_indexed: bool
-            content_changed: bool
-            document: Optional[Dict[str, Any]]
-        """
+    def check_document_duplicate(self, canonical_url: str, content_hash=None) -> dict:
+        """Checks whether a document exists by canonical URL and whether its content has changed."""
         with self.get_connection() as conn:
             row = conn.execute(
                 "SELECT * FROM government_documents WHERE canonical_url = ? OR url = ?",
                 (canonical_url, canonical_url)
             ).fetchone()
-
             if not row:
-                return {
-                    "exists": False,
-                    "is_indexed": False,
-                    "content_changed": False,
-                    "document": None
-                }
-
+                return {"exists": False, "is_indexed": False, "content_changed": False, "document": None}
             doc_dict = dict(row)
             stored_hash = doc_dict.get("content_hash", "")
             content_changed = bool(content_hash and content_hash != stored_hash)
-
             return {
                 "exists": True,
                 "is_indexed": bool(doc_dict.get("is_indexed")),
                 "content_changed": content_changed,
                 "document": doc_dict
             }
-
     def check_freshness(self, document_id: str, max_age_days: int = 30) -> Dict[str, Any]:
         """
         Evaluates document freshness based on last_verified_at or last_scraped_at.

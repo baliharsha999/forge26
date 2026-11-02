@@ -155,6 +155,28 @@ class FaithfulnessEvaluator:
             return text[start:end + 1]
         return None
 
+    @staticmethod
+    def _extract_numbers(text: str) -> set:
+        """
+        Extracts numeric values from text, normalising Western and Indian digit
+        grouping (e.g. '6,000' and '5,00,000') into plain digit strings so that
+        formatting differences never look like hallucinated figures.
+        """
+        values = set()
+        for raw in re.findall(r"\d[\d,]*(?:\.\d+)?", text):
+            cleaned = raw.replace(",", "").rstrip(".")
+            if not cleaned:
+                continue
+            try:
+                numeric = float(cleaned)
+            except ValueError:
+                continue
+            if numeric.is_integer():
+                values.add(str(int(numeric)))
+            else:
+                values.add(("%f" % numeric).rstrip("0").rstrip("."))
+        return values
+
     def _heuristic_evaluate(
         self,
         answer: str,
@@ -164,9 +186,10 @@ class FaithfulnessEvaluator:
         combined_context = " ".join(d.get("page_content", "") for d in context_documents).lower()
         ans_lower = answer.lower()
 
-        # Normalize numbers by removing commas (e.g. 6,000 -> 6000)
-        ans_clean = set(n.replace(",", "") for n in re.findall(r"\b\d+(?:,\d+)?\b", ans_lower))
-        ctx_clean = set(n.replace(",", "") for n in re.findall(r"\b\d+(?:,\d+)?\b", combined_context))
+        # Normalize numbers by removing commas (e.g. 6,000 -> 6000,
+        # Indian lakh grouping 5,00,000 -> 500000)
+        ans_clean = self._extract_numbers(answer)
+        ctx_clean = self._extract_numbers(combined_context)
 
         ignored_numbers = {
             "1", "2", "3", "4", "5", "6", "7", "8", "9", "10",
