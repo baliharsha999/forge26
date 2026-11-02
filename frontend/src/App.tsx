@@ -179,6 +179,7 @@ export function App() {
   const recognitionRef = useRef<any>(null);
   const isListeningRef = useRef<boolean>(false);
   const mobileBaseTranscriptRef = useRef<string>('');
+  const latestInputQueryRef = useRef<string>('');
 
   // Active thread
   const currentThread = threads.find(t => t.id === activeThreadId) || threads[0];
@@ -312,6 +313,7 @@ export function App() {
       rec.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : selectedLanguage === 'ta' ? 'ta-IN' : 'en-IN';
 
       mobileBaseTranscriptRef.current = inputQuery.trim();
+      latestInputQueryRef.current = inputQuery.trim();
       isListeningRef.current = true;
 
       rec.onstart = () => {
@@ -349,6 +351,7 @@ export function App() {
           const cleaned = deduplicateConsecutiveWords(combined);
           const finalTxt = cleaned || combined;
           if (finalTxt) {
+            latestInputQueryRef.current = finalTxt;
             setInputQuery(finalTxt);
           }
         } else {
@@ -363,6 +366,7 @@ export function App() {
           const cleaned = deduplicateConsecutiveWords(assembled);
           const finalTxt = cleaned || assembled;
           if (finalTxt) {
+            latestInputQueryRef.current = finalTxt;
             setInputQuery(finalTxt);
           }
         }
@@ -379,6 +383,10 @@ export function App() {
 
       rec.onend = () => {
         if (isMobile && isListeningRef.current) {
+          // Sync base transcript with latest query to avoid stale closure state
+          if (latestInputQueryRef.current) {
+            mobileBaseTranscriptRef.current = deduplicateConsecutiveWords(latestInputQueryRef.current);
+          }
           // Restart single utterance on mobile to provide uninterrupted dictation
           // without triggering cumulative buffer duplicates
           try {
