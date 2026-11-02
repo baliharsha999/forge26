@@ -13,7 +13,7 @@ import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
 import { AISaathiExtensionModal } from './components/AISaathiExtensionModal';
 import { CivicSettingsModal, type SettingsLanguage } from './components/CivicSettingsModal';
 import { CivicHelplineModal } from './components/CivicHelplineModal';
-import { speakCivicText, stopAllSpeech, deduplicateConsecutiveWords, mergeTranscripts, sanitizeCitizenPII } from './utils/civicAudioEngine';
+import { speakCivicText, stopAllSpeech, deduplicateConsecutiveWords, mergeTranscripts, sanitizeCitizenPII, isMobileDevice } from './utils/civicAudioEngine';
 
 // Civic Language Support
 export type CivicLanguage = 'en' | 'hi' | 'te' | 'ta';
@@ -177,6 +177,8 @@ export function App() {
   const messagesContainerRef = useRef<HTMLDivElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
   const recognitionRef = useRef<any>(null);
+  const isListeningRef = useRef<boolean>(false);
+  const mobileBaseTranscriptRef = useRef<string>('');
 
   // Active thread
   const currentThread = threads.find(t => t.id === activeThreadId) || threads[0];
@@ -270,7 +272,9 @@ export function App() {
     // Avoid speaker-to-mic feedback loop
     stopAllSpeech();
 
-    if (isListening) {
+    if (isListeningRef.current || isListening) {
+      isListeningRef.current = false;
+      setIsListening(false);
       if (recognitionRef.current) {
         try {
           recognitionRef.current.abort();
@@ -279,7 +283,6 @@ export function App() {
         }
         recognitionRef.current = null;
       }
-      setIsListening(false);
       return;
     }
 
@@ -299,35 +302,93 @@ export function App() {
     }
 
     try {
+      const isMobile = isMobileDevice();
       const rec = new SpeechRecognition();
-      rec.continuous = true;
+      // On mobile (Android Chrome/iOS), continuous = true triggers Chromium bug #654137 / #1159981
+      // which produces repeated duplicated buffers. Desktop / Mac retains full continuous mode.
+      rec.continuous = !isMobile;
       rec.interimResults = true;
       rec.maxAlternatives = 1;
       rec.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : selectedLanguage === 'ta' ? 'ta-IN' : 'en-IN';
 
-      rec.onstart = () => setIsListening(true);
+      mobileBaseTranscriptRef.current = inputQuery.trim();
+      isListeningRef.current = true;
+
+      rec.onstart = () => {
+        setIsListening(true);
+      };
+
       rec.onresult = (event: any) => {
-        let assembled = '';
-        for (let i = 0; i < event.results.length; i++) {
-          const item = event.results[i];
-          const chunk = (item[0]?.transcript || '').trim();
-          if (!chunk) continue;
-          assembled = mergeTranscripts(assembled, chunk);
-        }
-        const cleaned = deduplicateConsecutiveWords(assembled);
-        const finalTxt = cleaned || assembled;
-        if (finalTxt) {
-          setInputQuery(finalTxt);
+        if (isMobile) {
+          // On mobile Android/iOS, separate final results from interim hypotheses
+          let utteranceFinal = '';
+          let utteranceInterim = '';
+
+          for (let i = 0; i < event.results.length; i++) {
+            const item = event.results[i];
+            const text = (item[0]?.transcript || '').trim();
+            if (!text) continue;
+            if (item.isFinal) {
+              utteranceFinal = mergeTranscripts(utteranceFinal, text);
+            } else {
+              utteranceInterim = mergeTranscripts(utteranceInterim, text);
+            }
+          }
+
+          const currentBase = mobileBaseTranscriptRef.current;
+          let combined = currentBase;
+          if (utteranceFinal) {
+            combined = currentBase ? mergeTranscripts(currentBase, utteranceFinal) : utteranceFinal;
+            mobileBaseTranscriptRef.current = deduplicateConsecutiveWords(combined);
+            combined = mobileBaseTranscriptRef.current;
+          }
+          if (utteranceInterim) {
+            combined = combined ? mergeTranscripts(combined, utteranceInterim) : utteranceInterim;
+          }
+
+          const cleaned = deduplicateConsecutiveWords(combined);
+          const finalTxt = cleaned || combined;
+          if (finalTxt) {
+            setInputQuery(finalTxt);
+          }
+        } else {
+          // Desktop / Mac: continuous stream
+          let assembled = '';
+          for (let i = 0; i < event.results.length; i++) {
+            const item = event.results[i];
+            const chunk = (item[0]?.transcript || '').trim();
+            if (!chunk) continue;
+            assembled = mergeTranscripts(assembled, chunk);
+          }
+          const cleaned = deduplicateConsecutiveWords(assembled);
+          const finalTxt = cleaned || assembled;
+          if (finalTxt) {
+            setInputQuery(finalTxt);
+          }
         }
       };
+
       rec.onerror = (e: any) => {
         console.warn('[Nagarik Voice] Recognition error:', e?.error);
         if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') {
+          isListeningRef.current = false;
           setIsListening(false);
           recognitionRef.current = null;
         }
       };
+
       rec.onend = () => {
+        if (isMobile && isListeningRef.current) {
+          // Restart single utterance on mobile to provide uninterrupted dictation
+          // without triggering cumulative buffer duplicates
+          try {
+            rec.start();
+            return;
+          } catch {
+            // Gracefully stop if restart fails
+          }
+        }
+        isListeningRef.current = false;
         setIsListening(false);
         recognitionRef.current = null;
       };
@@ -336,6 +397,7 @@ export function App() {
       rec.start();
     } catch (err) {
       console.warn('[Nagarik Voice] Failed to start:', err);
+      isListeningRef.current = false;
       setIsListening(false);
       recognitionRef.current = null;
     }
@@ -367,6 +429,17 @@ export function App() {
     isVoiceAgentQuery: boolean = false,
     overrideLang?: CivicLanguage
   ) => {
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
+    isListeningRef.current = false;
+    setIsListening(false);
+
     const query = (overrideQuery || inputQuery).trim();
     if (!query || isGenerating) return;
 

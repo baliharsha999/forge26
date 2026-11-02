@@ -125,6 +125,26 @@ export function chunkSpokenText(text: string, maxLen = 140): string[] {
 }
 
 /**
+ * Strips punctuation and normalizes a token for speech comparison.
+ * Prevents mobile auto-punctuation (e.g. "my." vs "my", "name," vs "name")
+ * from thwarting deduplication and transcript merging.
+ */
+/**
+ * Detects whether the current client is a mobile device (Android, iOS, iPadOS).
+ */
+export function isMobileDevice(): boolean {
+  if (typeof window === 'undefined' || typeof navigator === 'undefined') return false;
+  return /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini|Mobile|mobile|CriOS/i.test(
+    navigator.userAgent || (window as any).opera || ''
+  );
+}
+
+export function cleanToken(w: string): string {
+  if (!w || typeof w !== 'string') return '';
+  return w.replace(/[.,\/#!$%\^&\*;:{}=\-_`~()|।?«»"']/g, '').trim().toLowerCase();
+}
+
+/**
  * Merges two speech transcript chunks (e.g. base text and interim hypotheses,
  * or successive speech events), detecting and removing overlapping token prefixes
  * between the tail of baseText and the head of newText.
@@ -145,7 +165,7 @@ export function mergeTranscripts(baseText: string, newText: string): string {
   for (let len = maxOverlap; len >= 1; len--) {
     let match = true;
     for (let k = 0; k < len; k++) {
-      if (bTokens[bTokens.length - len + k].toLowerCase() !== nTokens[k].toLowerCase()) {
+      if (cleanToken(bTokens[bTokens.length - len + k]) !== cleanToken(nTokens[k])) {
         match = false;
         break;
       }
@@ -177,7 +197,7 @@ export function deduplicateConsecutiveWords(text: string): string {
   for (let i = 0; i < tokens.length; i++) {
     const curr = tokens[i];
     const prev = result.length > 0 ? result[result.length - 1] : null;
-    if (prev && curr.toLowerCase() === prev.toLowerCase()) {
+    if (prev && cleanToken(curr) && cleanToken(curr) === cleanToken(prev)) {
       continue;
     }
     result.push(curr);
@@ -188,7 +208,7 @@ export function deduplicateConsecutiveWords(text: string): string {
     for (let k = maxK; k >= 1; k--) {
       let isMatch = true;
       for (let j = 0; j < k; j++) {
-        if (result[len - 2 * k + j].toLowerCase() !== result[len - k + j].toLowerCase()) {
+        if (cleanToken(result[len - 2 * k + j]) !== cleanToken(result[len - k + j])) {
           isMatch = false;
           break;
         }
