@@ -268,17 +268,10 @@ export function App() {
   // Input Bar Voice Typing (Speech Recognition)
   const toggleListening = () => {
     if (isListening) {
-      if (recognitionRef.current) {
-        try {
-          recognitionRef.current.onstart = null;
-          recognitionRef.current.onresult = null;
-          recognitionRef.current.onerror = null;
-          recognitionRef.current.onend = null;
-          recognitionRef.current.stop();
-        } catch {
-          // ignore
-        }
-        recognitionRef.current = null;
+      try {
+        recognitionRef.current?.stop();
+      } catch {
+        // ignore
       }
       setIsListening(false);
       return;
@@ -290,20 +283,6 @@ export function App() {
       return;
     }
 
-    // Safely cleanup previous instance if any
-    if (recognitionRef.current) {
-      try {
-        recognitionRef.current.onstart = null;
-        recognitionRef.current.onresult = null;
-        recognitionRef.current.onerror = null;
-        recognitionRef.current.onend = null;
-        recognitionRef.current.abort();
-      } catch {
-        // ignore
-      }
-      recognitionRef.current = null;
-    }
-
     try {
       const rec = new SpeechRecognition();
       rec.continuous = true;
@@ -312,38 +291,24 @@ export function App() {
 
       rec.onstart = () => setIsListening(true);
       rec.onresult = (event: any) => {
-        let finalAccumulator = '';
-        let interimAccumulator = '';
+        let transcript = '';
         for (let i = 0; i < event.results.length; i++) {
-          const item = event.results[i];
-          const chunk = (item[0]?.transcript || '').trim();
-          if (!chunk) continue;
-          if (item.isFinal) {
-            finalAccumulator = mergeTranscripts(finalAccumulator, chunk);
-          } else {
-            interimAccumulator = mergeTranscripts(interimAccumulator, chunk);
-          }
+          transcript += event.results[i][0].transcript;
         }
-        const combined = mergeTranscripts(finalAccumulator, interimAccumulator);
-        const cleaned = deduplicateConsecutiveWords(combined);
-        if (cleaned) {
-          setInputQuery(cleaned);
-        }
+        const cleaned = deduplicateConsecutiveWords(transcript);
+        setInputQuery(cleaned || transcript);
       };
       rec.onerror = () => {
         setIsListening(false);
-        recognitionRef.current = null;
       };
       rec.onend = () => {
         setIsListening(false);
-        recognitionRef.current = null;
       };
 
       recognitionRef.current = rec;
       rec.start();
     } catch {
       setIsListening(false);
-      recognitionRef.current = null;
     }
   };
 

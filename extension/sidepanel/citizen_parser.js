@@ -133,46 +133,50 @@
    */
   function deduplicateConsecutiveWords(text) {
     if (!text || typeof text !== 'string') return '';
-    let tokens = text.trim().split(/\s+/).filter(Boolean);
+    const tokens = text.trim().split(/\s+/).filter(Boolean);
     if (tokens.length <= 1) return text.trim();
 
-    let changed = true;
-    let passes = 0;
-    while (changed && passes < 3) {
-      changed = false;
-      passes++;
-      const nextTokens = [];
-      let i = 0;
-      while (i < tokens.length) {
-        let matched = false;
-        const maxP = Math.min(8, Math.floor((tokens.length - i) / 2));
-        for (let p = maxP; p >= 1; p--) {
-          let isDup = true;
-          for (let k = 0; k < p; k++) {
-            if (tokens[i + k].toLowerCase() !== tokens[i + p + k].toLowerCase()) {
-              isDup = false;
-              break;
-            }
-          }
-          if (isDup) {
-            for (let k = 0; k < p; k++) {
-              nextTokens.push(tokens[i + k]);
-            }
-            i += 2 * p;
-            matched = true;
-            changed = true;
-            break;
-          }
-        }
-        if (!matched) {
-          nextTokens.push(tokens[i]);
-          i++;
+    const result = [];
+    for (let i = 0; i < tokens.length; i++) {
+      const curr = tokens[i];
+      const prev = result.length > 0 ? result[result.length - 1] : null;
+      if (prev && curr.toLowerCase() === prev.toLowerCase()) {
+        continue;
+      }
+      result.push(curr);
+
+      const len = result.length;
+      if (len >= 4) {
+        if (
+          result[len - 2].toLowerCase() === result[len - 4].toLowerCase() &&
+          result[len - 1].toLowerCase() === result[len - 3].toLowerCase()
+        ) {
+          result.splice(len - 2, 2);
         }
       }
-      tokens = nextTokens;
+      if (result.length >= 6) {
+        const l = result.length;
+        if (
+          result[l - 3].toLowerCase() === result[l - 6].toLowerCase() &&
+          result[l - 2].toLowerCase() === result[l - 5].toLowerCase() &&
+          result[l - 1].toLowerCase() === result[l - 4].toLowerCase()
+        ) {
+          result.splice(l - 3, 3);
+        }
+      }
+      if (result.length >= 8) {
+        const l = result.length;
+        if (
+          result[l - 4].toLowerCase() === result[l - 8].toLowerCase() &&
+          result[l - 3].toLowerCase() === result[l - 7].toLowerCase() &&
+          result[l - 2].toLowerCase() === result[l - 6].toLowerCase() &&
+          result[l - 1].toLowerCase() === result[l - 5].toLowerCase()
+        ) {
+          result.splice(l - 4, 4);
+        }
+      }
     }
-
-    return tokens.join(' ');
+    return result.join(' ');
   }
 
   /**
