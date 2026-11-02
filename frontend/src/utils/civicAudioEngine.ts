@@ -96,37 +96,95 @@ export function chunkSpokenText(text: string, maxLen = 140): string[] {
 }
 
 /**
- * Deduplicates adjacent repeated words and repeated 2-word phrases caused
- * by streaming speech-to-text interim buffer updates.
+ * Merges two speech transcript chunks (e.g. base text and interim hypotheses,
+ * or successive speech events), detecting and removing overlapping token prefixes
+ * between the tail of baseText and the head of newText.
+ * Resolves Chromium / Android SpeechRecognition repeating buffer discrepancies.
+ */
+export function mergeTranscripts(baseText: string, newText: string): string {
+  const b = (baseText || '').trim();
+  const n = (newText || '').trim();
+  if (!b) return n;
+  if (!n) return b;
+
+  const bTokens = b.split(/\s+/).filter(Boolean);
+  const nTokens = n.split(/\s+/).filter(Boolean);
+
+  const maxOverlap = Math.min(bTokens.length, nTokens.length);
+  let overlapLen = 0;
+
+  for (let len = maxOverlap; len >= 1; len--) {
+    let match = true;
+    for (let k = 0; k < len; k++) {
+      if (bTokens[bTokens.length - len + k].toLowerCase() !== nTokens[k].toLowerCase()) {
+        match = false;
+        break;
+      }
+    }
+    if (match) {
+      overlapLen = len;
+      break;
+    }
+  }
+
+  const remaining = nTokens.slice(overlapLen);
+  if (remaining.length === 0) {
+    return bTokens.join(' ');
+  }
+  return bTokens.concat(remaining).join(' ');
+}
+
+/**
+ * Deduplicates adjacent repeated words and repeated multi-word phrases (1 to 8 words)
+ * caused by streaming speech-to-text interim buffer updates or speaker cadence differences.
  * Works seamlessly across English, Telugu, and Hindi scripts.
  */
 export function deduplicateConsecutiveWords(text: string): string {
   if (!text || typeof text !== 'string') return '';
-  const tokens = text.trim().split(/\s+/).filter(Boolean);
+  let tokens = text.trim().split(/\s+/).filter(Boolean);
   if (tokens.length <= 1) return text.trim();
 
-  const result: string[] = [];
-  for (let i = 0; i < tokens.length; i++) {
-    const curr = tokens[i];
-    const prev = result.length > 0 ? result[result.length - 1] : null;
-    // Suppress single adjacent duplicate
-    if (prev && curr.toLowerCase() === prev.toLowerCase()) {
-      continue;
-    }
-    result.push(curr);
-
-    // Check 2-word phrase duplicate at end: [..., A, B, A, B]
-    const len = result.length;
-    if (len >= 4) {
-      if (
-        result[len - 2].toLowerCase() === result[len - 4].toLowerCase() &&
-        result[len - 1].toLowerCase() === result[len - 3].toLowerCase()
-      ) {
-        result.splice(len - 2, 2);
+  let changed = true;
+  let passes = 0;
+  // Bounded passes to eliminate multiple or nested stutters
+  while (changed && passes < 3) {
+    changed = false;
+    passes++;
+    const nextTokens: string[] = [];
+    let i = 0;
+    while (i < tokens.length) {
+      let matched = false;
+      // Check phrase lengths from 8 down to 1
+      const maxP = Math.min(8, Math.floor((tokens.length - i) / 2));
+      for (let p = maxP; p >= 1; p--) {
+        let isDup = true;
+        for (let k = 0; k < p; k++) {
+          if (tokens[i + k].toLowerCase() !== tokens[i + p + k].toLowerCase()) {
+            isDup = false;
+            break;
+          }
+        }
+        if (isDup) {
+          // Keep the first instance of the phrase
+          for (let k = 0; k < p; k++) {
+            nextTokens.push(tokens[i + k]);
+          }
+          // Skip the duplicate second instance
+          i += 2 * p;
+          matched = true;
+          changed = true;
+          break;
+        }
+      }
+      if (!matched) {
+        nextTokens.push(tokens[i]);
+        i++;
       }
     }
+    tokens = nextTokens;
   }
-  return result.join(' ');
+
+  return tokens.join(' ');
 }
 
 /**

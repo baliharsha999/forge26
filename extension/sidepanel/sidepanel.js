@@ -299,17 +299,19 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     recognition.onresult = (event) => {
-      let finalTranscript = "";
-      let interimTranscript = "";
+      let finalAccumulator = "";
+      let interimAccumulator = "";
       for (let i = 0; i < event.results.length; ++i) {
         const item = event.results[i];
+        const chunk = (item[0] && item[0].transcript ? item[0].transcript : "").trim();
+        if (!chunk) continue;
         if (item.isFinal) {
-          finalTranscript += item[0].transcript + " ";
+          finalAccumulator = mergeTranscripts(finalAccumulator, chunk);
         } else {
-          interimTranscript += item[0].transcript;
+          interimAccumulator = mergeTranscripts(interimAccumulator, chunk);
         }
       }
-      const combined = (finalTranscript + interimTranscript).trim();
+      const combined = mergeTranscripts(finalAccumulator, interimAccumulator);
       const cleaned = deduplicateConsecutiveWords(combined);
       if (cleaned) {
         citizenProblemInput.value = cleaned;
@@ -450,34 +452,86 @@ document.addEventListener("DOMContentLoaded", () => {
     return text.replace(/\D/g, "");
   }
 
+  function mergeTranscripts(baseText, newText) {
+    if (typeof window !== "undefined" && window.mergeTranscripts) {
+      return window.mergeTranscripts(baseText, newText);
+    }
+    const b = (baseText || '').trim();
+    const n = (newText || '').trim();
+    if (!b) return n;
+    if (!n) return b;
+
+    const bTokens = b.split(/\s+/).filter(Boolean);
+    const nTokens = n.split(/\s+/).filter(Boolean);
+
+    const maxOverlap = Math.min(bTokens.length, nTokens.length);
+    let overlapLen = 0;
+
+    for (let len = maxOverlap; len >= 1; len--) {
+      let match = true;
+      for (let k = 0; k < len; k++) {
+        if (bTokens[bTokens.length - len + k].toLowerCase() !== nTokens[k].toLowerCase()) {
+          match = false;
+          break;
+        }
+      }
+      if (match) {
+        overlapLen = len;
+        break;
+      }
+    }
+
+    const remaining = nTokens.slice(overlapLen);
+    if (remaining.length === 0) {
+      return bTokens.join(' ');
+    }
+    return bTokens.concat(remaining).join(' ');
+  }
+
   function deduplicateConsecutiveWords(text) {
     if (typeof window !== "undefined" && window.deduplicateConsecutiveWords) {
       return window.deduplicateConsecutiveWords(text);
     }
     if (!text || typeof text !== "string") return "";
-    const tokens = text.trim().split(/\s+/).filter(Boolean);
+    let tokens = text.trim().split(/\s+/).filter(Boolean);
     if (tokens.length <= 1) return text.trim();
 
-    const result = [];
-    for (let i = 0; i < tokens.length; i++) {
-      const curr = tokens[i];
-      const prev = result.length > 0 ? result[result.length - 1] : null;
-      if (prev && curr.toLowerCase() === prev.toLowerCase()) {
-        continue;
-      }
-      result.push(curr);
-
-      const len = result.length;
-      if (len >= 4) {
-        if (
-          result[len - 2].toLowerCase() === result[len - 4].toLowerCase() &&
-          result[len - 1].toLowerCase() === result[len - 3].toLowerCase()
-        ) {
-          result.splice(len - 2, 2);
+    let changed = true;
+    let passes = 0;
+    while (changed && passes < 3) {
+      changed = false;
+      passes++;
+      const nextTokens = [];
+      let i = 0;
+      while (i < tokens.length) {
+        let matched = false;
+        const maxP = Math.min(8, Math.floor((tokens.length - i) / 2));
+        for (let p = maxP; p >= 1; p--) {
+          let isDup = true;
+          for (let k = 0; k < p; k++) {
+            if (tokens[i + k].toLowerCase() !== tokens[i + p + k].toLowerCase()) {
+              isDup = false;
+              break;
+            }
+          }
+          if (isDup) {
+            for (let k = 0; k < p; k++) {
+              nextTokens.push(tokens[i + k]);
+            }
+            i += 2 * p;
+            matched = true;
+            changed = true;
+            break;
+          }
+        }
+        if (!matched) {
+          nextTokens.push(tokens[i]);
+          i++;
         }
       }
+      tokens = nextTokens;
     }
-    return result.join(" ");
+    return tokens.join(" ");
   }
 
   let aadhaarSpeechRec = null;
@@ -520,18 +574,21 @@ document.addEventListener("DOMContentLoaded", () => {
     }
 
     aadhaarSpeechRec.onresult = (evt) => {
-      let finalTranscript = "";
-      let interimTranscript = "";
+      let finalAccumulator = "";
+      let interimAccumulator = "";
       for (let i = 0; i < evt.results.length; ++i) {
         const item = evt.results[i];
+        const chunk = (item[0] && item[0].transcript ? item[0].transcript : "").trim();
+        if (!chunk) continue;
         if (item.isFinal) {
-          finalTranscript += item[0].transcript + " ";
+          finalAccumulator = mergeTranscripts(finalAccumulator, chunk);
         } else {
-          interimTranscript += item[0].transcript;
+          interimAccumulator = mergeTranscripts(interimAccumulator, chunk);
         }
       }
-      const combined = (finalTranscript + interimTranscript).trim();
-      const digits = wordsToDigits(combined);
+      const combined = mergeTranscripts(finalAccumulator, interimAccumulator);
+      const cleaned = deduplicateConsecutiveWords(combined);
+      const digits = wordsToDigits(cleaned);
       if (aadhaarDirectInput) aadhaarDirectInput.value = digits;
       if (digits.length >= 12) {
         const candidate = digits.slice(0, 12);

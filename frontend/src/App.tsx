@@ -13,7 +13,7 @@ import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
 import { AISaathiExtensionModal } from './components/AISaathiExtensionModal';
 import { CivicSettingsModal, type SettingsLanguage } from './components/CivicSettingsModal';
 import { CivicHelplineModal } from './components/CivicHelplineModal';
-import { speakCivicText, stopAllSpeech, deduplicateConsecutiveWords } from './utils/civicAudioEngine';
+import { speakCivicText, stopAllSpeech, deduplicateConsecutiveWords, mergeTranscripts } from './utils/civicAudioEngine';
 
 // Civic Language Support
 export type CivicLanguage = 'en' | 'hi' | 'te' | 'ta';
@@ -312,17 +312,19 @@ export function App() {
 
       rec.onstart = () => setIsListening(true);
       rec.onresult = (event: any) => {
-        let finalTranscript = '';
-        let interimTranscript = '';
+        let finalAccumulator = '';
+        let interimAccumulator = '';
         for (let i = 0; i < event.results.length; i++) {
           const item = event.results[i];
+          const chunk = (item[0]?.transcript || '').trim();
+          if (!chunk) continue;
           if (item.isFinal) {
-            finalTranscript += item[0].transcript + ' ';
+            finalAccumulator = mergeTranscripts(finalAccumulator, chunk);
           } else {
-            interimTranscript += item[0].transcript;
+            interimAccumulator = mergeTranscripts(interimAccumulator, chunk);
           }
         }
-        const combined = (finalTranscript + interimTranscript).trim();
+        const combined = mergeTranscripts(finalAccumulator, interimAccumulator);
         const cleaned = deduplicateConsecutiveWords(combined);
         if (cleaned) {
           setInputQuery(cleaned);

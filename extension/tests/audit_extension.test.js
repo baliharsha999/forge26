@@ -961,7 +961,7 @@ describe('Chrome Extension Test Audit', () => {
 
   describe('7. Zero-Knowledge Privacy & Security Audit', () => {
     // Audit real production citizen input parser directly from citizen_parser.js
-    const { parseCitizenInput, wordsToDigits, convertIndicDigits, deduplicateConsecutiveWords } = require('../sidepanel/citizen_parser.js');
+    const { parseCitizenInput, wordsToDigits, convertIndicDigits, deduplicateConsecutiveWords, mergeTranscripts } = require('../sidepanel/citizen_parser.js');
 
     test('Multilingual wordsToDigits: converts English, Hindi, and Telugu speech transcripts and numerals to digits', () => {
       // 1. English words
@@ -1068,6 +1068,44 @@ describe('Chrome Extension Test Audit', () => {
       assert.strictEqual(
         deduplicateConsecutiveWords('water water leakage pipeline pipeline near road road'),
         'water leakage pipeline near road'
+      );
+      // 6. 3-word phrase duplicate
+      assert.strictEqual(
+        deduplicateConsecutiveWords('how can I how can I apply for subsidy'),
+        'how can I apply for subsidy'
+      );
+      // 7. 4-word phrase duplicate
+      assert.strictEqual(
+        deduplicateConsecutiveWords('PM Kisan samman nidhi PM Kisan samman nidhi yojana'),
+        'PM Kisan samman nidhi yojana'
+      );
+      // 8. Triple repeated word
+      assert.strictEqual(
+        deduplicateConsecutiveWords('నమస్కారం నమస్కారం నమస్కారం నా పేరు రమేష్'),
+        'నమస్కారం నా పేరు రమేష్'
+      );
+    });
+
+    test('mergeTranscripts: merges final and interim speech chunks and eliminates overlapping phrase buffer duplicates', () => {
+      // 1. Overlapping prefix in interim chunk
+      assert.strictEqual(
+        mergeTranscripts('PM Kisan', 'PM Kisan scheme'),
+        'PM Kisan scheme'
+      );
+      // 2. Android Chrome cumulative buffer repeat
+      assert.strictEqual(
+        mergeTranscripts('రైతు భరోసా పథకం', 'రైతు భరోసా పథకం కావాలి'),
+        'రైతు భరోసా పథకం కావాలి'
+      );
+      // 3. 1-word tail overlap
+      assert.strictEqual(
+        mergeTranscripts('how can I', 'I apply for grievance'),
+        'how can I apply for grievance'
+      );
+      // 4. Distinct consecutive phrases without overlap
+      assert.strictEqual(
+        mergeTranscripts('water pipe leakage', 'near main road'),
+        'water pipe leakage near main road'
       );
     });
 
