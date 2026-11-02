@@ -21,21 +21,60 @@ document.addEventListener("DOMContentLoaded", () => {
     actionButtons: []
   };
 
-  // Base citizen profile for quick-fill shortcut (includes valid Verhoeff Aadhaar credentials)
+  // Zero-trust citizen state (Aadhaar is null by default; requires citizen voice/text input with Verhoeff validation)
   let currentCitizenState = {
-    citizen_name: "Ramesh Kumar",
-    citizen_phone: "9876543210",
-    citizen_email: "ramesh.kumar@example.com",
-    uid: "488813127839",
-    aadhaar: "488813127839",
-    application_no: "240310001234",
-    location: "Ward 42, Hyderabad, Telangana",
-    pincode: "500034",
+    citizen_name: "",
+    citizen_phone: "",
+    citizen_email: "",
+    uid: null,
+    aadhaar: null,
+    isDemoProfile: false,
+    application_no: "",
+    location: "",
+    pincode: "",
     department: "Municipal Corporation & Public Works",
     category: "General Civic Redressal",
-    urgency_level: "HIGH",
+    urgency_level: "MEDIUM",
     description: ""
   };
+
+  // Official UIDAI Verhoeff Dihedral (D5) Checksum Algorithm
+  const VERHOEFF_D = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+    [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+    [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+    [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+    [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+    [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+    [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+    [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+    [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+  ];
+
+  const VERHOEFF_P = [
+    [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+    [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+    [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+    [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+    [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+    [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+    [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+    [7, 0, 4, 6, 9, 1, 3, 2, 5, 8]
+  ];
+
+  function validateVerhoeff(numStr) {
+    if (!numStr || typeof numStr !== "string") return false;
+    const clean = numStr.replace(/[\s-]/g, "");
+    if (!/^\d{12}$/.test(clean)) return false;
+    if (/^(\d)\1{11}$/.test(clean)) return false;
+    let c = 0;
+    const invertedArray = clean.split("").reverse().map(Number);
+    for (let i = 0; i < invertedArray.length; i++) {
+      c = VERHOEFF_D[c][VERHOEFF_P[i % 8][invertedArray[i]]];
+    }
+    return c === 0;
+  }
 
   let lastFillResult = null;
 
@@ -116,8 +155,21 @@ document.addEventListener("DOMContentLoaded", () => {
   const micActionBtn = document.getElementById("mic-action-btn");
   const micBtnLabel = document.getElementById("mic-btn-label");
   const btnExecuteTask = document.getElementById("btn-execute-task");
-  const btnUseProfile = document.getElementById("btn-use-profile");
   const dynamicChipsGrid = document.getElementById("dynamic-chips-grid");
+
+  // Voice-First Aadhaar Identity & Shielding Elements
+  const aadhaarVerificationBox = document.getElementById("aadhaar-verification-box");
+  const aadhaarBadge = document.getElementById("aadhaar-badge");
+  const aadhaarUnverifiedPanel = document.getElementById("aadhaar-unverified-panel");
+  const aadhaarPromptText = document.getElementById("aadhaar-prompt-text");
+  const aadhaarDirectInput = document.getElementById("aadhaar-direct-input");
+  const btnSpeakAadhaar = document.getElementById("btn-speak-aadhaar");
+  const aadhaarSpeakLabel = document.getElementById("aadhaar-speak-label");
+  const aadhaarStatusFeedback = document.getElementById("aadhaar-status-feedback");
+  const btnLoadDemoProfile = document.getElementById("btn-load-demo-profile");
+  const aadhaarVerifiedPanel = document.getElementById("aadhaar-verified-panel");
+  const aadhaarMaskedDisplay = document.getElementById("aadhaar-masked-display");
+  const btnClearAadhaar = document.getElementById("btn-clear-aadhaar");
   
   // Analyzing Stage
   const analyzingStage = document.getElementById("analyzing-stage");
@@ -209,6 +261,23 @@ document.addEventListener("DOMContentLoaded", () => {
       document.querySelectorAll(".lang-btn").forEach(b => b.classList.remove("active"));
       btn.classList.add("active");
       currentLang = btn.dataset.lang;
+      const loc = LOCALES[currentLang] || LOCALES.en;
+      if (recognition) {
+        recognition.lang = loc.tag;
+        if (isRecording) {
+          try {
+            recognition.stop();
+            setTimeout(() => {
+              try {
+                if (isRecording) recognition.start();
+              } catch (_) {}
+            }, 180);
+          } catch (_) {}
+        }
+      }
+      if (aadhaarSpeechRec) {
+        aadhaarSpeechRec.lang = loc.tag;
+      }
       renderActionChips();
       speak(LOCALES[currentLang].welcome);
     });
@@ -245,10 +314,22 @@ document.addEventListener("DOMContentLoaded", () => {
       micBtnLabel.innerText = "Tap to Speak";
     };
 
-    recognition.onerror = () => {
+    recognition.onerror = (event) => {
       isRecording = false;
       micActionBtn.classList.remove("recording");
-      micBtnLabel.innerText = "Tap to Speak";
+      const err = event && event.error;
+      if (err === "no-speech") {
+        micBtnLabel.innerText = "No voice heard";
+      } else if (err === "network" || err === "language-not-supported") {
+        micBtnLabel.innerText = "Loading voice pack...";
+      } else if (err === "not-allowed") {
+        micBtnLabel.innerText = "Mic blocked";
+      } else {
+        micBtnLabel.innerText = "Speech failed";
+      }
+      setTimeout(() => {
+        micBtnLabel.innerText = "Tap to Speak";
+      }, 2500);
     };
 
     micActionBtn.addEventListener("click", () => {
@@ -264,29 +345,252 @@ document.addEventListener("DOMContentLoaded", () => {
     micActionBtn.style.display = "none";
   }
 
+  function setVerifiedAadhaar(rawNum, isDemo = false) {
+    const clean = (rawNum || "").replace(/[\s-]/g, "");
+    if (!validateVerhoeff(clean)) {
+      if (aadhaarStatusFeedback) {
+        aadhaarStatusFeedback.innerText = "Invalid 12-digit Aadhaar (failed UIDAI Verhoeff checksum). Please re-enter.";
+        aadhaarStatusFeedback.classList.remove("hidden");
+        aadhaarStatusFeedback.style.color = "#f87171";
+      }
+      return false;
+    }
+
+    currentCitizenState.uid = clean;
+    currentCitizenState.aadhaar = clean;
+    currentCitizenState.id_number = clean;
+    currentCitizenState.isDemoProfile = !!isDemo;
+
+    if (aadhaarUnverifiedPanel) aadhaarUnverifiedPanel.classList.add("hidden");
+    if (aadhaarVerifiedPanel) aadhaarVerifiedPanel.classList.remove("hidden");
+    if (aadhaarMaskedDisplay) aadhaarMaskedDisplay.innerText = `XXXXXXXX${clean.slice(-4)}`;
+    if (aadhaarBadge) {
+      aadhaarBadge.innerText = isDemo ? "Demo Citizen Verified" : "Aadhaar Verified";
+      aadhaarBadge.className = "aadhaar-pill-verified";
+    }
+    if (aadhaarStatusFeedback) aadhaarStatusFeedback.classList.add("hidden");
+
+    return true;
+  }
+
+  function clearAadhaar() {
+    currentCitizenState.uid = null;
+    currentCitizenState.aadhaar = null;
+    currentCitizenState.id_number = null;
+    currentCitizenState.isDemoProfile = false;
+
+    if (aadhaarDirectInput) aadhaarDirectInput.value = "";
+    if (aadhaarUnverifiedPanel) aadhaarUnverifiedPanel.classList.remove("hidden");
+    if (aadhaarVerifiedPanel) aadhaarVerifiedPanel.classList.add("hidden");
+    if (aadhaarBadge) {
+      aadhaarBadge.innerText = "Aadhaar Required";
+      aadhaarBadge.className = "aadhaar-pill-unverified";
+    }
+    if (aadhaarStatusFeedback) aadhaarStatusFeedback.classList.add("hidden");
+  }
+
+  function convertIndicDigits(text) {
+    if (typeof window !== "undefined" && window.convertIndicDigits) {
+      return window.convertIndicDigits(text);
+    }
+    if (!text) return "";
+    const digitMap = {
+      '०': '0', '१': '1', '२': '2', '३': '3', '४': '4',
+      '५': '5', '६': '6', '७': '7', '८': '8', '९': '9',
+      '౦': '0', '౧': '1', '౨': '2', '౩': '3', '౪': '4',
+      '౫': '5', '౬': '6', '౭': '7', '౮': '8', '౯': '9'
+    };
+    return String(text).replace(/[०-९౦-౯]/g, d => digitMap[d]);
+  }
+
+  function wordsToDigits(transcript) {
+    if (typeof window !== "undefined" && window.wordsToDigits) {
+      return window.wordsToDigits(transcript);
+    }
+    if (!transcript) return "";
+    let text = convertIndicDigits(String(transcript).toLowerCase());
+
+    const wordEntries = [
+      ['zero', '0'], ['oh', '0'], ['shunya', '0'], ['soonya', '0'], ['sunya', '0'], ['sunna', '0'],
+      ['शून्य', '0'], ['సున్నా', '0'],
+      ['one', '1'], ['ek', '1'], ['aik', '1'], ['okati', '1'], ['okkati', '1'], ['okate', '1'],
+      ['एक', '1'], ['ఒకటి', '1'],
+      ['two', '2'], ['do', '2'], ['doh', '2'], ['rendu', '2'],
+      ['दो', '2'], ['రెండు', '2'],
+      ['three', '3'], ['teen', '3'], ['tin', '3'], ['moodu', '3'], ['mudu', '3'],
+      ['तीन', '3'], ['మూడు', '3'],
+      ['four', '4'], ['chaar', '4'], ['char', '4'], ['naalugu', '4'], ['nalugu', '4'],
+      ['चार', '4'], ['నాలుగు', '4'],
+      ['five', '5'], ['paanch', '5'], ['panch', '5'], ['aidu', '5'], ['ayidu', '5'],
+      ['पाँच', '5'], ['पांच', '5'], ['ఐదు', '5'],
+      ['six', '6'], ['chhah', '6'], ['chhe', '6'], ['cheh', '6'], ['chha', '6'], ['aaru', '6'], ['aru', '6'],
+      ['छह', '6'], ['ఆరు', '6'],
+      ['seven', '7'], ['saat', '7'], ['sat', '7'], ['eedu', '7'], ['edu', '7'],
+      ['सात', '7'], ['ఏడు', '7'],
+      ['eight', '8'], ['aath', '8'], ['aat', '8'], ['enimidi', '8'], ['yanimidi', '8'],
+      ['आठ', '8'], ['ఎనిమిది', '8'],
+      ['nine', '9'], ['nau', '9'], ['now', '9'], ['thommidi', '9'], ['tommidi', '9'],
+      ['नौ', '9'], ['తొమ్మిది', '9'],
+      ['o', '0']
+    ];
+
+    for (const [w, d] of wordEntries) {
+      const reg = new RegExp('(?<![\\p{L}\\p{N}])' + w + '(?![\\p{L}\\p{N}])', 'gui');
+      text = text.replace(reg, d);
+    }
+
+    return text.replace(/\D/g, "");
+  }
+
+  let aadhaarSpeechRec = null;
+  function startAadhaarVoiceInput() {
+    if (!("webkitSpeechRecognition" in window || "SpeechRecognition" in window)) {
+      if (aadhaarStatusFeedback) {
+        aadhaarStatusFeedback.innerText = "Speech recognition unavailable. Please enter Aadhaar number directly.";
+        aadhaarStatusFeedback.classList.remove("hidden");
+      }
+      return;
+    }
+    const SpeechRec = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!aadhaarSpeechRec) {
+      aadhaarSpeechRec = new SpeechRec();
+      aadhaarSpeechRec.continuous = false;
+      aadhaarSpeechRec.interimResults = true;
+    }
+
+    const loc = LOCALES[currentLang] || LOCALES.en;
+    aadhaarSpeechRec.lang = loc.tag;
+
+    const promptSpeech = currentLang === 'hi'
+      ? "कृपया अपना 12 अंकों का आधार नंबर स्पष्ट बोलें।"
+      : currentLang === 'te'
+      ? "దయచేసి మీ 12 అంకెల ఆధార్ సంఖ్యను స్పష్టంగా చెప్పండి."
+      : "Please speak your 12-digit Aadhaar number clearly.";
+    speak(promptSpeech);
+
+    if (btnSpeakAadhaar) btnSpeakAadhaar.classList.add("recording");
+    if (aadhaarSpeakLabel) aadhaarSpeakLabel.innerText = "Listening...";
+    if (aadhaarStatusFeedback) {
+      const feedbackText = currentLang === 'hi'
+        ? "12 अंकों का आधार सुन रहे हैं..."
+        : currentLang === 'te'
+        ? "12 అంకెల ఆధార్ వింటున్నాము..."
+        : "Listening for 12 digits...";
+      aadhaarStatusFeedback.innerText = feedbackText;
+      aadhaarStatusFeedback.classList.remove("hidden");
+      aadhaarStatusFeedback.style.color = "#fbbf24";
+    }
+
+    aadhaarSpeechRec.onresult = (evt) => {
+      let spoken = "";
+      for (let i = evt.resultIndex; i < evt.results.length; ++i) {
+        spoken += evt.results[i][0].transcript;
+      }
+      const digits = wordsToDigits(spoken);
+      if (aadhaarDirectInput) aadhaarDirectInput.value = digits;
+      if (digits.length >= 12) {
+        const candidate = digits.slice(0, 12);
+        if (setVerifiedAadhaar(candidate)) {
+          speak(currentLang === 'hi' ? "आधार सत्यापित और सुरक्षित कर दिया गया है।" : currentLang === 'te' ? "ఆధార్ ధృవీకరించబడింది మరియు రక్షించబడింది." : "Aadhaar verified under UIDAI standard and shielded.");
+          aadhaarSpeechRec.stop();
+        }
+      }
+    };
+
+    aadhaarSpeechRec.onend = () => {
+      if (btnSpeakAadhaar) btnSpeakAadhaar.classList.remove("recording");
+      if (aadhaarSpeakLabel) aadhaarSpeakLabel.innerText = "Speak UID";
+      if (aadhaarDirectInput && aadhaarDirectInput.value) {
+        const digits = wordsToDigits(aadhaarDirectInput.value);
+        if (digits.length === 12) {
+          if (!setVerifiedAadhaar(digits)) {
+            speak(currentLang === 'hi' ? "बोला गया आधार नंबर अमान्य है। कृपया पुनः प्रयास करें।" : currentLang === 'te' ? "చెప్పిన ఆధార్ సంఖ్య సరిపోలలేదు. దయచేసి మళ్లీ ప్రయత్నించండి." : "The spoken Aadhaar number failed checksum verification. Please try again or type it.");
+          }
+        }
+      }
+    };
+
+    aadhaarSpeechRec.onerror = (evt) => {
+      if (btnSpeakAadhaar) btnSpeakAadhaar.classList.remove("recording");
+      if (aadhaarSpeakLabel) aadhaarSpeakLabel.innerText = "Speak UID";
+      if (aadhaarStatusFeedback) {
+        const errType = (evt && evt.error) ? evt.error : "failed";
+        if (errType === "no-speech") {
+          aadhaarStatusFeedback.innerText = "No voice heard. Please speak clearly or type digits.";
+        } else if (errType === "language-not-supported" || errType === "network") {
+          aadhaarStatusFeedback.innerText = "Language model loading. Please retry in a moment.";
+        } else {
+          aadhaarStatusFeedback.innerText = `Speech error (${errType}). Please retry or type.`;
+        }
+        aadhaarStatusFeedback.classList.remove("hidden");
+        aadhaarStatusFeedback.style.color = "#f87171";
+      }
+    };
+
+    try {
+      aadhaarSpeechRec.start();
+    } catch (_) {}
+  }
+
+  function loadDemoProfile() {
+    setVerifiedAadhaar("488813127839", true);
+    currentCitizenState.citizen_name = "Ramesh Kumar";
+    currentCitizenState.citizen_phone = "9876543210";
+    currentCitizenState.citizen_email = "ramesh.kumar@example.com";
+    currentCitizenState.location = "Ward 42, Hyderabad, Telangana";
+    currentCitizenState.pincode = "500034";
+    if (!citizenProblemInput.value.trim()) {
+      citizenProblemInput.value = "Severe water pipeline leakage on main road near bus stand since yesterday, flooding the lane. Please inspect and repair.";
+    }
+    speak("Demo profile for Ramesh Kumar loaded for testing.");
+  }
+
   // Live extraction as citizen types into textarea (e.g. Aadhaar, phone, name)
   citizenProblemInput.addEventListener("input", () => {
     const text = citizenProblemInput.value.trim();
     if (!text) return;
     const parsed = parseCitizenInput(text);
-    if (parsed.extractedAadhaar) {
-      currentCitizenState.uid = parsed.extractedAadhaar;
-      currentCitizenState.aadhaar = parsed.extractedAadhaar;
+    if (parsed.extractedAadhaar && validateVerhoeff(parsed.extractedAadhaar)) {
+      setVerifiedAadhaar(parsed.extractedAadhaar);
       injectCurrentStateIntoPage();
     }
     if (parsed.extractedName) currentCitizenState.citizen_name = parsed.extractedName;
     if (parsed.extractedPhone) currentCitizenState.citizen_phone = parsed.extractedPhone;
   });
 
-  // Profile Quick-fill button
-  btnUseProfile.addEventListener("click", () => {
-    const defaultProblem = "Severe water pipeline leakage on main road near bus stand since yesterday, flooding the lane. Please inspect and repair.";
-    if (!citizenProblemInput.value.trim()) {
-      citizenProblemInput.value = defaultProblem;
-    }
-    btnUseProfile.style.borderColor = "var(--orange-primary)";
-    btnUseProfile.style.background = "rgba(240, 106, 37, 0.18)";
-  });
+  // Direct Aadhaar Input Listener
+  if (aadhaarDirectInput) {
+    aadhaarDirectInput.addEventListener("input", (e) => {
+      let val = e.target.value.replace(/[\s-]/g, "");
+      if (val.length >= 12) {
+        val = val.slice(0, 12);
+        if (setVerifiedAadhaar(val)) {
+          speak("Aadhaar number verified under UIDAI standard and shielded.");
+        }
+      } else {
+        if (aadhaarStatusFeedback) aadhaarStatusFeedback.classList.add("hidden");
+      }
+    });
+  }
+
+  if (btnSpeakAadhaar) {
+    btnSpeakAadhaar.addEventListener("click", () => {
+      startAadhaarVoiceInput();
+    });
+  }
+
+  if (btnClearAadhaar) {
+    btnClearAadhaar.addEventListener("click", () => {
+      clearAadhaar();
+      speak("Aadhaar cleared. Please enter or speak your 12-digit Aadhaar.");
+    });
+  }
+
+  if (btnLoadDemoProfile) {
+    btnLoadDemoProfile.addEventListener("click", () => {
+      loadDemoProfile();
+    });
+  }
 
   // ----------------------------------------------------------------
   // Website Detection & Live DOM Study
@@ -374,6 +678,19 @@ document.addEventListener("DOMContentLoaded", () => {
       fieldsTagCloudEl.classList.add("hidden");
     }
 
+    // Proactive Aadhaar Prompt on official identity portals
+    const isAadhaarPortal = (activeTabInfo.domain && activeTabInfo.domain.includes("uidai")) ||
+                            activeTabInfo.pageType === "IDENTITY_PORTAL" ||
+                            (activeTabInfo.fields && activeTabInfo.fields.some(f => /aadhaar|aadhar|uid/i.test(f.label || f.name || f.id)));
+    if (isAadhaarPortal && !currentCitizenState.aadhaar) {
+      if (aadhaarPromptText) {
+        aadhaarPromptText.innerText = "Official UIDAI Portal: Please speak or enter your 12-digit Aadhaar to proceed safely.";
+      }
+      setTimeout(() => {
+        speak("You are on an official Aadhaar portal. Please speak or enter your 12-digit Aadhaar number to verify and begin.");
+      }, 600);
+    }
+
     renderActionChips();
   }
 
@@ -456,9 +773,18 @@ document.addEventListener("DOMContentLoaded", () => {
 
   function handleActionChipClick(action) {
     if (action === "AUTOFILL") {
+      const isIdentityPortal = activeTabInfo.pageType === "IDENTITY_PORTAL" || 
+                              (activeTabInfo.domain && activeTabInfo.domain.includes("uidai")) ||
+                              (activeTabInfo.fields && activeTabInfo.fields.some(f => /aadhaar|aadhar|uid/i.test(f.label || f.name || f.id)));
+      if (isIdentityPortal && !currentCitizenState.aadhaar) {
+        speak("Aadhaar authentication is required. Please speak or enter your 12-digit Aadhaar number first.");
+        if (aadhaarDirectInput) aadhaarDirectInput.focus();
+        startAadhaarVoiceInput();
+        return;
+      }
       if (!citizenProblemInput.value.trim()) {
-        if (activeTabInfo.pageType === "IDENTITY_PORTAL" || (activeTabInfo.domain && activeTabInfo.domain.includes("uidai"))) {
-          citizenProblemInput.value = `Sign in to Aadhaar portal with verified UID ${currentCitizenState.aadhaar}`;
+        if (isIdentityPortal) {
+          citizenProblemInput.value = `Sign in to Aadhaar portal with verified UID ${currentCitizenState.aadhaar || ''}`;
         } else {
           citizenProblemInput.value = "Severe water pipeline leakage on main road near bus stand since yesterday, flooding the lane. Please inspect and repair.";
         }
@@ -505,6 +831,9 @@ document.addEventListener("DOMContentLoaded", () => {
   // Dynamic Entity & Semantic Parser
   // ----------------------------------------------------------------
   function parseCitizenInput(text) {
+    if (typeof window !== "undefined" && window.parseCitizenInput && window.parseCitizenInput !== parseCitizenInput) {
+      return window.parseCitizenInput(text);
+    }
     const res = {
       rawText: text || "",
       extractedAadhaar: null,
@@ -516,42 +845,48 @@ document.addEventListener("DOMContentLoaded", () => {
     };
     if (!text) return res;
 
-    // 1. Aadhaar / UID (12 digits, with or without spaces)
-    const aadhaarMatch = text.match(/(?:aadhaar|aadhar|uid|uidai)[\s:=]*([0-9]{4}\s?[0-9]{4}\s?[0-9]{4})\b/i) ||
-                         text.match(/\b([0-9]{4}\s[0-9]{4}\s[0-9]{4})\b/) ||
-                         text.match(/\b([0-9]{12})\b/);
+    // Convert Indic numerals (Devanagari ०-९ and Telugu ౦-౯) to standard ASCII 0-9
+    const normalizedText = convertIndicDigits(text);
+
+    // 1. Aadhaar / UID (12 digits, continuous or grouped with spaces/hyphens)
+    // Supports Indic Aadhaar terms: Hindi (आधार, आधार संख्या, यूआईडी) and Telugu (ఆధార్, ఆధార్ సంఖ్య, యూఐడీ)
+    const aadhaarMatch = normalizedText.match(/(?:aadhaar|aadhar|uid|uidai|आधार(?:\s*संख्या)?|यूआईडी|ఆధార్(?:\s*సంఖ్య)?|యూఐడీ)[\s:=]*([0-9]{4}\s?[0-9]{4}\s?[0-9]{4})\b/iu) ||
+                         normalizedText.match(/\b([0-9]{4}\s[0-9]{4}\s[0-9]{4})\b/) ||
+                         normalizedText.match(/\b([0-9]{12})\b/);
     if (aadhaarMatch) {
       res.extractedAadhaar = aadhaarMatch[1].replace(/\s+/g, "");
     }
 
     // 2. Phone / Mobile (10 digits starting with 6-9)
-    const phoneMatch = text.match(/(?:phone|mobile|contact|cell)[\s:=]*([6-9][0-9]{9})\b/i) ||
-                       text.match(/\b([6-9][0-9]{9})\b/);
+    // Supports Indic phone terms: Hindi (फोन, मोबाइल, संपर्क) and Telugu (ఫోన్, మొబైల్, సంప్రదింపు)
+    const phoneMatch = normalizedText.match(/(?:phone|mobile|contact|cell|फोन|मोबाइल|संपर्क|ఫోన్|మొబైల్|సంప్రదింపు)[\s:=]*([6-9][0-9]{9})\b/iu) ||
+                       normalizedText.match(/\b([6-9][0-9]{9})\b/);
     if (phoneMatch) {
       res.extractedPhone = phoneMatch[1];
     }
 
-    // 3. Pincode (6 digits starting 1-9)
-    const pinMatch = text.match(/(?:pin|pincode|postal)[\s:=]*([1-9][0-9]{5})\b/i) ||
-                     text.match(/\b([1-9][0-9]{5})\b/);
+    // 3. Pincode (6 digits starting with 1-9)
+    const pinMatch = normalizedText.match(/(?:pin|pincode|postal|पिन|पिनकोड|పిన్|పిన్‌కోడ్)[\s:=]*([1-9][0-9]{5})\b/iu) ||
+                     normalizedText.match(/\b([1-9][0-9]{5})\b/);
     if (pinMatch) {
       res.extractedPin = pinMatch[1];
     }
 
     // 4. Email
-    const emailMatch = text.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
+    const emailMatch = normalizedText.match(/([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,})/);
     if (emailMatch) {
       res.extractedEmail = emailMatch[1];
     }
 
     // 5. Citizen Name
-    const nameMatch = text.match(/(?:my name is|i am|myself|citizen:?)\s+([^.,\n]+?)(?=\s+(?:and|who|from|need|residing|with|my)\b|[.,\n]|$)/i);
+    // Supports Indic name prefixes: Hindi (मेरा नाम, नाम) and Telugu (నా పేరు, పేరు)
+    const nameMatch = normalizedText.match(/(?:my name is|i am|myself|citizen:?|मेरा\s+नाम(?:\s+है)?|नाम:?|నా\s+పేరు(?:\s+వచ్చేసి)?|పేరు:?)\s+([^.,\n|।]+?)(?=\s+(?:and|who|from|need|residing|with|my|और|है|మరియు|నాకు|నుండి)(?![\p{L}\p{N}])|[.,\n|।]|$)/iu);
     if (nameMatch) {
       res.extractedName = nameMatch[1].trim();
     }
 
     // 6. Location
-    const locMatch = text.match(/(?:in|at|near|around|from|opposite|behind|beside|lane|colony|ward|sector|street|nagar|road|dist|district|city)\s+([A-Za-z0-9\s,\-_#]+?)(?=\s+(?:since|which|please|causing|due|and\s+it|is\s+broken|[.,\n]|$))/i);
+    const locMatch = normalizedText.match(/(?:in|at|near|around|from|opposite|behind|beside|lane|colony|ward|sector|street|nagar|road|dist|district|city)\s+([A-Za-z0-9\s,\-_#]+?)(?=\s+(?:since|which|please|causing|due|and\s+it|is\s+broken|[.,\n]|$))/i);
     if (locMatch) {
       res.extractedLocation = locMatch[0].trim();
     }

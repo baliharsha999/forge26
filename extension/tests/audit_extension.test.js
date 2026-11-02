@@ -106,9 +106,10 @@ function createMockEnvironment() {
       }
     }
     closest(selector) {
-      let curr = this.parentElement;
+      let curr = this;
       while (curr) {
         if (selector === 'label' && curr.tagName === 'LABEL') return curr;
+        if (matchesSelector(curr, selector)) return curr;
         curr = curr.parentElement;
       }
       return null;
@@ -903,6 +904,29 @@ describe('Chrome Extension Test Audit', () => {
       assert.strictEqual(Boolean(opaqueSubmitBtn.clicked), false);
     });
 
+    test('Submission Guard: event-delegation blocks clicks on child icon/span inside submit button (Round 5)', () => {
+      const form = env.document.createElement('form');
+      const submitBtn = env.document.createElement('button');
+      submitBtn.id = 'official-submit-btn';
+      submitBtn.type = 'submit';
+      
+      const childSpan = env.document.createElement('span');
+      childSpan.id = 'btn-icon-label';
+      childSpan.innerText = 'Submit Complaint';
+      submitBtn.appendChild(childSpan);
+      form.appendChild(submitBtn);
+      env.document.body.appendChild(form);
+
+      let clickRes = null;
+      for (const listener of env.messageListeners) {
+        listener({ action: 'CLICK_PAGE_ELEMENT', target: 'btn-icon-label' }, {}, (r) => { clickRes = r; });
+      }
+
+      assert.ok(clickRes);
+      assert.strictEqual(clickRes.success, false);
+      assert.strictEqual(clickRes.blocked, true);
+    });
+
     test('Sensitive Field Protection: strictly rejects filling passwords, OTPs, and does NOT auto-check consent', () => {
       const pwdInput = env.document.createElement('input');
       pwdInput.type = 'password';
@@ -937,7 +961,87 @@ describe('Chrome Extension Test Audit', () => {
 
   describe('7. Zero-Knowledge Privacy & Security Audit', () => {
     // Audit real production citizen input parser directly from citizen_parser.js
-    const { parseCitizenInput } = require('../sidepanel/citizen_parser.js');
+    const { parseCitizenInput, wordsToDigits, convertIndicDigits } = require('../sidepanel/citizen_parser.js');
+
+    test('Multilingual wordsToDigits: converts English, Hindi, and Telugu speech transcripts and numerals to digits', () => {
+      // 1. English words
+      assert.strictEqual(
+        wordsToDigits('four eight eight eight one three one two seven eight three nine'),
+        '488813127839'
+      );
+      assert.strictEqual(
+        wordsToDigits('two two eight six five four seven zero five three two four'),
+        '228654705324'
+      );
+
+      // 2. Hindi words
+      assert.strictEqual(
+        wordsToDigits('चार आठ आठ आठ एक तीन एक दो सात आठ तीन नौ'),
+        '488813127839'
+      );
+      assert.strictEqual(
+        wordsToDigits('दो दो आठ छह पांच चार सात शून्य पांच तीन दो चार'),
+        '228654705324'
+      );
+
+      // 3. Telugu words
+      assert.strictEqual(
+        wordsToDigits('నాలుగు ఎనిమిది ఎనిమిది ఎనిమిది ఒకటి మూడు ఒకటి రెండు ఏడు ఎనిమిది మూడు తొమ్మిది'),
+        '488813127839'
+      );
+      assert.strictEqual(
+        wordsToDigits('రెండు రెండు ఎనిమిది ఆరు ఐదు నాలుగు ఏడు సున్నా ఐదు మూడు రెండు నాలుగు'),
+        '228654705324'
+      );
+
+      // 4. Devanagari numerals
+      assert.strictEqual(wordsToDigits('४८८८१३१२७८३९'), '488813127839');
+      assert.strictEqual(wordsToDigits('२२८६ ५४७० ५३२४'), '228654705324');
+
+      // 5. Telugu numerals
+      assert.strictEqual(wordsToDigits('౪౮౮౮౧౩౧౨౭౮౩౯'), '488813127839');
+      assert.strictEqual(wordsToDigits('౨౨౮౬ ౫౪౭౦ ౫౩౨౪'), '228654705324');
+
+      // 6. Roman transliterated phonetic digits
+      assert.strictEqual(
+        wordsToDigits('char aath aath aath ek teen ek do saat aath teen nau'),
+        '488813127839'
+      );
+      assert.strictEqual(
+        wordsToDigits('naalugu enimidi enimidi enimidi okati moodu okati rendu eedu enimidi moodu thommidi'),
+        '488813127839'
+      );
+    });
+
+    test('parseCitizenInput: multilingual Indic entity extraction (Telugu and Hindi sentences)', () => {
+      // Telugu sentence with Telugu numerals and terms
+      const teluguInput = 'నా పేరు రమేష్ రావు, నా ఆధార్ సంఖ్య ౨౨౮౬ ౫౪౭౦ ౫౩౨౪ మరియు ఫోన్ 9876543210';
+      const parsedTe = parseCitizenInput(teluguInput);
+      assert.strictEqual(parsedTe.extractedName, 'రమేష్ రావు');
+      assert.strictEqual(parsedTe.extractedAadhaar, '228654705324');
+      assert.strictEqual(parsedTe.extractedPhone, '9876543210');
+
+      // Hindi sentence with Devanagari numerals and terms
+      const hindiInput = 'मेरा नाम सुरेश शर्मा है, मेरा आधार ४८८८ १३१२ ७८३९ और मोबाइल ९८७६५४३२१० है।';
+      const parsedHi = parseCitizenInput(hindiInput);
+      assert.strictEqual(parsedHi.extractedName, 'सुरेश शर्मा');
+      assert.strictEqual(parsedHi.extractedAadhaar, '488813127839');
+      assert.strictEqual(parsedHi.extractedPhone, '9876543210');
+
+      // Hindi with संपर्क and यूआईडी
+      const hindiInput2 = 'यूआईडी: 4888 1312 7839, संपर्क: 9123456789, पिनकोड: 500034';
+      const parsedHi2 = parseCitizenInput(hindiInput2);
+      assert.strictEqual(parsedHi2.extractedAadhaar, '488813127839');
+      assert.strictEqual(parsedHi2.extractedPhone, '9123456789');
+      assert.strictEqual(parsedHi2.extractedPin, '500034');
+
+      // Telugu with సంప్రదింపు and యూఐడీ
+      const teluguInput2 = 'యూఐడీ: 228654705324, సంప్రదింపు: 9876543210, పిన్‌కోడ్: 500081';
+      const parsedTe2 = parseCitizenInput(teluguInput2);
+      assert.strictEqual(parsedTe2.extractedAadhaar, '228654705324');
+      assert.strictEqual(parsedTe2.extractedPhone, '9876543210');
+      assert.strictEqual(parsedTe2.extractedPin, '500081');
+    });
 
     test('parseCitizenInput: regex-extracts Aadhaar UID (12 digits, grouped or continuous) with 0 network leakage', () => {
 
@@ -1005,6 +1109,59 @@ describe('Chrome Extension Test Audit', () => {
       assert.strictEqual(manifest.permissions.includes('cookies'), false);
       assert.strictEqual(manifest.permissions.includes('webRequest'), false);
       assert.strictEqual(manifest.permissions.includes('debugger'), false);
+    });
+
+    test('Zero-Demo Default & UIDAI Verhoeff Checksum Validation (Round 5)', () => {
+      const sidepanelJs = fs.readFileSync(path.join(__dirname, '../sidepanel/sidepanel.js'), 'utf8');
+
+      // 1. Verify zero-demo default: initial Aadhaar and UID are null
+      assert.ok(sidepanelJs.includes('uid: null'), 'Initial uid must be null (zero-demo default)');
+      assert.ok(sidepanelJs.includes('aadhaar: null'), 'Initial aadhaar must be null (zero-demo default)');
+      assert.ok(!sidepanelJs.includes('citizen_name: "Ramesh Kumar"\n    citizen_phone: "9876543210"\n    citizen_email: "ramesh.kumar@example.com"\n    uid: "488813127839"'), 'Must not auto-inject hardcoded Ramesh Kumar on startup');
+
+      // 2. Verhoeff D5 Checksum logic verification
+      const VERHOEFF_D = [
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        [1, 2, 3, 4, 0, 6, 7, 8, 9, 5],
+        [2, 3, 4, 0, 1, 7, 8, 9, 5, 6],
+        [3, 4, 0, 1, 2, 8, 9, 5, 6, 7],
+        [4, 0, 1, 2, 3, 9, 5, 6, 7, 8],
+        [5, 9, 8, 7, 6, 0, 4, 3, 2, 1],
+        [6, 5, 9, 8, 7, 1, 0, 4, 3, 2],
+        [7, 6, 5, 9, 8, 2, 1, 0, 4, 3],
+        [8, 7, 6, 5, 9, 3, 2, 1, 0, 4],
+        [9, 8, 7, 6, 5, 4, 3, 2, 1, 0]
+      ];
+      const VERHOEFF_P = [
+        [0, 1, 2, 3, 4, 5, 6, 7, 8, 9],
+        [1, 5, 7, 6, 2, 8, 3, 0, 9, 4],
+        [5, 8, 0, 3, 7, 9, 6, 1, 4, 2],
+        [8, 9, 1, 6, 0, 4, 3, 5, 2, 7],
+        [9, 4, 5, 3, 1, 2, 6, 8, 7, 0],
+        [4, 2, 8, 6, 5, 7, 3, 9, 0, 1],
+        [2, 7, 9, 3, 8, 0, 6, 4, 1, 5],
+        [7, 0, 4, 6, 9, 1, 3, 2, 5, 8]
+      ];
+      function validateVerhoeff(numStr) {
+        if (!numStr || typeof numStr !== 'string') return false;
+        const clean = numStr.replace(/[\s-]/g, '');
+        if (!/^\d{12}$/.test(clean)) return false;
+        if (/^(\d)\1{11}$/.test(clean)) return false;
+        let c = 0;
+        const invertedArray = clean.split('').reverse().map(Number);
+        for (let i = 0; i < invertedArray.length; i++) {
+          c = VERHOEFF_D[c][VERHOEFF_P[i % 8][invertedArray[i]]];
+        }
+        return c === 0;
+      }
+
+      // Valid UIDAI test numbers must pass
+      assert.strictEqual(validateVerhoeff('488813127839'), true);
+      assert.strictEqual(validateVerhoeff('228654705324'), true);
+      // Arbitrary sequential numbers (like 234567890123 from user testing) must FAIL
+      assert.strictEqual(validateVerhoeff('234567890123'), false);
+      // Repeating digits must FAIL
+      assert.strictEqual(validateVerhoeff('111111111111'), false);
     });
   });
 });

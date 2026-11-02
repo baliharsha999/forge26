@@ -68,7 +68,7 @@ class CitationValidator:
             clean_url = raw_url.lower()
             title = c.get("title") or "Official Government Scheme"
             dept = c.get("department") or "Government of India"
-            pub_date = c.get("publication_date") or self.verification_timestamp
+            pub_date = c.get("publication_date") or "Unknown"
 
             # 1. Check if URL was present in retrieved chunks
             matched_meta = retrieved_urls.get(clean_url)
@@ -80,7 +80,8 @@ class CitationValidator:
                 source_meta = matched_meta or matched_db
                 verified_title = source_meta.get("title") or title
                 verified_dept = source_meta.get("department") or dept
-                verified_date = str(source_meta.get("publication_date") or pub_date)[:10]
+                raw_date = source_meta.get("publication_date") or (pub_date if pub_date != "Unknown" else None)
+                verified_date = str(raw_date)[:10] if raw_date else "Unknown"
 
                 valid_sources.append(VerifiedCitation(
                     title=verified_title,
@@ -107,7 +108,7 @@ class CitationValidator:
                         title=meta.get("title", "Official Government Scheme"),
                         department=meta.get("department", "Government of India"),
                         url=u,
-                        publication_date=str(meta.get("publication_date") or self.verification_timestamp)[:10],
+                        publication_date=str(meta.get("publication_date"))[:10] if meta.get("publication_date") else "Unknown",
                         last_verified_date=self.verification_timestamp,
                         is_valid=True,
                         validation_notes="Extracted directly from top retrieved official context."

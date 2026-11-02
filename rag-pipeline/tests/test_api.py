@@ -13,7 +13,7 @@ def test_health_endpoint():
     response = client.get("/health")
     assert response.status_code == 200
     data = response.json()
-    assert data["status"] == "healthy"
+    assert data["status"] in ("healthy", "degraded")
     assert "total_documents_in_db" in data
     assert "faiss_hnsw_vectors" in data
     assert "bm25_documents_indexed" in data

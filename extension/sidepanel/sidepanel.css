@@ -1794,3 +1794,207 @@ header, div, main, footer {
   font-size: 11px;
   padding: 6px 8px;
 }
+
+
+/* ============================================================ */
+/* VOICE-FIRST AADHAAR VERIFICATION BOX                        */
+/* ============================================================ */
+.aadhaar-box {
+  background: rgba(15, 23, 42, 0.7);
+  border: 1px solid rgba(59, 130, 246, 0.35);
+  border-radius: 12px;
+  padding: 10px 12px;
+  margin-bottom: 12px;
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.25);
+  transition: all 0.25s ease;
+}
+
+.aadhaar-box.active-prompt {
+  border-color: var(--orange-primary);
+  box-shadow: 0 0 16px rgba(240, 106, 37, 0.4);
+}
+
+.aadhaar-box-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.aadhaar-box-title {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 11.5px;
+  font-weight: 700;
+  color: #93c5fd;
+}
+
+.aadhaar-pill-unverified {
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(245, 158, 11, 0.18);
+  border: 1px solid rgba(245, 158, 11, 0.45);
+  color: #fbbf24;
+  letter-spacing: 0.4px;
+}
+
+.aadhaar-pill-verified {
+  font-size: 9.5px;
+  font-weight: 800;
+  padding: 2px 7px;
+  border-radius: 6px;
+  background: rgba(16, 185, 129, 0.18);
+  border: 1px solid rgba(16, 185, 129, 0.45);
+  color: #34d399;
+  letter-spacing: 0.4px;
+}
+
+.aadhaar-prompt-msg {
+  font-size: 11px;
+  color: #cbd5e1;
+  margin-bottom: 8px;
+  line-height: 1.4;
+}
+
+.aadhaar-action-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 6px;
+}
+
+.aadhaar-num-input {
+  flex: 1;
+  background: rgba(2, 6, 23, 0.6);
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  color: #ffffff;
+  border-radius: 8px;
+  padding: 7px 10px;
+  font-size: 12px;
+  letter-spacing: 1px;
+  outline: none;
+  transition: border-color 0.2s;
+}
+
+.aadhaar-num-input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-aadhaar-voice {
+  background: linear-gradient(135deg, rgba(240, 106, 37, 0.25), rgba(240, 106, 37, 0.15));
+  border: 1px solid var(--orange-primary);
+  color: #ffedd5;
+  padding: 6px 10px;
+  border-radius: 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  transition: all 0.2s ease;
+  white-space: nowrap;
+}
+
+.btn-aadhaar-voice:hover {
+  background: var(--orange-primary);
+  color: #ffffff;
+}
+
+.btn-aadhaar-voice.listening {
+  background: #dc2626;
+  border-color: #ef4444;
+  color: #ffffff;
+}
+
+.aadhaar-validation-msg {
+  font-size: 10.5px;
+  margin-bottom: 6px;
+  padding: 4px 8px;
+  border-radius: 6px;
+}
+
+.aadhaar-validation-msg.valid {
+  background: rgba(16, 185, 129, 0.15);
+  color: #34d399;
+  border: 1px solid rgba(16, 185, 129, 0.3);
+}
+
+.aadhaar-validation-msg.invalid {
+  background: rgba(239, 68, 68, 0.15);
+  color: #f87171;
+  border: 1px solid rgba(239, 68, 68, 0.3);
+}
+
+.demo-profile-container {
+  margin-top: 6px;
+  border-top: 1px dashed rgba(148, 163, 184, 0.18);
+  padding-top: 6px;
+}
+
+.btn-demo-toggle {
+  background: transparent;
+  border: none;
+  color: #94a3b8;
+  font-size: 10px;
+  cursor: pointer;
+  padding: 2px 4px;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.btn-demo-toggle:hover {
+  color: #38bdf8;
+}
+
+.aadhaar-verified-content {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 4px 0;
+}
+
+.aadhaar-verified-info {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.verified-glyph {
+  color: #10b981;
+  font-weight: 900;
+  font-size: 14px;
+}
+
+.masked-num {
+  font-size: 13px;
+  font-weight: 800;
+  color: #34d399;
+  letter-spacing: 1.5px;
+}
+
+.verified-subtext {
+  font-size: 9.5px;
+  color: #94a3b8;
+}
+
+.btn-reset-aadhaar {
+  background: rgba(239, 68, 68, 0.15);
+  border: 1px solid rgba(239, 68, 68, 0.35);
+  color: #fca5a5;
+  border-radius: 6px;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 8px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.btn-reset-aadhaar:hover {
+  background: rgba(239, 68, 68, 0.3);
+  color: #ffffff;
+}

@@ -243,3 +243,48 @@ def test_provenance_strict_hostname_parsing():
         response_language="English"
     )
     assert resp_legit.sources[0].url == "https://pmkisan.gov.in/portal"
+
+
+def test_robots_preflight_ssrf_defense():
+    """
+    Round 5 Architecture Audit: Verify robots.txt fetch enforces strict SSRF preflight defense.
+    Blocks private IPs (127.0.0.1, 169.254.169.254) and non-whitelisted schemes.
+    """
+    scraper = GovernmentWebScraper()
+    # 1. Private loopback address must be blocked
+    assert scraper.is_url_allowed_by_robots("http://127.0.0.1/admin/page") is False
+    # 2. Cloud metadata service must be blocked
+    assert scraper.is_url_allowed_by_robots("http://169.254.169.254/latest/meta-data") is False
+    # 3. Non-http schemes must be blocked
+    assert scraper.is_url_allowed_by_robots("file:///etc/robots.txt") is False
+
+
+def test_citation_validator_preserves_unknown_date():
+    """
+    Round 5 Architecture Audit: Verify CitationValidator strictly preserves 'Unknown'
+    for missing publication dates rather than manufacturing the current timestamp.
+    """
+    from app.evaluation.citation_eval import CitationValidator
+    validator = CitationValidator()
+
+    # Document lacking publication date
+    doc = {
+        "text": "The scheme provides financial aid to rural women.",
+        "metadata": {
+            "title": "Rural Women Assistance",
+            "url": "https://wcd.nic.in/schemes/rural-women",
+            "source_website": "wcd.nic.in",
+            "publication_date": None  # Missing date
+        }
+    }
+
+    result = validator.validate_citations(
+        citations=[{"url": "https://wcd.nic.in/schemes/rural-women", "title": "Rural Women Assistance"}],
+        context_documents=[doc]
+    )
+
+    assert result.all_valid is True
+    assert len(result.verified_sources) == 1
+    assert result.verified_sources[0].publication_date == "Unknown"
+    assert result.verified_sources[0].publication_date != validator.verification_timestamp
+

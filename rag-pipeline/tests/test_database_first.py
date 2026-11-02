@@ -381,7 +381,7 @@ def test_case7_scraping_untrusted_domain_and_failure_fallback():
     assert validated[0] == "https://www.myscheme.gov.in/schemes/valid-scheme"
 
     # Scraper failure returns error status without crashing
-    with patch("urllib.request.urlopen", side_effect=Exception("Connection timed out")):
+    with patch("urllib.request.OpenerDirector.open", side_effect=Exception("Connection timed out")):
         res = agent.scraper.scrape_url_conditional("https://www.myscheme.gov.in/schemes/timed-out")
         assert res["status"] == "error"
         assert res["http_status"] == 500

@@ -300,11 +300,16 @@
     const targetUpper = raw.toUpperCase();
     const targetLower = raw.toLowerCase();
 
-    // 1. Exact CSS selector (deep query)
+    // 1. Exact CSS selector or direct ID match (deep query)
     if (raw.startsWith(".") || raw.startsWith("#") || raw.startsWith("[") || (raw.includes("[") && raw.includes("]"))) {
       try {
         const found = querySelectorAllDeep(raw)[0];
         if (found) return found;
+      } catch (e) {}
+    } else {
+      try {
+        const byId = querySelectorAllDeep(`#${raw}`)[0];
+        if (byId) return byId;
       } catch (e) {}
     }
 
@@ -858,24 +863,47 @@
     }
   function isSubmissionOrAuthElement(el) {
     if (!el) return false;
-    const type = (el.type || "").toLowerCase();
-    if (type === "submit") return true;
-    if (el.tagName === "BUTTON" && (!el.type || el.type === "submit") && el.form) return true;
 
-    const text = (el.innerText || el.value || "").toLowerCase().trim();
-    const aria = (el.getAttribute("aria-label") || "").toLowerCase();
-    const title = (el.title || "").toLowerCase();
-    const name = (el.name || "").toLowerCase();
-    const id = (el.id || "").toLowerCase();
-    const formAction = (el.getAttribute("formaction") || "").toLowerCase();
+    // Direct and ancestor inspection (prevents child icon/span event delegation bypass)
+    const candidate = (el.closest && el.closest("button, [role='button'], input[type='submit'], input[type='image'], a, form")) || el;
 
-    const combined = `${text} ${aria} ${title} ${name} ${id} ${formAction}`;
+    const tagName = (candidate.tagName || el.tagName || "").toUpperCase();
+    const type = (candidate.type || candidate.getAttribute("type") || el.type || "").toLowerCase();
+    const role = (candidate.getAttribute("role") || el.getAttribute("role") || "").toLowerCase();
+
+    // 1. Explicit HTML submit/payment types
+    if (type === "submit" || type === "image") return true;
+
+    // 2. Buttons in a form without explicit type='button' default to submit per HTML5 spec
+    if (tagName === "BUTTON" && type !== "button" && candidate.form) return true;
+    if (tagName === "FORM") return true;
+
+    // 3. Inspect text, title, ARIA, ID, and action attributes
+    const text = `${candidate.innerText || candidate.value || ""} ${el.innerText || el.value || ""}`.toLowerCase().trim();
+    const aria = `${candidate.getAttribute("aria-label") || ""} ${el.getAttribute("aria-label") || ""}`.toLowerCase();
+    const title = `${candidate.title || ""} ${el.title || ""}`.toLowerCase();
+    const name = `${candidate.name || ""} ${el.name || ""}`.toLowerCase();
+    const id = `${candidate.id || ""} ${el.id || ""}`.toLowerCase();
+    const formAction = (candidate.getAttribute("formaction") || "").toLowerCase();
+    const dataAction = `${candidate.getAttribute("data-action") || ""} ${candidate.getAttribute("data-target") || ""}`.toLowerCase();
+    const onclick = (candidate.getAttribute("onclick") || el.getAttribute("onclick") || "").toLowerCase();
+
+    const combined = `${text} ${aria} ${title} ${name} ${id} ${formAction} ${dataAction} ${onclick}`;
     const submissionKeywords = [
       "submit", "login", "log in", "sign in", "apply", "lodge", "pay", "payment",
       "register", "confirm", "send otp", "get otp", "final", "proceed to pay",
-      "lodge grievance", "file complaint", "submit petition", "verify & submit"
+      "lodge grievance", "file complaint", "submit petition", "verify & submit",
+      "proceed", "continue", "next step", "checkout", "authenticate"
     ];
-    return submissionKeywords.some(kw => combined.includes(kw));
+
+    if (submissionKeywords.some(kw => combined.includes(kw))) return true;
+
+    // 4. Any element with programmatic form submission triggers
+    if (onclick.includes(".submit(") || onclick.includes("submitform") || onclick.includes("dosubmit") || onclick.includes("postform")) {
+      return true;
+    }
+
+    return false;
   }
 
 

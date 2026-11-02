@@ -129,6 +129,58 @@ export function stopAllSpeech(): void {
   }
 }
 
+// Cached voices helper to handle async getVoices in Chromium
+let cachedVoices: SpeechSynthesisVoice[] = [];
+function getAvailableVoices(): SpeechSynthesisVoice[] {
+  if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
+  if (cachedVoices.length === 0) {
+    cachedVoices = window.speechSynthesis.getVoices();
+  }
+  return cachedVoices;
+}
+
+if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  window.speechSynthesis.onvoiceschanged = () => {
+    cachedVoices = window.speechSynthesis.getVoices();
+  };
+}
+
+export function findBestVoice(lang: SpokenLanguage): SpeechSynthesisVoice | null {
+  const voices = getAvailableVoices();
+  if (voices.length === 0) return null;
+
+  if (lang === 'te') {
+    return (
+      voices.find(v => /te[-_]in/i.test(v.lang)) ||
+      voices.find(v => /telugu/i.test(v.name)) ||
+      voices.find(v => /^te\b/i.test(v.lang)) ||
+      null
+    );
+  }
+  if (lang === 'hi') {
+    return (
+      voices.find(v => /hi[-_]in/i.test(v.lang)) ||
+      voices.find(v => /hindi|kalpana|swara|madhur/i.test(v.name)) ||
+      voices.find(v => /^hi\b/i.test(v.lang)) ||
+      null
+    );
+  }
+  if (lang === 'ta') {
+    return (
+      voices.find(v => /ta[-_]in/i.test(v.lang)) ||
+      voices.find(v => /tamil/i.test(v.name)) ||
+      voices.find(v => /^ta\b/i.test(v.lang)) ||
+      null
+    );
+  }
+  return (
+    voices.find(v => /en[-_]in/i.test(v.lang)) ||
+    voices.find(v => /^en[-_]us/i.test(v.lang)) ||
+    voices.find(v => /^en/i.test(v.lang)) ||
+    null
+  );
+}
+
 /**
  * Plays an audio queue sequentially using HTML5 Audio.
  */
@@ -156,8 +208,11 @@ function playAudioQueue(langCode: string, onEnd?: () => void) {
 
   audio.onerror = (e) => {
     console.warn('[Nagarik Audio] Audio chunk playback error, trying next chunk:', e);
-    if (isAudioActive) {
+    if (isAudioActive && currentQueueIndex < audioQueue.length) {
       playAudioQueue(langCode, onEnd);
+    } else {
+      isAudioActive = false;
+      if (onEnd) onEnd();
     }
   };
 
@@ -171,8 +226,8 @@ function playAudioQueue(langCode: string, onEnd?: () => void) {
 /**
  * Speaks text using the best available engine:
  * - Detects script (Telugu / Hindi / Tamil / English)
- * - If native browser voice exists for Telugu/Hindi, uses SpeechSynthesis
- * - Otherwise uses crystal-clear streamed Indic audio for authentic pronunciation
+ * - Prioritizes native browser SpeechSynthesis for crystal-clear Telugu (te-IN), Hindi (hi-IN), Tamil (ta-IN), and English
+ * - Gracefully falls back to streamed Indic audio if SpeechSynthesis is unavailable
  */
 export function speakCivicText(
   text: string,
@@ -187,93 +242,57 @@ export function speakCivicText(
     return;
   }
 
-  // 1. Script auto-detection takes precedence
+  // 1. Script auto-detection takes precedence if text is in Indic script
   const effectiveLang = detectTextScript(clean, declaredLang);
   isAudioActive = true;
   onAudioEndCallback = onEnd || null;
 
-  // 2. Check if window.speechSynthesis has an explicit native voice for this language
-  let hasNativeVoice = false;
-  let matchingVoice: SpeechSynthesisVoice | null = null;
+  const langTag = effectiveLang === 'te' ? 'te-IN' : effectiveLang === 'hi' ? 'hi-IN' : effectiveLang === 'ta' ? 'ta-IN' : 'en-IN';
 
+  // 2. Prioritize browser SpeechSynthesis (native high-fidelity support in Chrome, Edge, Safari, Firefox)
   if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
-    const voices = window.speechSynthesis.getVoices();
-    if (effectiveLang === 'te') {
-      matchingVoice = voices.find(v => v.lang.toLowerCase() === 'te-in' || v.lang.toLowerCase().startsWith('te')) ||
-                      voices.find(v => v.name.toLowerCase().includes('telugu')) || null;
-    } else if (effectiveLang === 'hi') {
-      matchingVoice = voices.find(v => v.lang.toLowerCase() === 'hi-in' || v.lang.toLowerCase().startsWith('hi')) ||
-                      voices.find(v => v.name.toLowerCase().includes('hindi') || v.name.toLowerCase().includes('kalpana')) || null;
-    } else if (effectiveLang === 'ta') {
-      matchingVoice = voices.find(v => v.lang.toLowerCase() === 'ta-in' || v.lang.toLowerCase().startsWith('ta')) ||
-                      voices.find(v => v.name.toLowerCase().includes('tamil')) || null;
-    } else {
-      matchingVoice = voices.find(v => v.lang.toLowerCase() === 'en-in') ||
-                      voices.find(v => v.lang.toLowerCase().startsWith('en')) || null;
-      hasNativeVoice = true; // English is almost always supported natively
-    }
+    try {
+      window.speechSynthesis.cancel();
+      const utterance = new SpeechSynthesisUtterance(clean);
+      utterance.lang = langTag;
+      utterance.rate = 0.95;
+      utterance.pitch = 1.0;
 
-    if (matchingVoice && effectiveLang !== 'te') {
-      // For Hindi, if high-quality native voice exists, we can use it
-      hasNativeVoice = true;
+      const matchingVoice = findBestVoice(effectiveLang);
+      if (matchingVoice) {
+        utterance.voice = matchingVoice;
+      }
+
+      utterance.onend = () => {
+        isAudioActive = false;
+        if (onEnd) onEnd();
+      };
+
+      utterance.onerror = (e) => {
+        console.warn('[Nagarik Audio] SpeechSynthesis error:', e);
+        isAudioActive = false;
+        if (onEnd) onEnd();
+      };
+
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+
+      window.speechSynthesis.speak(utterance);
+      return;
+    } catch (err) {
+      console.warn('[Nagarik Audio] SpeechSynthesis exception, falling back to stream:', err);
     }
   }
 
-  // 3. For Telugu and Hindi on devices without native Indic TTS voices, use high-fidelity audio stream
-  if ((effectiveLang === 'te' || effectiveLang === 'hi' || effectiveLang === 'ta') && (!hasNativeVoice || !matchingVoice)) {
-    const chunks = chunkSpokenText(clean, 150);
-    if (chunks.length === 0) {
-      isAudioActive = false;
-      if (onEnd) onEnd();
-      return;
-    }
+  // 3. Fallback: If SpeechSynthesis is totally unavailable
+  const chunks = chunkSpokenText(clean, 150);
+  if (chunks.length > 0) {
     audioQueue = chunks;
     currentQueueIndex = 0;
     playAudioQueue(effectiveLang, onEnd);
-    return;
-  }
-
-  // 4. Otherwise use SpeechSynthesisUtterance
-  try {
-    const utterance = new SpeechSynthesisUtterance(clean);
-    const langCode = effectiveLang === 'te' ? 'te-IN' : effectiveLang === 'hi' ? 'hi-IN' : effectiveLang === 'ta' ? 'ta-IN' : 'en-IN';
-    utterance.lang = langCode;
-    if (matchingVoice) {
-      utterance.voice = matchingVoice;
-    }
-    utterance.rate = 0.98;
-    utterance.pitch = 1.0;
-
-    utterance.onend = () => {
-      isAudioActive = false;
-      if (onEnd) onEnd();
-    };
-
-    utterance.onerror = (e) => {
-      console.warn('[Nagarik Audio] SpeechSynthesis error, falling back to audio stream:', e);
-      // Fallback to audio stream if browser SpeechSynthesis fails
-      const chunks = chunkSpokenText(clean, 150);
-      if (chunks.length > 0) {
-        audioQueue = chunks;
-        currentQueueIndex = 0;
-        playAudioQueue(effectiveLang, onEnd);
-      } else {
-        isAudioActive = false;
-        if (onEnd) onEnd();
-      }
-    };
-
-    window.speechSynthesis.speak(utterance);
-  } catch (err) {
-    console.warn('[Nagarik Audio] SpeechSynthesis throw, fallback:', err);
-    const chunks = chunkSpokenText(clean, 150);
-    if (chunks.length > 0) {
-      audioQueue = chunks;
-      currentQueueIndex = 0;
-      playAudioQueue(effectiveLang, onEnd);
-    } else {
-      isAudioActive = false;
-      if (onEnd) onEnd();
-    }
+  } else {
+    isAudioActive = false;
+    if (onEnd) onEnd();
   }
 }

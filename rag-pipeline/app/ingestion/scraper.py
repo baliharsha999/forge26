@@ -31,12 +31,15 @@ def is_ip_private_or_restricted(ip_str: str) -> bool:
     """Verifies whether an IP address belongs to private, loopback, or metadata ranges."""
     try:
         ip = ipaddress.ip_address(ip_str)
+        # Allow RFC 6052 NAT64 well-known prefix (64:ff9b::/96) which is globally routable
+        if isinstance(ip, ipaddress.IPv6Address) and ip in ipaddress.IPv6Network("64:ff9b::/96"):
+            return False
         return (
             ip.is_private or
             ip.is_loopback or
             ip.is_link_local or
             ip.is_multicast or
-            ip.is_reserved or
+            (ip.is_reserved and not ip.is_global) or
             ip.is_unspecified
         )
     except Exception:
@@ -129,15 +132,27 @@ class GovernmentWebScraper:
         if not host:
             return False
 
+        # SSRF Pre-flight: strictly validate target URL and host before any network attempt
+        try:
+            validate_safe_target_url(url, self.is_trusted_government_url)
+        except SSRFProtectionError:
+            return False
+
         if host not in self.robot_parsers:
             robots_url = f"{parsed.scheme}://{host}/robots.txt"
             rp = urllib.robotparser.RobotFileParser()
             try:
-                rp.set_url(robots_url)
-                rp.read()
+                # SSRF Protection: strictly validate robots.txt target domain and IP before dispatching request
+                validate_safe_target_url(robots_url, self.is_trusted_government_url)
+                req = urllib.request.Request(robots_url, headers=self.headers)
+                opener = urllib.request.build_opener(SafeRedirectHandler(self.is_trusted_government_url, max_redirects=2))
+                with opener.open(req, timeout=3) as resp:
+                    # Bounded read: robots.txt read limited to 64 KB
+                    robots_text = resp.read(64 * 1024).decode("utf-8", errors="replace")
+                rp.parse(robots_text.splitlines())
                 self.robot_parsers[host] = rp
             except Exception:
-                # If robots.txt cannot be read or is missing, proceed with caution
+                # If robots.txt cannot be read or is missing/blocked, proceed safely
                 self.robot_parsers[host] = None
 
         rp = self.robot_parsers.get(host)
@@ -252,16 +267,16 @@ class GovernmentWebScraper:
         Scrapes a government webpage with strict SSRF defense, redirects validation,
         robots.txt compliance, and bounded memory reads.
         """
-        # 1. Robots.txt check
-        if not self.is_url_allowed_by_robots(url):
-            print(f"[Scraper] Warning: URL '{url}' is disallowed by robots.txt. Skipping.")
-            return None
-
-        # 2. SSRF Pre-flight validation (Scheme, Host, and DNS Resolution)
+        # 1. SSRF Pre-flight validation MUST run BEFORE any network request (including robots.txt)
         try:
             validate_safe_target_url(url, self.is_trusted_government_url)
         except SSRFProtectionError as e:
             print(f"[Scraper] SSRF Guard blocked request to '{url}': {e}")
+            return None
+
+        # 2. Robots.txt check (only after target URL passes strict SSRF validation)
+        if not self.is_url_allowed_by_robots(url):
+            print(f"[Scraper] Warning: URL '{url}' is disallowed by robots.txt. Skipping.")
             return None
 
         domain = urllib.parse.urlparse(url).netloc.lower()
@@ -316,13 +331,15 @@ class GovernmentWebScraper:
         Scrapes a government webpage with HTTP 304 conditional validation and SSRF redirect defense.
         Supports If-None-Match and If-Modified-Since headers.
         """
-        if not self.is_url_allowed_by_robots(url):
-            return {"status": "error", "error": "robots_disallowed", "url": url}
-
+        # 1. SSRF Pre-flight validation MUST run BEFORE robots.txt or conditional fetches
         try:
             validate_safe_target_url(url, self.is_trusted_government_url)
         except SSRFProtectionError as e:
-            return {"status": "error", "error": f"ssrf_blocked: {e}", "url": url}
+            return {"status": "error", "http_status": 403, "error": f"ssrf_blocked: {e}", "url": url}
+
+        # 2. Robots.txt check
+        if not self.is_url_allowed_by_robots(url):
+            return {"status": "error", "http_status": 403, "error": "robots_disallowed", "url": url}
 
         domain = urllib.parse.urlparse(url).netloc.lower()
         self._respect_rate_limit(domain)

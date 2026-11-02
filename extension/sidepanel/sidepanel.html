@@ -104,12 +104,59 @@
         Describe your problem, grievance, or task in simple words or speak via microphone.
       </p>
 
-      <!-- Quick profile shortcut -->
-      <div class="quick-profile-row">
-        <button id="btn-use-profile" class="profile-chip" title="Click to insert your saved citizen details">
-          <span>👤</span>
-          <span id="profile-chip-text">Fill as: Ramesh Kumar (9876543210, Hyderabad)</span>
-        </button>
+      <!-- Voice-First Aadhaar Identity & Shielding Card -->
+      <div id="aadhaar-verification-box" class="aadhaar-box">
+        <div class="aadhaar-box-header">
+          <div class="aadhaar-box-title">
+            <span class="aadhaar-shield-icon">🛡️</span>
+            <span>Citizen Identity Verification</span>
+          </div>
+          <span id="aadhaar-badge" class="aadhaar-pill-unverified">Aadhaar Required</span>
+        </div>
+
+        <!-- Unverified / Input State -->
+        <div id="aadhaar-unverified-panel" class="aadhaar-panel">
+          <p class="aadhaar-prompt-msg" id="aadhaar-prompt-text">
+            Speak or enter your 12-digit Aadhaar number for verified portal authentication.
+          </p>
+          <div class="aadhaar-action-row">
+            <input 
+              type="text" 
+              id="aadhaar-direct-input" 
+              class="aadhaar-num-input" 
+              maxlength="14" 
+              placeholder="Enter 12-digit Aadhaar"
+              autocomplete="off" 
+            />
+            <button id="btn-speak-aadhaar" class="btn-aadhaar-voice" type="button" title="Speak Aadhaar Number aloud">
+              <span class="mic-glyph">🎙️</span>
+              <span id="aadhaar-speak-label">Speak UID</span>
+            </button>
+          </div>
+          <div id="aadhaar-status-feedback" class="aadhaar-validation-msg hidden"></div>
+          
+          <div class="demo-profile-container">
+            <button id="btn-load-demo-profile" class="btn-demo-toggle" type="button" title="For hackathon judges / local sandbox testing">
+              🧪 Test Mode: Load Demo Citizen (Ramesh Kumar)
+            </button>
+          </div>
+        </div>
+
+        <!-- Verified & Masked State -->
+        <div id="aadhaar-verified-panel" class="aadhaar-panel hidden">
+          <div class="aadhaar-verified-content">
+            <div class="aadhaar-verified-info">
+              <span class="verified-glyph">✓</span>
+              <div>
+                <div id="aadhaar-masked-display" class="masked-num">XXXXXXXX----</div>
+                <div class="verified-subtext">UIDAI Checksum Verified • Zero-Knowledge Shielded</div>
+              </div>
+            </div>
+            <button id="btn-clear-aadhaar" class="btn-reset-aadhaar" type="button" title="Clear and enter different citizen Aadhaar">
+              Change
+            </button>
+          </div>
+        </div>
       </div>
 
       <!-- Problem / Task Textarea with Integrated Voice Input Button -->
