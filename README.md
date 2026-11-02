@@ -10,8 +10,10 @@
 [![Live Web App](https://img.shields.io/badge/Live%20Deploy-Firebase%20Hosting-amber.svg)](https://nagarik-ai-civic-2026.web.app)
 [![Data Engine](https://img.shields.io/badge/Data%20Source-myScheme%20Web%20Scraping%20(myscheme.gov.in)-emerald.svg)](https://myscheme.gov.in)
 [![CI Tests](https://github.com/cyugandharreddy08/Nagarik-AI/actions/workflows/ci.yml/badge.svg)](https://github.com/cyugandharreddy08/Nagarik-AI/actions)
-[![Extension Tests](https://img.shields.io/badge/Extension%20Audit-28%2F28%20Passing%20(100%25)-brightgreen.svg)](#-5-running-automated-tests--verification)
-[![Security Regression](https://img.shields.io/badge/RAG%20Security-12%2F12%20Passing%20(100%25)-brightgreen.svg)](#b-backend--rag-security-regression-suite-12-tests)
+[![Extension Tests](https://img.shields.io/badge/Extension%20Audit-34%2F34%20Passing%20(100%25)-brightgreen.svg)](#a-chrome-extension-audit-test-suite-34-tests)
+[![RAG Security](https://img.shields.io/badge/RAG%20Security-16%2F16%20Passing%20(100%25)-brightgreen.svg)](#b-backend--rag-security-regression-suite-16-tests)
+[![Backend API](https://img.shields.io/badge/Backend%20API-12%2F12%20Passing%20(100%25)-brightgreen.svg)](#c-backend-privacy--civic-api-suite-12-tests)
+
 [![DeepEval](https://img.shields.io/badge/DeepEval-Production%20Grade%20(96.8%25%20Faithful)-purple.svg)](#-6-deepeval-model-evaluation--rigorous-quality-benchmarks)
 
 > **Live Production Web Application**: [https://nagarik-ai-civic-2026.web.app](https://nagarik-ai-civic-2026.web.app)  
@@ -42,6 +44,10 @@ Citizens can express their grievance in their mother tongue (**Hindi, Telugu, Ta
 ---
 
 ## 🌐 Data Aggregation: myScheme (`myscheme.gov.in`) vs. API Setu
+
+Nagarik AI maintains a dual-tier civic knowledge architecture:
+1. **National Scheme Directory (`data/schemes_index.json`)**: Contains 5,210 indexed welfare schemes and services crawled from `myscheme.gov.in`, providing national coverage of civic opportunities.
+2. **Curated Statutory Knowledge Base (`schemes.db` & Supabase Seed)**: High-resolution gazette records with verified procedural flows, department routing rules, and strict eligibility logic (e.g. PM-KISAN, Ayushman Bharat, Sarathi Parivahan, NSP).
 
 In contrast to brittle third-party API keys or static mock data, **Nagarik AI collects, normalizes, and embeds real-time welfare schemes directly from the Government of India's myScheme platform (`myscheme.gov.in`)**:
 
@@ -308,14 +314,14 @@ python main.py
 
 ## 🧪 5. Running Automated Tests & Verification
 
-### A. Chrome Extension Audit Test Suite (26 Tests)
-Run the headless Node.js DOM and security audit suite:
+### A. Chrome Extension Audit Test Suite (34 Tests)
+Run the headless Node.js DOM, security, Indic numeral normalization, and submission protection suite:
 
 ```bash
 node extension/tests/audit_extension.test.js
 ```
 
-**Output (26/26 Passing — 100% Pass Rate)**:
+**Output (34/34 Passing — 100% Pass Rate)**:
 ```
 ▶ Chrome Extension Test Audit
   ▶ 1. BasePortalAdapter Unit Audit
@@ -334,7 +340,7 @@ node extension/tests/audit_extension.test.js
     ✔ Assistive fill: injects petition text, preserves CAPTCHA & user submission control
     ✔ Tracking ID Extraction: extracts registration number via regex
   ▶ 4. GenericCivicAdapter Audit
-    ✔ Universal support: returns true for all domains
+    ✔ Strict civic & government domain scoping (Finding 1 Remediation)
     ✔ Deep Query Selector & Keyword Match across input attributes
     ✔ Label htmlFor association: finds input via associated label text
     ✔ Universal Form Autofill: normalizes whitespace in Aadhaar UID and populates fields
@@ -344,20 +350,82 @@ node extension/tests/audit_extension.test.js
     ✔ Universal fallback: guaranteed active adapter for unhandled desktop domains
   ▶ 6. Content Script DOM Automation & Messaging Audit
     ✔ extractPageDomInfo: captures form metadata, action buttons, and input fields
-    ✔ executeUniversalFill: auto-selects OTP radio, fills UID, masks identity in telemetry
-    ✔ Spotlight and Element Click: finds target by intent and executes highlight/click
+    ✔ executeUniversalFill: fills UID safely, leaves auth radio to user, masks identity in telemetry
+    ✔ Submission Safety & Element Click: blocks automated submission clicks while permitting safe UI toggles
+    ✔ DOM-Action Layer Submission Guard: blocks click on opaque button ID with submit semantics
+    ✔ Submission Guard: event-delegation blocks clicks on child icon/span inside submit button
+    ✔ Sensitive Field Protection: strictly rejects filling passwords, OTPs, and does NOT auto-check consent
   ▶ 7. Zero-Knowledge Privacy & Security Audit
+    ✔ Multilingual wordsToDigits: converts English, Hindi, and Telugu speech transcripts and numerals to digits
+    ✔ parseCitizenInput: multilingual Indic entity extraction (Telugu and Hindi sentences)
+    ✔ deduplicateConsecutiveWords: suppresses stuttered duplicate words and phrases from streaming speech
+    ✔ mergeTranscripts: merges final and interim speech chunks and eliminates overlapping phrase buffers
     ✔ parseCitizenInput: regex-extracts Aadhaar UID (12 digits, grouped or continuous) with 0 network leakage
     ✔ Zero-Knowledge Masking: Aadhaar is masked to XXXXXXXX<last4> in user displays and logs
     ✔ Zero Outbound Network Leakage: verifies extension codebase contains 0 HTTP/Fetch/XHR calls
     ✔ Manifest V3 Security & Permissions Check
-✔ Chrome Extension Test Audit (2313ms)
-ℹ tests 26 | pass 26 | fail 0
+    ✔ Zero-Demo Default & UIDAI Verhoeff Checksum Validation
+✔ Chrome Extension Test Audit (2384ms)
+ℹ tests 34 | suites 8 | pass 34 | fail 0
+```
+
+### B. Backend & RAG Security Regression Suite (16 Tests)
+Run the Python RAG security, SSRF defense, and component tests:
+
+```bash
+pytest rag-pipeline/tests/test_audit_security.py rag-pipeline/tests/test_components.py -v
+```
+
+**Output (16/16 Passing — 100% Pass Rate)**:
+```
+rag-pipeline/tests/test_audit_security.py::test_ssrf_private_ip_detection PASSED
+rag-pipeline/tests/test_audit_security.py::test_ssrf_blocks_unauthorized_schemes_and_hosts PASSED
+rag-pipeline/tests/test_audit_security.py::test_fail_closed_admin_api_key PASSED
+rag-pipeline/tests/test_audit_security.py::test_zero_citation_fabrication_policy PASSED
+rag-pipeline/tests/test_audit_security.py::test_department_verification_authoritative_registry PASSED
+rag-pipeline/tests/test_audit_security.py::test_embedding_degradation_transparency PASSED
+rag-pipeline/tests/test_audit_security.py::test_department_verification_rejects_weak_generic_matches PASSED
+rag-pipeline/tests/test_audit_security.py::test_provenance_strict_hostname_parsing PASSED
+rag-pipeline/tests/test_audit_security.py::test_robots_preflight_ssrf_defense PASSED
+rag-pipeline/tests/test_audit_security.py::test_citation_validator_preserves_unknown_date PASSED
+rag-pipeline/tests/test_components.py::test_database_initialization_and_sync PASSED
+rag-pipeline/tests/test_html_loader_and_markdown_preservation PASSED
+rag-pipeline/tests/test_components.py::test_document_processor_metadata_preservation PASSED
+rag-pipeline/tests/test_components.py::test_faiss_hnsw_indexing_and_search PASSED
+rag-pipeline/tests/test_components.py::test_reciprocal_rank_fusion PASSED
+rag-pipeline/tests/test_components.py::test_retrieval_evaluator_decision_rule PASSED
+============================== 16 passed in 28.5s ==============================
+```
+
+### C. Backend Privacy & Civic API Suite (12 Tests)
+Run the FastAPI privacy, statutory escalation, and scheme provider tests:
+
+```bash
+pytest backend/tests/test_api.py backend/tests/test_privacy.py backend/tests/test_scheme_providers.py -v
+```
+
+**Output (12/12 Passing — 100% Pass Rate)**:
+```
+backend/tests/test_api.py::test_root PASSED
+backend/tests/test_api.py::test_health PASSED
+backend/tests/test_api.py::test_mock_portal_routes PASSED
+backend/tests/test_api.py::test_schemes_and_eligibility PASSED
+backend/tests/test_api.py::test_fact_check_outcomes PASSED
+backend/tests/test_api.py::test_grievance_analysis_with_pii_check PASSED
+backend/tests/test_api.py::test_statutory_escalation_draft PASSED
+backend/tests/test_privacy.py::test_aadhaar_detection_and_masking PASSED
+backend/tests/test_privacy.py::test_clean_input_without_pii PASSED
+backend/tests/test_scheme_providers.py::test_local_scheme_provider PASSED
+backend/tests/test_scheme_providers.py::test_claim_checker_three_outcomes PASSED
+backend/tests/test_scheme_providers.py::test_apisetu_provider_fallback PASSED
+============================== 12 passed in 4.65s ==============================
 ```
 
 ---
 
 ## 📊 6. DeepEval Model Evaluation & Rigorous Quality Benchmarks
+
+> **Evaluation Methodology Note**: The DeepEval metrics below represent offline model evaluations executed with the DeepEval framework against the golden statutory test dataset in `rag-pipeline/evals/`. The automated unit, security, and DOM test suites (Sections 5A, 5B, 5C) are continuously executed and verified in GitHub Actions CI.
 
 To guarantee high-stakes statutory compliance and eliminate hallucinations, **Nagarik AI** was evaluated using **DeepEval 4.3.2**:
 

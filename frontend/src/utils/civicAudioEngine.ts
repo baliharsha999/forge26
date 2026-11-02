@@ -1,4 +1,33 @@
 /**
+ * Scans text for sensitive citizen identifiers (Aadhaar, PAN, phone).
+ * Masks them before outbound transmission or external model processing.
+ */
+export function sanitizeCitizenPII(text: string): { cleanText: string; masked: boolean } {
+  if (!text) return { cleanText: '', masked: false };
+  let masked = false;
+  // Aadhaar UID: 12 digits (with optional spaces or hyphens)
+  const aadhaarRegex = /\b[2-9]\d{3}[\s-]?[0-9]{4}[\s-]?[0-9]{4}\b/g;
+  let cleanText = text.replace(aadhaarRegex, (m) => {
+    masked = true;
+    const cleanDigits = m.replace(/[\s-]/g, '');
+    return 'XXXX-XXXX-' + cleanDigits.slice(-4);
+  });
+  // PAN Card: 5 letters, 4 digits, 1 letter
+  const panRegex = /\b[A-Za-z]{5}[0-9]{4}[A-Za-z]{1}\b/g;
+  cleanText = cleanText.replace(panRegex, (m) => {
+    masked = true;
+    return m.slice(0, 2) + 'XXXXX' + m.slice(-2);
+  });
+  // 10-digit Indian phone number starting with 6, 7, 8, or 9
+  const phoneRegex = /\b[6-9]\d{9}\b/g;
+  cleanText = cleanText.replace(phoneRegex, () => {
+    masked = true;
+    return 'XXXXXX-XXXX';
+  });
+  return { cleanText, masked };
+}
+
+/**
  * Nagarik AI — Sovereign Multilingual Civic Audio Engine
  * Provides authentic, native-accented Text-to-Speech for Telugu, Hindi, Tamil, and English.
  * Supports auto-detection of Indic scripts and seamless fallback to high-fidelity audio streams.
@@ -366,11 +395,17 @@ export function speakCivicText(
         if (onEnd) onEnd();
       };
 
-      if (window.speechSynthesis.paused) {
-        window.speechSynthesis.resume();
-      }
-
-      window.speechSynthesis.speak(utterance);
+      setTimeout(() => {
+        try {
+          if (window.speechSynthesis.paused) {
+            window.speechSynthesis.resume();
+          }
+          window.speechSynthesis.speak(utterance);
+        } catch {
+          isAudioActive = false;
+          if (onEnd) onEnd();
+        }
+      }, 50);
       return;
     } catch (err) {
       console.warn('[Nagarik Audio] SpeechSynthesis exception, falling back to stream:', err);

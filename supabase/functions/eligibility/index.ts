@@ -24,16 +24,23 @@ serve(async (req: Request) => {
 
   try {
     const body: EligibilityRequest = await req.json();
-    const {
-      occupation = "farmer",
-      annual_income = 180000,
-      gender = "any",
-      age = 32,
-      landholder = true,
-      state = "All-India",
-      has_school_children = false,
-      caste = "general"
-    } = body;
+    
+    // Explicit Inputs Only - DO NOT assume default farmer, landholder, or income
+    const occupation = body.occupation ? body.occupation.trim().toLowerCase() : null;
+    const annual_income = typeof body.annual_income === "number" ? body.annual_income : null;
+    const gender = body.gender ? body.gender.trim().toLowerCase() : null;
+    const age = typeof body.age === "number" ? body.age : null;
+    const landholder = typeof body.landholder === "boolean" ? body.landholder : null;
+    const state = body.state ? body.state.trim() : "All-India";
+    const has_school_children = typeof body.has_school_children === "boolean" ? body.has_school_children : null;
+    const caste = body.caste ? body.caste.trim().toLowerCase() : null;
+
+    // Identify missing core criteria
+    const missingFields: string[] = [];
+    if (!occupation) missingFields.push("occupation");
+    if (annual_income === null) missingFields.push("annual_income");
+    if (age === null) missingFields.push("age");
+    if (landholder === null) missingFields.push("landholder");
 
     const supabaseUrl = Deno.env.get("SUPABASE_URL") || "";
     const supabaseKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") || Deno.env.get("SUPABASE_ANON_KEY") || "";
@@ -44,7 +51,6 @@ serve(async (req: Request) => {
       .select("*");
 
     const stateNorm = state.toLowerCase();
-    const casteNorm = caste.toLowerCase();
     const likelyMatches: any[] = [];
 
     for (const s of (allSchemes || [])) {
@@ -55,40 +61,48 @@ serve(async (req: Request) => {
         continue;
       }
 
-      // 1. Thalliki Vandanam
-      if (s.id === "SCHEME-016" && has_school_children) {
+      // 1. Thalliki Vandanam (AP school child assistance)
+      if (s.id === "SCHEME-016" && has_school_children === true) {
         if (["all-india", "andhra pradesh", "ap"].includes(stateNorm)) {
           matchReasons.push("Eligible for ₹15,000/yr DBT per school-going child in Andhra Pradesh");
         }
       }
 
-      // 2. PM-KISAN
-      if (s.id === "SCHEME-001" && landholder && occupation === "farmer") {
-        matchReasons.push("Eligible landholder farmer for ₹6,000/yr DBT in 3 installments");
-      }
-
-      // 3. YSR Rythu Bharosa
-      if (s.id === "SCHEME-009" && landholder && ["all-india", "andhra pradesh", "ap"].includes(stateNorm)) {
-        matchReasons.push("Eligible farmer in Andhra Pradesh for ₹13,500/yr financial support");
-      }
-
-      // 4. Ayushman Bharat PM-JAY
-      if (s.id === "SCHEME-002") {
-        if (age >= 70) {
-          matchReasons.push(`Senior citizen (Age ${age}) eligible for Universal ₹5 Lakh health cover`);
-        } else if (annual_income <= 250000) {
-          matchReasons.push("Household income meets SECC BPL criteria for ₹5 Lakh cashless health cover");
+      // 2. PM-KISAN (Requires verified landholder + farmer occupation)
+      if (s.id === "SCHEME-001") {
+        if (landholder === true && occupation === "farmer") {
+          matchReasons.push("Eligible cultivable landholding farmer for ₹6,000/yr DBT in 3 installments");
         }
       }
 
-      // 5. Stand Up India
-      if (s.id === "SCHEME-013" && (gender === "female" || ["sc", "st"].includes(casteNorm))) {
-        matchReasons.push("Eligible as SC/ST/Woman entrepreneur for ₹10 Lakh to ₹1 Crore greenfield credit");
+      // 3. YSR Rythu Bharosa (AP farmer financial assistance)
+      if (s.id === "SCHEME-009") {
+        if (landholder === true && ["farmer", "cultivator"].includes(occupation || "") && ["all-india", "andhra pradesh", "ap"].includes(stateNorm)) {
+          matchReasons.push("Eligible farmer in Andhra Pradesh for ₹13,500/yr financial support");
+        }
       }
 
-      // 6. PM Vishwakarma
-      if (s.id === "SCHEME-011" && ["artisan", "craftsperson", "carpenter", "blacksmith", "tailor"].includes(occupation)) {
-        matchReasons.push("Traditional artisan eligible for collateral-free ₹1L-₹2L loans at 5% + ₹15k toolkit voucher");
+      // 4. Ayushman Bharat PM-JAY (SECC low income or Senior Citizen 70+)
+      if (s.id === "SCHEME-002") {
+        if (age !== null && age >= 70) {
+          matchReasons.push(`Senior citizen (Age ${age}) eligible for Universal ₹5 Lakh health cover`);
+        } else if (annual_income !== null && annual_income <= 250000) {
+          matchReasons.push("Household income meets SECC BPL criteria for ₹5 Lakh cashless hospital cover");
+        }
+      }
+
+      // 5. Stand Up India (SC/ST or Woman Entrepreneur)
+      if (s.id === "SCHEME-013") {
+        if (gender === "female" || (caste && ["sc", "st"].includes(caste))) {
+          matchReasons.push("Eligible as SC/ST/Woman entrepreneur for ₹10 Lakh to ₹1 Crore greenfield credit");
+        }
+      }
+
+      // 6. PM Vishwakarma (Artisan trade specific)
+      if (s.id === "SCHEME-011") {
+        if (occupation && ["artisan", "craftsperson", "carpenter", "blacksmith", "tailor", "potter", "weaver"].includes(occupation)) {
+          matchReasons.push("Traditional artisan eligible for collateral-free ₹1L-₹2L loans at 5% + ₹15,000 toolkit voucher");
+        }
       }
 
       if (matchReasons.length > 0) {
@@ -97,8 +111,8 @@ serve(async (req: Request) => {
           scheme_name: s.name,
           official_url: s.official_url,
           reasons: matchReasons,
-          status: "Likely Eligible",
-          next_step: `Confirm exact documentation at ${s.official_url}`
+          status: missingFields.length > 0 ? "Provisional Match (Incomplete Profile)" : "Likely Eligible",
+          next_step: `Confirm exact statutory documentation at ${s.official_url}`
         });
       }
     }
@@ -106,7 +120,9 @@ serve(async (req: Request) => {
     return new Response(
       JSON.stringify({
         likely_eligible_schemes: likelyMatches.slice(0, 6),
-        disclaimer: "Non-definitive evaluation based on citizen-provided details. Always verify at official portal."
+        evaluation_status: missingFields.length > 0 ? "partial_profile" : "complete_profile",
+        missing_fields: missingFields,
+        disclaimer: "Provisional screening only based solely on citizen-submitted attributes. Formal entitlement requires document verification by the administering department."
       }),
       { headers: { ...corsHeaders, "Content-Type": "application/json" } }
     );

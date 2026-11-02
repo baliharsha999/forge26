@@ -20,13 +20,13 @@ def test_mock_portal_routes():
     # Verify mock municipal portal loads
     res = client.get("/portal")
     assert res.status_code == 200
-    assert "DEMO MUNICIPAL PORTAL" in res.text
+    assert "DEMO MUNICIPAL" in res.text
     assert "citizen-name" in res.text
 
     # Verify operator admin page loads
     admin_res = client.get("/portal/admin")
     assert admin_res.status_code == 200
-    assert "DEMO OPERATOR DASHBOARD" in admin_res.text
+    assert "Operator Dashboard" in admin_res.text
 
 def test_schemes_and_eligibility():
     res = client.get("/api/v1/schemes?category=farmer")

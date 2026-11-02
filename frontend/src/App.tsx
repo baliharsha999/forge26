@@ -13,7 +13,7 @@ import { LOGO_EMBLEM_BASE64 } from './assets/logo_base64';
 import { AISaathiExtensionModal } from './components/AISaathiExtensionModal';
 import { CivicSettingsModal, type SettingsLanguage } from './components/CivicSettingsModal';
 import { CivicHelplineModal } from './components/CivicHelplineModal';
-import { speakCivicText, stopAllSpeech, deduplicateConsecutiveWords, mergeTranscripts } from './utils/civicAudioEngine';
+import { speakCivicText, stopAllSpeech, deduplicateConsecutiveWords, mergeTranscripts, sanitizeCitizenPII } from './utils/civicAudioEngine';
 
 // Civic Language Support
 export type CivicLanguage = 'en' | 'hi' | 'te' | 'ta';
@@ -267,6 +267,9 @@ export function App() {
 
   // Input Bar Voice Typing (Speech Recognition)
   const toggleListening = () => {
+    // Avoid speaker-to-mic feedback loop
+    stopAllSpeech();
+
     if (isListening) {
       try {
         recognitionRef.current?.stop();
@@ -285,7 +288,7 @@ export function App() {
 
     try {
       const rec = new SpeechRecognition();
-      rec.continuous = true;
+      rec.continuous = false; // Rock-solid single-shot dictation across Chrome, Edge, and Android
       rec.interimResults = true;
       rec.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : selectedLanguage === 'ta' ? 'ta-IN' : 'en-IN';
 
@@ -298,7 +301,8 @@ export function App() {
         const cleaned = deduplicateConsecutiveWords(transcript);
         setInputQuery(cleaned || transcript);
       };
-      rec.onerror = () => {
+      rec.onerror = (e: any) => {
+        console.warn('[Nagarik Voice] Recognition error:', e?.error);
         setIsListening(false);
       };
       rec.onend = () => {
@@ -307,7 +311,8 @@ export function App() {
 
       recognitionRef.current = rec;
       rec.start();
-    } catch {
+    } catch (err) {
+      console.warn('[Nagarik Voice] Failed to start:', err);
       setIsListening(false);
     }
   };
@@ -392,12 +397,20 @@ export function App() {
     let streamSucceeded = false;
     let fullBotText = '';
 
+    // Client-side PII protection: mask citizen identity before network transmission
+    const { cleanText: sanitizedQuery } = sanitizeCitizenPII(query);
+
     const payload = {
-      query,
+      query: sanitizedQuery,
       language: activeLang,
       session_id: currentThread.sessionId,
       thread_id: currentThread.id,
-      history: currentThread.messages.slice(-6).map(m => ({ role: m.role, content: m.content }))
+      history: currentThread.messages.slice(-6).map(m => ({
+        role: m.role,
+        content: sanitizeCitizenPII(m.content).cleanText
+      })),
+      is_incognito: incognito,
+      incognito: incognito
     };
 
     const appendChunk = (chunk: string, citations?: SchemeCitation[], followups?: string[]) => {

@@ -22,11 +22,29 @@ jobs:
         with:
           node-version: '20'
 
-      - name: Run Extension Audit Tests
+      - name: Run Extension Audit Tests (34 Tests)
         run: |
           node extension/tests/audit_extension.test.js
 
-  rag-security-tests:
+  frontend-build:
+    name: Frontend TypeScript & Vite Build
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install Frontend Dependencies & Build
+        run: |
+          cd frontend
+          npm install
+          npm run build
+
+  backend-rag-security-tests:
     name: Backend & RAG Security Tests
     runs-on: ubuntu-latest
     steps:
@@ -42,11 +60,17 @@ jobs:
       - name: Install Dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install --no-cache-dir pytest pytest-asyncio fastapi pydantic pydantic-settings beautifulsoup4 requests numpy groq langchain-core langchain-text-splitters rank-bm25 faiss-cpu langgraph python-dotenv
+          pip install --no-cache-dir pytest pytest-asyncio fastapi pydantic pydantic-settings beautifulsoup4 requests numpy groq langchain-core langchain-text-splitters rank-bm25 faiss-cpu langgraph python-dotenv httpx
 
-      - name: Run Security and Component Unit Tests
+      - name: Run RAG Security & Ingestion Tests
         env:
           ADMIN_API_KEY: "test-ci-admin-key-2026"
           PYTHONPATH: "rag-pipeline"
         run: |
           pytest rag-pipeline/tests/test_audit_security.py rag-pipeline/tests/test_components.py -v
+
+      - name: Run Backend Privacy & Civic API Tests
+        env:
+          PYTHONPATH: "backend"
+        run: |
+          pytest backend/tests/test_api.py backend/tests/test_privacy.py backend/tests/test_scheme_providers.py -v

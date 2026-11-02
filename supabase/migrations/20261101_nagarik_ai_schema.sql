@@ -1,86 +1,79 @@
 -- ============================================================================
--- NAGARIK AI - SOVEREIGN CIVIC INTELLIGENCE SUPABASE SCHEMA
--- Enables pgvector extension, verified schemes table, grievances ledger,
--- viral fact checks, and semantic cosine vector similarity search function.
+-- Nagarik AI Sovereign Civic Knowledge Base & Audit Schema
+-- Migration: 20261101_nagarik_ai_schema.sql
+-- Description: Core tables, indexes, full-text search, and Row Level Security
 -- ============================================================================
 
--- 1. Enable pgvector Extension for Semantic RAG Search
-CREATE EXTENSION IF NOT EXISTS vector;
+-- 1. Enable Required Extensions
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
 
--- 2. Schemes & Gazettes Table (Grounded in 5,210 Central & State Schemes)
+-- 2. Verified Welfare Schemes Table
 CREATE TABLE IF NOT EXISTS public.schemes (
     id TEXT PRIMARY KEY,
     name TEXT NOT NULL,
-    department TEXT NOT NULL DEFAULT 'Government of India',
-    level TEXT NOT NULL DEFAULT 'central', -- 'central' | 'state'
-    state TEXT NOT NULL DEFAULT 'All-India',
-    category TEXT NOT NULL DEFAULT 'general',
+    department TEXT NOT NULL,
+    level TEXT NOT NULL CHECK (level IN ('Central', 'State')),
+    state TEXT DEFAULT 'All-India',
+    category TEXT NOT NULL,
     benefit TEXT NOT NULL,
     eligibility_criteria JSONB NOT NULL DEFAULT '[]'::jsonb,
     documents_required JSONB NOT NULL DEFAULT '[]'::jsonb,
-    how_to_apply TEXT NOT NULL DEFAULT '',
-    official_url TEXT NOT NULL DEFAULT 'https://myscheme.gov.in',
-    source_text TEXT NOT NULL DEFAULT '',
+    official_url TEXT NOT NULL,
+    application_mode TEXT DEFAULT 'Online',
     last_verified_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    source_provider TEXT NOT NULL DEFAULT 'local_verified',
-    embedding vector(384), -- Compatible with all-MiniLM-L6-v2 / BGE-small / Groq Embeddings
-    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index on Scheme Search & State filtering
+-- Indexing for Fast Query Routing
 CREATE INDEX IF NOT EXISTS idx_schemes_state ON public.schemes(state);
 CREATE INDEX IF NOT EXISTS idx_schemes_category ON public.schemes(category);
-CREATE INDEX IF NOT EXISTS idx_schemes_name ON public.schemes USING gin(to_tsvector('english', name || ' ' || benefit));
+CREATE INDEX IF NOT EXISTS idx_schemes_level ON public.schemes(level);
+CREATE INDEX IF NOT EXISTS idx_schemes_name_trgm ON public.schemes USING gin (name gin_trgm_ops);
 
--- 3. Civic Grievances Table (Audit Ledger & SLA Tracking)
+-- 3. Sovereign Citizen Grievance Registry
 CREATE TABLE IF NOT EXISTS public.grievances (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     tracking_id TEXT UNIQUE NOT NULL,
+    portal TEXT NOT NULL DEFAULT 'CPGRAMS',
+    department TEXT NOT NULL,
     citizen_name TEXT NOT NULL,
     citizen_phone TEXT NOT NULL,
-    citizen_district TEXT NOT NULL,
-    citizen_locality TEXT NOT NULL,
-    department TEXT NOT NULL,
-    category TEXT NOT NULL,
-    urgency_level TEXT NOT NULL DEFAULT 'Medium',
-    title TEXT NOT NULL,
-    description TEXT NOT NULL,
-    status TEXT NOT NULL DEFAULT 'Pending Review', -- 'Pending Review' | 'In Progress' | 'Resolved' | 'Overdue'
-    days_elapsed INT NOT NULL DEFAULT 0,
-    estimated_sla_days INT NOT NULL DEFAULT 7,
-    assigned_officer TEXT DEFAULT 'Zonal Grievance Officer',
-    verification_hash TEXT NOT NULL,
-    receipt_screenshot TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now()),
-    updated_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+    district TEXT NOT NULL,
+    locality TEXT,
+    pincode TEXT,
+    grievance_category TEXT NOT NULL,
+    grievance_description TEXT NOT NULL,
+    relief_sought TEXT,
+    status TEXT NOT NULL DEFAULT 'SUBMITTED' CHECK (status IN ('SUBMITTED', 'IN_REVIEW', 'RESOLVED', 'REJECTED')),
+    receipt_reference TEXT,
+    created_at TIMESTAMPTZ DEFAULT NOW(),
+    updated_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- Index on Grievances for fast Tracking ID Lookup
-CREATE INDEX IF NOT EXISTS idx_grievances_tracking_id ON public.grievances(tracking_id);
+CREATE INDEX IF NOT EXISTS idx_grievances_tracking ON public.grievances(tracking_id);
 CREATE INDEX IF NOT EXISTS idx_grievances_status ON public.grievances(status);
+CREATE INDEX IF NOT EXISTS idx_grievances_department ON public.grievances(department);
 
--- 4. 3-Outcome Civic Claim Verifier Table
+-- 4. Audit & Fact Check Verification Logs
 CREATE TABLE IF NOT EXISTS public.fact_checks (
-    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    id UUID PRIMARY KEY DEFAULT uuid_generate_v4(),
     claim TEXT NOT NULL,
-    outcome TEXT NOT NULL, -- 'matches' | 'contradicts' | 'unverified'
-    verdict TEXT NOT NULL,
-    truth_score INT NOT NULL DEFAULT 0,
-    summary TEXT NOT NULL,
-    exact_source_text TEXT NOT NULL,
-    official_source_url TEXT NOT NULL,
-    action_advice TEXT NOT NULL,
-    last_verified_date DATE NOT NULL DEFAULT CURRENT_DATE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT timezone('utc'::text, now())
+    status TEXT NOT NULL CHECK (status IN ('TRUE', 'FALSE', 'MISLEADING', 'UNVERIFIED')),
+    official_clarification TEXT NOT NULL,
+    source_url TEXT NOT NULL,
+    verified_by TEXT NOT NULL DEFAULT 'PIB Fact Check / Sovereign Gazette',
+    verified_date DATE NOT NULL DEFAULT CURRENT_DATE,
+    created_at TIMESTAMPTZ DEFAULT NOW()
 );
 
--- 5. Semantic Vector Search Function (RPC: match_schemes)
-CREATE OR REPLACE FUNCTION public.match_schemes(
-    query_embedding vector(384),
-    match_threshold float DEFAULT 0.5,
-    match_count int DEFAULT 5,
-    filter_state text DEFAULT 'All-India'
+CREATE INDEX IF NOT EXISTS idx_fact_checks_claim_trgm ON public.fact_checks USING gin (claim gin_trgm_ops);
+
+-- 5. Full-Text Search Function for Scheme Discovery
+CREATE OR REPLACE FUNCTION public.search_schemes(
+    query_text TEXT,
+    target_state TEXT DEFAULT 'All-India'
 )
 RETURNS TABLE (
     id TEXT,
@@ -90,14 +83,15 @@ RETURNS TABLE (
     state TEXT,
     benefit TEXT,
     eligibility_criteria JSONB,
+    documents_required JSONB,
     official_url TEXT,
-    similarity float
+    last_verified_date DATE,
+    rank REAL
 )
-LANGUAGE plpgsql
+LANGUAGE sql
+STABLE
 AS $$
-BEGIN
-    RETURN QUERY
-    SELECT
+    SELECT 
         s.id,
         s.name,
         s.department,
@@ -105,17 +99,23 @@ BEGIN
         s.state,
         s.benefit,
         s.eligibility_criteria,
+        s.documents_required,
         s.official_url,
-        1 - (s.embedding <=> query_embedding) AS similarity
+        s.last_verified_date,
+        ts_rank_cd(
+            to_tsvector('english', s.name || ' ' || s.benefit || ' ' || s.department || ' ' || s.category),
+            plainto_tsquery('english', query_text)
+        ) AS rank
     FROM public.schemes s
-    WHERE (
-        s.embedding IS NOT NULL
-        AND (filter_state = 'All-India' OR s.state = filter_state OR s.state = 'All-India')
-        AND (1 - (s.embedding <=> query_embedding)) > match_threshold
-    )
-    ORDER BY s.embedding <=> query_embedding
-    LIMIT match_count;
-END;
+    WHERE 
+        (s.state = 'All-India' OR target_state = 'All-India' OR LOWER(s.state) = LOWER(target_state))
+        AND (
+            to_tsvector('english', s.name || ' ' || s.benefit || ' ' || s.department || ' ' || s.category) @@ plainto_tsquery('english', query_text)
+            OR s.name ILIKE '%' || query_text || '%'
+            OR s.benefit ILIKE '%' || query_text || '%'
+        )
+    ORDER BY rank DESC, s.name ASC
+    LIMIT 10;
 $$;
 
 -- 6. Row Level Security (RLS) Policies
@@ -123,17 +123,27 @@ ALTER TABLE public.schemes ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.grievances ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.fact_checks ENABLE ROW LEVEL SECURITY;
 
--- Public can read all verified schemes
+-- 6.1 Public can read all verified schemes
 CREATE POLICY "Allow public read on schemes" ON public.schemes
     FOR SELECT USING (true);
 
--- Public can read and submit grievances
-CREATE POLICY "Allow public read on grievances" ON public.grievances
-    FOR SELECT USING (true);
+-- 6.2 Grievance Security & Citizen Privacy (Hardened):
+-- Bulk enumeration of citizen records is strictly blocked.
+-- A citizen can ONLY retrieve their own grievance record by supplying the exact matching tracking_id.
+CREATE POLICY "Allow tracking-id scoped read on grievances" ON public.grievances
+    FOR SELECT USING (
+        auth.role() = 'service_role' OR 
+        (NULLIF(current_setting('request.headers', true)::json->>'x-tracking-id', '') IS NOT NULL AND 
+         tracking_id = current_setting('request.headers', true)::json->>'x-tracking-id')
+    );
 
-CREATE POLICY "Allow public insert on grievances" ON public.grievances
-    FOR INSERT WITH CHECK (true);
+-- Citizens can insert new grievances with validated contact data
+CREATE POLICY "Allow validated insert on grievances" ON public.grievances
+    FOR INSERT WITH CHECK (
+        citizen_phone IS NOT NULL AND length(citizen_phone) >= 10 AND
+        citizen_name IS NOT NULL AND length(trim(citizen_name)) > 0
+    );
 
--- Public can read fact checks
+-- 6.3 Public can read fact checks
 CREATE POLICY "Allow public read on fact_checks" ON public.fact_checks
     FOR SELECT USING (true);
