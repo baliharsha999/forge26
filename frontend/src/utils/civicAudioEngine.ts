@@ -240,8 +240,10 @@ export function stopAllSpeech(): void {
 let cachedVoices: SpeechSynthesisVoice[] = [];
 function getAvailableVoices(): SpeechSynthesisVoice[] {
   if (typeof window === 'undefined' || !('speechSynthesis' in window)) return [];
-  if (cachedVoices.length === 0) {
-    cachedVoices = window.speechSynthesis.getVoices();
+  const current = window.speechSynthesis.getVoices();
+  if (current && current.length > 0) {
+    cachedVoices = current;
+    return current;
   }
   return cachedVoices;
 }
@@ -384,15 +386,21 @@ export function speakCivicText(
   const langTag = effectiveLang === 'te' ? 'te-IN' : effectiveLang === 'hi' ? 'hi-IN' : effectiveLang === 'ta' ? 'ta-IN' : 'en-IN';
   const matchingVoice = findBestVoice(effectiveLang);
 
-  // 2. Prioritize browser SpeechSynthesis ONLY IF a verified voice is installed for that language
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window && matchingVoice) {
+  // 2. Prioritize browser SpeechSynthesis (native high-fidelity in Chrome, Edge, Safari, Firefox, Android)
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.voice = matchingVoice;
-      utterance.lang = matchingVoice.lang || langTag;
+      utterance.lang = langTag;
       utterance.rate = 0.95;
       utterance.pitch = 1.0;
+
+      if (matchingVoice) {
+        utterance.voice = matchingVoice;
+        if (matchingVoice.lang) {
+          utterance.lang = matchingVoice.lang;
+        }
+      }
 
       utterance.onend = () => {
         isAudioActive = false;
@@ -404,22 +412,17 @@ export function speakCivicText(
         fallbackToAudioStream(clean, effectiveLang, onEnd);
       };
 
-      setTimeout(() => {
-        try {
-          if (window.speechSynthesis.paused) {
-            window.speechSynthesis.resume();
-          }
-          window.speechSynthesis.speak(utterance);
-        } catch {
-          fallbackToAudioStream(clean, effectiveLang, onEnd);
-        }
-      }, 50);
+      if (window.speechSynthesis.paused) {
+        window.speechSynthesis.resume();
+      }
+
+      window.speechSynthesis.speak(utterance);
       return;
     } catch (err) {
       console.warn('[Nagarik Audio] SpeechSynthesis exception, falling back to stream:', err);
     }
   }
 
-  // 3. Fallback: If no native system voice installed (e.g. Telugu on Chrome/Android), stream directly!
+  // 3. Fallback: If SpeechSynthesis is totally unavailable
   fallbackToAudioStream(clean, effectiveLang, onEnd);
 }

@@ -271,10 +271,13 @@ export function App() {
     stopAllSpeech();
 
     if (isListening) {
-      try {
-        recognitionRef.current?.stop();
-      } catch {
-        // ignore
+      if (recognitionRef.current) {
+        try {
+          recognitionRef.current.abort();
+        } catch {
+          // ignore
+        }
+        recognitionRef.current = null;
       }
       setIsListening(false);
       return;
@@ -286,39 +289,47 @@ export function App() {
       return;
     }
 
+    if (recognitionRef.current) {
+      try {
+        recognitionRef.current.abort();
+      } catch {
+        // ignore
+      }
+      recognitionRef.current = null;
+    }
+
     try {
       const rec = new SpeechRecognition();
-      rec.continuous = false; // Rock-solid single-shot dictation across Chrome, Edge, and Android
+      rec.continuous = true;
       rec.interimResults = true;
+      rec.maxAlternatives = 1;
       rec.lang = selectedLanguage === 'hi' ? 'hi-IN' : selectedLanguage === 'te' ? 'te-IN' : selectedLanguage === 'ta' ? 'ta-IN' : 'en-IN';
 
       rec.onstart = () => setIsListening(true);
       rec.onresult = (event: any) => {
-        let finalAccumulator = '';
-        let interimAccumulator = '';
-
-        for (let i = 0; i < event.results.length; ++i) {
+        let assembled = '';
+        for (let i = 0; i < event.results.length; i++) {
           const item = event.results[i];
           const chunk = (item[0]?.transcript || '').trim();
           if (!chunk) continue;
-          if (item.isFinal) {
-            finalAccumulator = mergeTranscripts(finalAccumulator, chunk);
-          } else {
-            // In Android Chrome, the latest interim result contains the active speech hypothesis
-            interimAccumulator = chunk;
-          }
+          assembled = mergeTranscripts(assembled, chunk);
         }
-
-        const combined = mergeTranscripts(finalAccumulator, interimAccumulator);
-        const cleaned = deduplicateConsecutiveWords(combined);
-        setInputQuery(cleaned || combined);
+        const cleaned = deduplicateConsecutiveWords(assembled);
+        const finalTxt = cleaned || assembled;
+        if (finalTxt) {
+          setInputQuery(finalTxt);
+        }
       };
       rec.onerror = (e: any) => {
         console.warn('[Nagarik Voice] Recognition error:', e?.error);
-        setIsListening(false);
+        if (e?.error === 'not-allowed' || e?.error === 'service-not-allowed') {
+          setIsListening(false);
+          recognitionRef.current = null;
+        }
       };
       rec.onend = () => {
         setIsListening(false);
+        recognitionRef.current = null;
       };
 
       recognitionRef.current = rec;
@@ -326,6 +337,7 @@ export function App() {
     } catch (err) {
       console.warn('[Nagarik Voice] Failed to start:', err);
       setIsListening(false);
+      recognitionRef.current = null;
     }
   };
 
