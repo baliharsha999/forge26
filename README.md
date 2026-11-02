@@ -225,7 +225,7 @@ $$c = \sum_{i=0}^{n-1} d(c, p(i \bmod 8, a_i)) = 0$$
 - $d(j, k)$: Multiplication in the dihedral group $D_5$.
 - $p(i, j)$: Permutation table based on powers of the permutation $(0)(1, 5, 8, 9, 4, 2, 7, 0)$.
 
-Nagarik AI validates and embeds official demonstration credentials (e.g., **`488813127839`**, mathematically verified under $D_5$), completely preventing dummy number rejection (`234567890123` fails under $D_5$ with code $\ne 0$).
+Nagarik AI validates and embeds official demonstration credentials (e.g., **`488813527935`**, mathematically verified under $D_5$), completely preventing dummy number rejection (`234567890123` fails under $D_5$ with code $\ne 0$).
 
 ---
 
