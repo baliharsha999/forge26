@@ -182,34 +182,20 @@ export function deduplicateConsecutiveWords(text: string): string {
     }
     result.push(curr);
 
+    // Bounded check for repeated multi-word phrases of length K (from 12 down to 1)
     const len = result.length;
-    if (len >= 4) {
-      if (
-        result[len - 2].toLowerCase() === result[len - 4].toLowerCase() &&
-        result[len - 1].toLowerCase() === result[len - 3].toLowerCase()
-      ) {
-        result.splice(len - 2, 2);
+    const maxK = Math.min(12, Math.floor(len / 2));
+    for (let k = maxK; k >= 1; k--) {
+      let isMatch = true;
+      for (let j = 0; j < k; j++) {
+        if (result[len - 2 * k + j].toLowerCase() !== result[len - k + j].toLowerCase()) {
+          isMatch = false;
+          break;
+        }
       }
-    }
-    if (result.length >= 6) {
-      const l = result.length;
-      if (
-        result[l - 3].toLowerCase() === result[l - 6].toLowerCase() &&
-        result[l - 2].toLowerCase() === result[l - 5].toLowerCase() &&
-        result[l - 1].toLowerCase() === result[l - 4].toLowerCase()
-      ) {
-        result.splice(l - 3, 3);
-      }
-    }
-    if (result.length >= 8) {
-      const l = result.length;
-      if (
-        result[l - 4].toLowerCase() === result[l - 8].toLowerCase() &&
-        result[l - 3].toLowerCase() === result[l - 7].toLowerCase() &&
-        result[l - 2].toLowerCase() === result[l - 6].toLowerCase() &&
-        result[l - 1].toLowerCase() === result[l - 5].toLowerCase()
-      ) {
-        result.splice(l - 4, 4);
+      if (isMatch) {
+        result.splice(len - k, k);
+        break;
       }
     }
   }
@@ -303,7 +289,22 @@ export function findBestVoice(lang: SpokenLanguage): SpeechSynthesisVoice | null
 }
 
 /**
- * Plays an audio queue sequentially using HTML5 Audio.
+ * Subdivides text and starts sequential streaming audio via HTML5 Audio.
+ */
+function fallbackToAudioStream(text: string, lang: SpokenLanguage, onEnd?: () => void) {
+  const chunks = chunkSpokenText(text, 140);
+  if (chunks.length > 0) {
+    audioQueue = chunks;
+    currentQueueIndex = 0;
+    playAudioQueue(lang, onEnd);
+  } else {
+    isAudioActive = false;
+    if (onEnd) onEnd();
+  }
+}
+
+/**
+ * Plays an audio queue sequentially using HTML5 Audio with referrer stripping.
  */
 function playAudioQueue(langCode: string, onEnd?: () => void) {
   if (!isAudioActive || currentQueueIndex >= audioQueue.length) {
@@ -318,7 +319,15 @@ function playAudioQueue(langCode: string, onEnd?: () => void) {
   const encoded = encodeURIComponent(chunk);
   const audioUrl = `https://translate.google.com/translate_tts?ie=UTF-8&client=tw-ob&tl=${langCode}&q=${encoded}`;
 
-  const audio = new Audio(audioUrl);
+  let audio: HTMLAudioElement;
+  try {
+    audio = document.createElement('audio');
+    // Crucial: no-referrer prevents Google Translate from blocking the stream with 404
+    audio.referrerPolicy = 'no-referrer';
+    audio.src = audioUrl;
+  } catch {
+    audio = new Audio(audioUrl);
+  }
   currentAudioElement = audio;
 
   audio.onended = () => {
@@ -339,16 +348,20 @@ function playAudioQueue(langCode: string, onEnd?: () => void) {
 
   audio.play().catch(err => {
     console.warn('[Nagarik Audio] Playback prevented or interrupted:', err);
-    isAudioActive = false;
-    if (onEnd) onEnd();
+    if (isAudioActive && currentQueueIndex < audioQueue.length) {
+      playAudioQueue(langCode, onEnd);
+    } else {
+      isAudioActive = false;
+      if (onEnd) onEnd();
+    }
   });
 }
 
 /**
  * Speaks text using the best available engine:
  * - Detects script (Telugu / Hindi / Tamil / English)
- * - Prioritizes native browser SpeechSynthesis for crystal-clear Telugu (te-IN), Hindi (hi-IN), Tamil (ta-IN), and English
- * - Gracefully falls back to streamed Indic audio if SpeechSynthesis is unavailable
+ * - Prioritizes native browser SpeechSynthesis IF a matching voice is actually installed (Hindi, English, etc.)
+ * - Automatically routes to authentic streamed Indic audio if no native voice is installed (e.g. Telugu on Chrome/Android)
  */
 export function speakCivicText(
   text: string,
@@ -369,20 +382,17 @@ export function speakCivicText(
   onAudioEndCallback = onEnd || null;
 
   const langTag = effectiveLang === 'te' ? 'te-IN' : effectiveLang === 'hi' ? 'hi-IN' : effectiveLang === 'ta' ? 'ta-IN' : 'en-IN';
+  const matchingVoice = findBestVoice(effectiveLang);
 
-  // 2. Prioritize browser SpeechSynthesis (native high-fidelity support in Chrome, Edge, Safari, Firefox)
-  if (typeof window !== 'undefined' && 'speechSynthesis' in window) {
+  // 2. Prioritize browser SpeechSynthesis ONLY IF a verified voice is installed for that language
+  if (typeof window !== 'undefined' && 'speechSynthesis' in window && matchingVoice) {
     try {
       window.speechSynthesis.cancel();
       const utterance = new SpeechSynthesisUtterance(clean);
-      utterance.lang = langTag;
+      utterance.voice = matchingVoice;
+      utterance.lang = matchingVoice.lang || langTag;
       utterance.rate = 0.95;
       utterance.pitch = 1.0;
-
-      const matchingVoice = findBestVoice(effectiveLang);
-      if (matchingVoice) {
-        utterance.voice = matchingVoice;
-      }
 
       utterance.onend = () => {
         isAudioActive = false;
@@ -390,9 +400,8 @@ export function speakCivicText(
       };
 
       utterance.onerror = (e) => {
-        console.warn('[Nagarik Audio] SpeechSynthesis error:', e);
-        isAudioActive = false;
-        if (onEnd) onEnd();
+        console.warn('[Nagarik Audio] SpeechSynthesis error, falling back to stream:', e);
+        fallbackToAudioStream(clean, effectiveLang, onEnd);
       };
 
       setTimeout(() => {
@@ -402,8 +411,7 @@ export function speakCivicText(
           }
           window.speechSynthesis.speak(utterance);
         } catch {
-          isAudioActive = false;
-          if (onEnd) onEnd();
+          fallbackToAudioStream(clean, effectiveLang, onEnd);
         }
       }, 50);
       return;
@@ -412,14 +420,6 @@ export function speakCivicText(
     }
   }
 
-  // 3. Fallback: If SpeechSynthesis is totally unavailable
-  const chunks = chunkSpokenText(clean, 150);
-  if (chunks.length > 0) {
-    audioQueue = chunks;
-    currentQueueIndex = 0;
-    playAudioQueue(effectiveLang, onEnd);
-  } else {
-    isAudioActive = false;
-    if (onEnd) onEnd();
-  }
+  // 3. Fallback: If no native system voice installed (e.g. Telugu on Chrome/Android), stream directly!
+  fallbackToAudioStream(clean, effectiveLang, onEnd);
 }

@@ -145,34 +145,20 @@
       }
       result.push(curr);
 
+      // Bounded check for repeated multi-word phrases of length K (from 12 down to 1)
       const len = result.length;
-      if (len >= 4) {
-        if (
-          result[len - 2].toLowerCase() === result[len - 4].toLowerCase() &&
-          result[len - 1].toLowerCase() === result[len - 3].toLowerCase()
-        ) {
-          result.splice(len - 2, 2);
+      const maxK = Math.min(12, Math.floor(len / 2));
+      for (let k = maxK; k >= 1; k--) {
+        let isMatch = true;
+        for (let j = 0; j < k; j++) {
+          if (result[len - 2 * k + j].toLowerCase() !== result[len - k + j].toLowerCase()) {
+            isMatch = false;
+            break;
+          }
         }
-      }
-      if (result.length >= 6) {
-        const l = result.length;
-        if (
-          result[l - 3].toLowerCase() === result[l - 6].toLowerCase() &&
-          result[l - 2].toLowerCase() === result[l - 5].toLowerCase() &&
-          result[l - 1].toLowerCase() === result[l - 4].toLowerCase()
-        ) {
-          result.splice(l - 3, 3);
-        }
-      }
-      if (result.length >= 8) {
-        const l = result.length;
-        if (
-          result[l - 4].toLowerCase() === result[l - 8].toLowerCase() &&
-          result[l - 3].toLowerCase() === result[l - 7].toLowerCase() &&
-          result[l - 2].toLowerCase() === result[l - 6].toLowerCase() &&
-          result[l - 1].toLowerCase() === result[l - 5].toLowerCase()
-        ) {
-          result.splice(l - 4, 4);
+        if (isMatch) {
+          result.splice(len - k, k);
+          break;
         }
       }
     }

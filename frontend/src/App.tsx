@@ -294,12 +294,24 @@ export function App() {
 
       rec.onstart = () => setIsListening(true);
       rec.onresult = (event: any) => {
-        let transcript = '';
-        for (let i = 0; i < event.results.length; i++) {
-          transcript += event.results[i][0].transcript;
+        let finalAccumulator = '';
+        let interimAccumulator = '';
+
+        for (let i = 0; i < event.results.length; ++i) {
+          const item = event.results[i];
+          const chunk = (item[0]?.transcript || '').trim();
+          if (!chunk) continue;
+          if (item.isFinal) {
+            finalAccumulator = mergeTranscripts(finalAccumulator, chunk);
+          } else {
+            // In Android Chrome, the latest interim result contains the active speech hypothesis
+            interimAccumulator = chunk;
+          }
         }
-        const cleaned = deduplicateConsecutiveWords(transcript);
-        setInputQuery(cleaned || transcript);
+
+        const combined = mergeTranscripts(finalAccumulator, interimAccumulator);
+        const cleaned = deduplicateConsecutiveWords(combined);
+        setInputQuery(cleaned || combined);
       };
       rec.onerror = (e: any) => {
         console.warn('[Nagarik Voice] Recognition error:', e?.error);

@@ -299,12 +299,21 @@ document.addEventListener("DOMContentLoaded", () => {
     };
 
     recognition.onresult = (event) => {
-      let transcript = "";
+      let finalAccumulator = "";
+      let interimAccumulator = "";
       for (let i = 0; i < event.results.length; ++i) {
-        transcript += event.results[i][0].transcript;
+        const item = event.results[i];
+        const chunk = (item[0]?.transcript || "").trim();
+        if (!chunk) continue;
+        if (item.isFinal) {
+          finalAccumulator = mergeTranscripts(finalAccumulator, chunk);
+        } else {
+          interimAccumulator = chunk;
+        }
       }
-      const cleaned = deduplicateConsecutiveWords(transcript);
-      const textToSet = cleaned || transcript;
+      const combined = mergeTranscripts(finalAccumulator, interimAccumulator);
+      const cleaned = deduplicateConsecutiveWords(combined);
+      const textToSet = cleaned || combined;
       if (textToSet) {
         citizenProblemInput.value = textToSet;
         citizenProblemInput.dispatchEvent(new Event("input", { bubbles: true }));
